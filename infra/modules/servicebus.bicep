@@ -43,7 +43,8 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
   properties: {
     minimumTlsVersion: '1.2'
     disableLocalAuth: false
-    zoneRedundant: false
+    // Zone redundancy requires Premium SKU and is only enabled in prod.
+    zoneRedundant: sku == 'Premium' && environment == 'prod'
   }
   tags: {
     environment: environment

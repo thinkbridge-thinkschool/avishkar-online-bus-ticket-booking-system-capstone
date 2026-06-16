@@ -90,8 +90,8 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-11-01-preview' = {
   }
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
-    // 2 GB for Basic, 32 GB for Standard tiers.
-    maxSizeBytes: skuName == 'Basic' ? 2147483648 : 34359738368
+    // 2 GB for Basic, 100 GB for Standard tiers (32 GB is not an allowed Standard value).
+    maxSizeBytes: skuName == 'Basic' ? 2147483648 : 107374182400
     zoneRedundant: false
     readScale: 'Disabled'
     requestedBackupStorageRedundancy: environment == 'prod' ? 'Geo' : 'Local'

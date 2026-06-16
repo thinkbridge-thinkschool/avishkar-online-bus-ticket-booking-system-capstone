@@ -6,10 +6,17 @@
 //   serviceBus → Service Bus Namespace + topics + auth rule
 //   api        → Log Analytics + App Insights + App Service Plan + Web App
 //
-// Deploy:
+// SKU choices are derived automatically from 'environment' — no SKU params
+// needed. azd passes environment via main.parameters.json using AZURE_ENV_NAME.
+//
+// Standalone deploy (az CLI):
 //   az deployment group create \
 //     --resource-group rg-busbooking-dev \
 //     --parameters main.dev.bicepparam
+//
+// azd deploy:
+//   azd up --environment dev
+//   azd up --environment prod
 //
 // What-if (dry run):
 //   az deployment group what-if \
@@ -41,20 +48,18 @@ param sqlAdminLogin string
 @minLength(12)
 param sqlAdminPassword string
 
-@description('Azure SQL Database SKU. Basic suits dev; S2 suits prod.')
-@allowed(['Basic', 'S1', 'S2', 'S3'])
-param sqlSkuName string = 'Basic'
+// ── Environment-driven SKU derivation ─────────────────────────────────────────
+// SKU choices are inlined here so azd only needs to pass 'environment'.
+// This eliminates the four SKU parameters from the public surface area.
+//
+//   dev  → Basic SQL (5 DTU, ~$5/mo),  B1 App Service (~$13/mo)
+//   prod → S2 SQL (50 DTU, ~$75/mo), P1v3 App Service (~$138/mo, zone-redundant)
 
-@description('SQL Database DTU capacity. Basic=5, S1=20, S2=50, S3=100.')
-param sqlCapacity int = 5
-
-@description('Service Bus tier. Standard is the minimum required for topics.')
-@allowed(['Standard', 'Premium'])
-param serviceBusSku string = 'Standard'
-
-@description('App Service Plan SKU. B1 suits dev; P1v3 suits prod.')
-@allowed(['B1', 'B2', 'P1v3', 'P2v3'])
-param appServicePlanSku string = 'B1'
+var sqlSkuName        = environment == 'prod' ? 'S2'    : 'Basic'
+var sqlCapacity       = environment == 'prod' ? 50      : 5
+var serviceBusSku     = 'Standard'              // Standard is required for topics in both envs
+// B2 instead of P1v3: Azure for Students does not include Premium App Service SKUs.
+var appServicePlanSku = environment == 'prod' ? 'B2'   : 'B1'
 
 // ── Modules ───────────────────────────────────────────────────────────────────
 

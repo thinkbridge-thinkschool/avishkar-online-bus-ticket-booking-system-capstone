@@ -1,0 +1,28 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.ncrunch*
+
+## publish artifacts
+publish/
+publish.zip
+app-logs/
+app-logs2/
+app-logs.zip
+app-logs2.zip
+
+## Bicep compiled ARM output
+infra/main.json
+
+## azd environment files (contain secrets)
+.azure/
+
+## scratch / curl output
+200
+
+## OS
+.DS_Store
+Thumbs.db

@@ -152,6 +152,7 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   tags: {
     environment: environment
     app: appName
+    'azd-service-name': 'api'
   }
 }
 

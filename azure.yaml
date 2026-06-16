@@ -1,0 +1,38 @@
+# azure.yaml — azd project config for Online Bus Ticket Booking System
+#
+# azd commands:
+#   azd auth login
+#   azd env new dev
+#   azd up --environment dev
+#   azd up --environment prod
+#   azd down --environment dev --purge --force
+#
+# Deployment Stacks ensure:
+#   - All resources are owned and tracked as a managed set
+#   - Deny assignments block out-of-band changes (drift prevention)
+#   - Teardown deletes every managed resource atomically (no orphans)
+
+name: bus-booking
+
+services:
+  api:
+    project: ./src/BusBooking.Api   # dotnet publish target
+    language: dotnet
+    host: appservice                 # binds to the Web App provisioned by api.bicep
+
+infra:
+  provider: bicep
+  path: ./infra
+  module: main                       # resolves to infra/main.bicep
+
+  # Azure Deployment Stacks (azd alpha.deployment.stacks must be on)
+  deploymentStacks:
+    actionOnUnmanage:
+      resources: delete              # resources dropped from template are DELETED
+      resourceGroups: delete
+      managementGroups: detach
+    denySettings:
+      mode: denyWriteAndDelete       # blocks manual writes/deletes → catches drift
+      applyToChildScopes: true       # deny assignments cascade to child resources
+      excludedPrincipals:
+        - bed97e4c-dfbd-4aa1-a1e4-ec7af963a676  # deploying user — exempted so azd can publish

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "value": "busbooking"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "environment": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "sqlAdminLogin": {
+      "value": "sqladmin"
+    },
+    "sqlAdminPassword": {
+      "value": "${SQL_ADMIN_PASSWORD}"
+    }
+  }
+}
