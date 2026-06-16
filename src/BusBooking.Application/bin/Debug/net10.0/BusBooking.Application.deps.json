@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "BusBooking.Application/1.0.0": {
+        "dependencies": {
+          "BusBooking.Domain": "1.0.0"
+        },
+        "runtime": {
+          "BusBooking.Application.dll": {}
+        }
+      },
+      "BusBooking.Domain/1.0.0": {
+        "runtime": {
+          "BusBooking.Domain.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "BusBooking.Application/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BusBooking.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
