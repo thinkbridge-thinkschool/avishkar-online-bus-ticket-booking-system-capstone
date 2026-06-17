@@ -44,14 +44,16 @@ $sql = @"
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'$appServiceName')
 BEGIN
   CREATE USER [$appServiceName] FROM EXTERNAL PROVIDER;
-  ALTER ROLE db_datareader ADD MEMBER [$appServiceName];
-  ALTER ROLE db_datawriter ADD MEMBER [$appServiceName];
   PRINT 'Created contained user: $appServiceName';
 END
 ELSE
 BEGIN
   PRINT 'Contained user already exists: $appServiceName';
 END
+-- Roles are idempotent: ADD MEMBER is a no-op if already a member
+ALTER ROLE db_datareader ADD MEMBER [$appServiceName];
+ALTER ROLE db_datawriter ADD MEMBER [$appServiceName];
+PRINT 'Roles confirmed: db_datareader + db_datawriter';
 "@
 
 sqlcmd -S $sqlServerFqdn -d $sqlDatabase --authentication-method ActiveDirectoryDefault -Q $sql
