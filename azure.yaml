@@ -25,8 +25,8 @@ hooks:
     # Creates the SQL contained database user for the App Service managed identity.
     # Must run after provision (so the MI exists) and before deploy (so the app
     # can connect on first start).
-    shell: sh
-    run: ./infra/hooks/postprovision.sh
+    shell: pwsh
+    run: ./infra/hooks/postprovision.ps1
     interactive: false
     continueOnError: false
 
