@@ -12,7 +12,7 @@ public static class BookingEndpoints
 {
     public static void MapBookingEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/bookings").WithTags("Bookings");
+        var group = app.MapGroup("/api/bookings").WithTags("Bookings").RequireAuthorization();
 
         group.MapPost("/", CreateBooking);
         group.MapGet("/user/{userId:guid}", GetUserBookings);

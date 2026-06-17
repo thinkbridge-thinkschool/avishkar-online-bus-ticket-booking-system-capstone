@@ -3,6 +3,7 @@ using BusBooking.Api.Booking;
 using BusBooking.Api.Scheduling;
 using BusBooking.Application.Common;
 using BusBooking.Infrastructure;
+using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,12 @@ builder.Services.AddOpenApi();
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// JWT bearer validation — reads AzureAd:TenantId / AzureAd:ClientId from config.
+// In dev these are empty strings, so auth is wired up but not enforced unless
+// the endpoints call RequireAuthorization(). The policy only activates in prod
+// where the values are injected via App Service app settings.
+builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration);
 
 // In Development, skip real Service Bus — log events to console instead.
 if (builder.Environment.IsDevelopment())
@@ -21,6 +28,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapScheduleEndpoints();
 app.MapBookingEndpoints();

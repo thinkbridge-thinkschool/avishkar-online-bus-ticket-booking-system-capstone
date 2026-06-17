@@ -1,6 +1,11 @@
 // ============================================================================
 // Module: sql.bicep
-// Provisions: SQL Server + SQL Database + firewall rules
+// Provisions: SQL Server + SQL Database + firewall rules + Azure AD admin
+//
+// Day 25 change: Added Azure AD administrator resource so that the
+// post-provision hook can connect using Azure AD auth and run
+// CREATE USER [<app-service-name>] FROM EXTERNAL PROVIDER
+// (required before the App Service MI can authenticate to SQL).
 // ============================================================================
 
 @description('Short application name used for resource naming.')
@@ -27,15 +32,17 @@ param skuName string = 'Basic'
 @description('DTU capacity. Basic = 5, S1 = 20, S2 = 50, S3 = 100.')
 param capacity int = 5
 
+@description('Object ID of the Azure AD user to set as SQL Azure AD admin.')
+param sqlAdminPrincipalId string
+
+@description('UPN of the Azure AD user to set as SQL Azure AD admin.')
+param sqlAdminPrincipalName string
+
 // ── Derived names ─────────────────────────────────────────────────────────────
-// uniqueString gives a deterministic 13-char hash of the resource group; we take
-// 6 chars so the full SQL Server name stays well within the 63-char limit.
 var suffix     = take(uniqueString(resourceGroup().id), 6)
 var serverName = 'sql-${appName}-${environment}-${suffix}'
 var dbName     = 'sqldb-${appName}-${environment}'
-
-// Derive the DTU tier from the SKU name.
-var skuTier = skuName == 'Basic' ? 'Basic' : 'Standard'
+var skuTier    = skuName == 'Basic' ? 'Basic' : 'Standard'
 
 // ── SQL Server ────────────────────────────────────────────────────────────────
 
@@ -54,8 +61,23 @@ resource sqlServer 'Microsoft.Sql/servers@2022-11-01-preview' = {
   }
 }
 
-// Allow outbound connections from all Azure-hosted services (0.0.0.0 → 0.0.0.0
-// is the Azure "Allow Azure services" sentinel, not a real CIDR range).
+// ── Azure AD administrator ────────────────────────────────────────────────────
+// Required so the post-provision hook can connect via Azure AD and run
+// CREATE USER [...] FROM EXTERNAL PROVIDER for the App Service MI.
+
+resource sqlAadAdmin 'Microsoft.Sql/servers/administrators@2022-11-01-preview' = {
+  parent: sqlServer
+  name: 'ActiveDirectory'
+  properties: {
+    administratorType: 'ActiveDirectory'
+    login: sqlAdminPrincipalName
+    sid: sqlAdminPrincipalId
+    tenantId: tenant().tenantId
+  }
+}
+
+// ── Firewall rules ────────────────────────────────────────────────────────────
+
 resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2022-11-01-preview' = {
   parent: sqlServer
   name: 'AllowAllWindowsAzureIps'
@@ -65,9 +87,6 @@ resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2022-11-01-prev
   }
 }
 
-// Dev only: open firewall for developer workstations.
-// This rule is deliberately absent in prod — production traffic flows
-// exclusively through the App Service, which is an Azure service above.
 resource allowDevAccess 'Microsoft.Sql/servers/firewallRules@2022-11-01-preview' = if (environment == 'dev') {
   parent: sqlServer
   name: 'AllowDevClientAccess'
@@ -90,7 +109,6 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-11-01-preview' = {
   }
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
-    // 2 GB for Basic, 100 GB for Standard tiers (32 GB is not an allowed Standard value).
     maxSizeBytes: skuName == 'Basic' ? 2147483648 : 107374182400
     zoneRedundant: false
     readScale: 'Disabled'
@@ -110,6 +128,9 @@ output serverFqdn string = sqlServer.properties.fullyQualifiedDomainName
 @description('Name of the created database.')
 output databaseName string = sqlDatabase.name
 
+@description('SQL Server resource name — used by post-provision hook.')
+output serverName string = sqlServer.name
+
 @secure()
-@description('ADO.NET connection string ready for use in App Service app settings.')
-output connectionString string = 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDatabase.name};Persist Security Info=False;User ID=${adminLogin};Password=${adminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+@description('ADO.NET connection string with SQL auth — used only by EF migrations from dev machine, never injected into App Service.')
+output adminConnectionString string = 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDatabase.name};Persist Security Info=False;User ID=${adminLogin};Password=${adminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'

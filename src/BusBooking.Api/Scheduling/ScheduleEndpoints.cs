@@ -7,7 +7,7 @@ public static class ScheduleEndpoints
 {
     public static void MapScheduleEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/schedules").WithTags("Schedules");
+        var group = app.MapGroup("/api/schedules").WithTags("Schedules").RequireAuthorization();
 
         group.MapGet("/search", SearchSchedules);
         group.MapGet("/{scheduleId:guid}/seats", GetSeats);

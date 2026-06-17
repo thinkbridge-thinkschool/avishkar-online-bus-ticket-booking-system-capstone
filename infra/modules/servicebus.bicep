@@ -1,9 +1,15 @@
 // ============================================================================
 // Module: servicebus.bicep
 // Provisions: Service Bus Namespace + booking-confirmed + booking-cancelled
-//             topics + a least-privilege Send+Listen auth rule for the API.
+//             topics + Azure Service Bus Data Sender role for the App Service MI
 //
-// NOTE: Topics require Standard or Premium tier. Basic only supports queues.
+// Day 25 changes:
+//   - disableLocalAuth: true  — SAS keys disabled; all connections must use
+//     Azure AD (Managed Identity). Equivalent of removing password auth.
+//   - Removed api-send-listen SAS auth rule — no longer needed.
+//   - Added Azure Service Bus Data Sender role assignment for the App Service MI.
+//   - Output changed from SAS connection string to fully qualified namespace
+//     hostname (no secret).
 // ============================================================================
 
 @description('Short application name used for resource naming.')
@@ -20,16 +26,17 @@ param environment string
 @allowed(['Standard', 'Premium'])
 param sku string = 'Standard'
 
+@description('Principal ID of the App Service system-assigned managed identity.')
+param webAppPrincipalId string
+
 // ── Derived names ─────────────────────────────────────────────────────────────
 var suffix        = take(uniqueString(resourceGroup().id), 6)
-// Service Bus namespace names must be 6–50 chars, globally unique.
 var namespaceName = 'sb-${appName}-${environment}-${suffix}'
+var topicConfirmed = 'booking-confirmed'
+var topicCancelled = 'booking-cancelled'
 
-// Topic names match the convention in ServiceBusEventPublisher.cs:
-//   BookingConfirmedEvent → "booking-confirmed"
-//   BookingCancelledEvent → "booking-cancelled"
-var topicConfirmed  = 'booking-confirmed'
-var topicCancelled  = 'booking-cancelled'
+// Azure Service Bus Data Sender — send messages only; no listen or manage.
+var serviceBusDataSenderRoleId = '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39'
 
 // ── Namespace ─────────────────────────────────────────────────────────────────
 
@@ -42,8 +49,7 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
   }
   properties: {
     minimumTlsVersion: '1.2'
-    disableLocalAuth: false
-    // Zone redundancy requires Premium SKU and is only enabled in prod.
+    disableLocalAuth: true             // SAS keys globally disabled — MI only
     zoneRedundant: sku == 'Premium' && environment == 'prod'
   }
   tags: {
@@ -58,7 +64,7 @@ resource topicBookingConfirmed 'Microsoft.ServiceBus/namespaces/topics@2022-10-0
   parent: serviceBusNamespace
   name: topicConfirmed
   properties: {
-    defaultMessageTimeToLive: 'P14D'          // 14-day TTL
+    defaultMessageTimeToLive: 'P14D'
     maxSizeInMegabytes: 1024
     requiresDuplicateDetection: false
     enableBatchedOperations: true
@@ -78,19 +84,20 @@ resource topicBookingCancelled 'Microsoft.ServiceBus/namespaces/topics@2022-10-0
   }
 }
 
-// ── Auth rule (least-privilege) ───────────────────────────────────────────────
-// The API only needs to Send messages; consumers need Listen.
-// One namespace-level rule with both rights avoids per-topic key management
-// for this monolith setup.  In a microservices layout, create per-topic rules.
+// ── RBAC: App Service MI → Azure Service Bus Data Sender ──────────────────────
+// Grants the App Service MI the right to send messages to any topic in this
+// namespace. Does not grant Listen or Manage — least privilege.
 
-resource apiAuthRule 'Microsoft.ServiceBus/namespaces/authorizationRules@2022-10-01-preview' = {
-  parent: serviceBusNamespace
-  name: 'api-send-listen'
+resource sbDataSenderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(serviceBusNamespace.id, webAppPrincipalId, serviceBusDataSenderRoleId)
+  scope: serviceBusNamespace
   properties: {
-    rights: [
-      'Send'
-      'Listen'
-    ]
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      serviceBusDataSenderRoleId
+    )
+    principalId: webAppPrincipalId
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -99,6 +106,5 @@ resource apiAuthRule 'Microsoft.ServiceBus/namespaces/authorizationRules@2022-10
 @description('Service Bus namespace name.')
 output namespaceName string = serviceBusNamespace.name
 
-@secure()
-@description('Primary connection string for the api-send-listen auth rule.')
-output connectionString string = apiAuthRule.listKeys().primaryConnectionString
+@description('Fully qualified Service Bus namespace hostname — no secret, safe as app setting.')
+output fullyQualifiedNamespace string = '${serviceBusNamespace.name}.servicebus.windows.net'

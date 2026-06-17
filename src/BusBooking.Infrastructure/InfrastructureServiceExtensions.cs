@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using BusBooking.Application.Booking.Repositories;
 using BusBooking.Application.Common;
@@ -20,8 +21,9 @@ public static class InfrastructureServiceExtensions
         services.AddDbContext<BusBookingDbContext>(opts =>
             opts.UseSqlServer(config.GetConnectionString("DefaultConnection")));
 
-        services.AddSingleton(_ =>
-            new ServiceBusClient(config.GetConnectionString("ServiceBus")));
+        var sbNamespace = config["ServiceBus:Namespace"];
+        if (!string.IsNullOrEmpty(sbNamespace))
+            services.AddSingleton(_ => new ServiceBusClient(sbNamespace, new DefaultAzureCredential()));
 
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IScheduleRepository, ScheduleRepository>();

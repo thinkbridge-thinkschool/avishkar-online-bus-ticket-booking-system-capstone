@@ -16,6 +16,18 @@
     },
     "sqlAdminPassword": {
       "value": "${SQL_ADMIN_PASSWORD}"
+    },
+    "sqlAdminPrincipalId": {
+      "value": "${AZURE_PRINCIPAL_ID}"
+    },
+    "sqlAdminPrincipalName": {
+      "value": "${AZURE_PRINCIPAL_NAME}"
+    },
+    "tenantId": {
+      "value": "${AZURE_TENANT_ID}"
+    },
+    "aadClientId": {
+      "value": "${AAD_CLIENT_ID}"
     }
   }
 }
