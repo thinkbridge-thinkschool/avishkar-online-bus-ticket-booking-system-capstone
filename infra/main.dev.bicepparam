@@ -29,7 +29,7 @@ param environment      = 'dev'
 
 param sqlAdminLogin         = 'sqladmin'
 param sqlAdminPassword      = readEnvironmentVariable('SQL_ADMIN_PASSWORD')
-param tenantId              = readEnvironmentVariable('AZURE_TENANT_ID')
-param sqlAdminPrincipalId   = readEnvironmentVariable('AZURE_PRINCIPAL_ID')
-param sqlAdminPrincipalName = readEnvironmentVariable('AZURE_PRINCIPAL_NAME')
-param aadClientId           = readEnvironmentVariable('AAD_CLIENT_ID')
+param tenantId              = readEnvironmentVariable('AZURE_TENANT_ID', '')
+param sqlAdminPrincipalId   = readEnvironmentVariable('AZURE_PRINCIPAL_ID', '')
+param sqlAdminPrincipalName = readEnvironmentVariable('AZURE_PRINCIPAL_NAME', '')
+param aadClientId           = readEnvironmentVariable('AAD_CLIENT_ID', '')
