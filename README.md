@@ -1,4 +1,27 @@
-# Day 24 — azd + Azure Deployment Stacks
+# Online Bus Ticket Booking System
+
+## Project Overview
+
+.NET 10 Clean Architecture API deployed to Azure via the Azure Developer CLI (`azd`) with Azure Deployment Stacks managing both `dev` and `prod` environments.
+
+## Architecture
+
+Four-layer Clean Architecture deployed as a Linux App Service on Azure:
+
+| Layer | Responsibility |
+|---|---|
+| Domain | Entities, value objects, domain rules |
+| Application | CQRS handlers, repository interfaces, event contracts |
+| Infrastructure | EF Core, Service Bus, repositories, background services |
+| Api | Minimal API endpoints, DI wiring, auth middleware |
+
+## Contents
+
+- [Day 24 — azd + Azure Deployment Stacks](#day-24--azd--azure-deployment-stacks)
+
+---
+
+## Day 24 — azd + Azure Deployment Stacks
 
 **Online Bus Ticket Booking System** — .NET 10 Clean Architecture API deployed to Azure via the Azure Developer CLI (`azd`) with Azure Deployment Stacks managing both `dev` and `prod` environments.
 
