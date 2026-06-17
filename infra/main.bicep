@@ -64,6 +64,15 @@ var sqlCapacity       = environment == 'prod' ? 50     : 5
 var serviceBusSku     = 'Standard'
 var appServicePlanSku = environment == 'prod' ? 'B2'   : 'B1'
 
+// ── Pre-computed resource names ───────────────────────────────────────────────
+// Both servicebus.bicep and keyvault.bicep derive their names with the same
+// uniqueString formula. Computing them here lets api.bicep receive the SB
+// hostname and KV name without depending on module outputs — which would
+// create a cycle (api → serviceBus/keyVault AND serviceBus/keyVault → api).
+var suffix = take(uniqueString(resourceGroup().id), 6)
+var sbFqdn = 'sb-${appName}-${environment}-${suffix}.servicebus.windows.net'
+var kvName = 'kv-${appName}-${environment}-${suffix}'
+
 // ── Modules ───────────────────────────────────────────────────────────────────
 
 module sql 'modules/sql.bicep' = {
@@ -91,8 +100,8 @@ module api 'modules/api.bicep' = {
     environment: environment
     sqlServerFqdn: sql.outputs.serverFqdn
     sqlDatabaseName: sql.outputs.databaseName
-    serviceBusNamespace: serviceBus.outputs.fullyQualifiedNamespace
-    keyVaultName: keyVault.outputs.keyVaultName
+    serviceBusNamespace: sbFqdn
+    keyVaultName: kvName
     tenantId: tenantId
     aadClientId: aadClientId
     appServicePlanSku: appServicePlanSku
@@ -139,4 +148,4 @@ output sqlServerFqdn string = sql.outputs.serverFqdn
 output sqlDatabaseName string = sql.outputs.databaseName
 
 @description('Key Vault name.')
-output keyVaultName string = keyVault.outputs.keyVaultName
+output keyVaultName string = kvName
