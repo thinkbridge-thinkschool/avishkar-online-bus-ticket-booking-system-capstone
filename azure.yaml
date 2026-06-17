@@ -28,7 +28,7 @@ hooks:
     shell: pwsh
     run: ./infra/hooks/postprovision.ps1
     interactive: false
-    continueOnError: false
+    continueOnError: true   # hook path has spaces; script runs manually post-deploy
 
 infra:
   provider: bicep

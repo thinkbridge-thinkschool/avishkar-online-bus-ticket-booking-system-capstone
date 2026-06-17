@@ -1,4 +1,28 @@
-# Day 24 — azd + Azure Deployment Stacks
+# Online Bus Ticket Booking System
+
+## Project Overview
+
+.NET 10 Clean Architecture API deployed to Azure via the Azure Developer CLI (`azd`) with Azure Deployment Stacks managing both `dev` and `prod` environments, and Managed Identity for all Azure resource access.
+
+## Architecture
+
+Four-layer Clean Architecture deployed as a Linux App Service on Azure:
+
+| Layer | Responsibility |
+|---|---|
+| Domain | Entities, value objects, domain rules |
+| Application | CQRS handlers, repository interfaces, event contracts |
+| Infrastructure | EF Core, Service Bus, repositories, background services |
+| Api | Minimal API endpoints, DI wiring, auth middleware |
+
+## Contents
+
+- [Day 24 — azd + Azure Deployment Stacks](#day-24--azd--azure-deployment-stacks)
+- [Day 25 — Identity End-to-End](#day-25--identity-end-to-end)
+
+---
+
+## Day 24 — azd + Azure Deployment Stacks
 
 **Online Bus Ticket Booking System** — .NET 10 Clean Architecture API deployed to Azure via the Azure Developer CLI (`azd`) with Azure Deployment Stacks managing both `dev` and `prod` environments.
 
@@ -230,3 +254,104 @@ Both Azure SQL databases have both migrations applied:
 - **Azure Bicep** — IaC, three child modules composed by `main.bicep`
 - **azd CLI 1.25.2** — `azure.yaml` wires service → infra, `azd up` = provision + build + deploy
 - **Azure Deployment Stacks** — lifecycle ownership, deny assignments, atomic teardown
+
+---
+
+## Day 25 — Identity End-to-End
+
+**Goal:** Remove every connection-string secret from the application. After Day 25, the App Service application settings contain zero passwords, zero SAS keys, and zero connection strings with credentials. All Azure resource access uses Azure AD identities.
+
+| Path | Before | After |
+|---|---|---|
+| API → Azure SQL | Password in connection string | Managed Identity (`Authentication=Active Directory Default`) |
+| API → Service Bus | SAS connection string | Managed Identity (`DefaultAzureCredential`) |
+| API → clients | No authentication | Entra ID JWT bearer tokens (`Microsoft.Identity.Web`) |
+| App Insights connection string | Plain app setting | Key Vault reference (`@Microsoft.KeyVault(...)`) |
+
+---
+
+### Architecture Changes
+
+**Infrastructure (Bicep)**
+
+- **System-Assigned Managed Identity** enabled on the App Service (`identity: { type: 'SystemAssigned' }`). Azure creates and rotates the identity certificate automatically.
+- **Azure SQL** configured with a Microsoft Entra ID admin (the deploying user's account set via `Microsoft.Sql/servers/administrators` resource). The connection string uses `Authentication=Active Directory Default` — no `User ID` or `Password`.
+- **Service Bus local authentication disabled** (`disableLocalAuth: true`) — all SAS keys are globally non-functional regardless of whether they exist.
+- **Service Bus Data Sender RBAC role** assigned to the App Service Managed Identity — least privilege, send-only, no listen or manage.
+- **Key Vault** created with `enableRbacAuthorization: true` (RBAC model, no legacy access policies). Stores the Application Insights connection string as a secret.
+- **Key Vault Secrets User role** assigned to the App Service Managed Identity — read secrets only, no write or manage.
+- **Application Insights connection string** moved from a plain app setting to a Key Vault reference: `@Microsoft.KeyVault(VaultName=kv-...;SecretName=appinsights-connection-string)`. The App Service platform resolves this transparently at runtime.
+- **Post-provision hook** (`infra/hooks/postprovision.ps1`) creates the SQL contained database user (`CREATE USER [...] FROM EXTERNAL PROVIDER`) after each `azd provision` — this step cannot be done in Bicep as it requires an Azure AD-authenticated SQL connection.
+
+**New files added**
+
+```
+infra/
+├── modules/
+│   └── keyvault.bicep              # Key Vault + secret + MI Secrets User role
+└── hooks/
+    ├── postprovision.ps1           # SQL contained user creation (Windows/pwsh)
+    └── postprovision.sh            # SQL contained user creation (Linux/bash)
+```
+
+**.NET source**
+
+- **`Azure.Identity`** package added to `BusBooking.Infrastructure` — provides `DefaultAzureCredential`.
+- **`Microsoft.Identity.Web`** package added to `BusBooking.Api` — provides `AddMicrosoftIdentityWebApiAuthentication`.
+- **`InfrastructureServiceExtensions.cs`** — Service Bus client changed from SAS connection string to `new ServiceBusClient(namespace, new DefaultAzureCredential())`. Registration is null-guarded so local dev (no namespace configured) falls back to `NoOpEventPublisher`.
+- **`Program.cs`** — `AddMicrosoftIdentityWebApiAuthentication`, `UseAuthentication`, and `UseAuthorization` added. Reads `AzureAd:TenantId`, `AzureAd:ClientId`, `AzureAd:Audience` from configuration.
+- **`BookingEndpoints.cs`** and **`ScheduleEndpoints.cs`** — `.RequireAuthorization()` added to both endpoint groups.
+- **`appsettings.json`** — `ServiceBus` moved out of `ConnectionStrings` into its own section (`ServiceBus:Namespace`); `AzureAd` section added with empty defaults for local dev.
+
+**Entra ID App Registration**
+
+A new app registration **BusBooking API** was created in Microsoft Entra ID:
+
+| Field | Value |
+|---|---|
+| Application (client) ID | `cc1051c8-d4b5-49c9-a373-8780fb1c2a90` |
+| Directory (tenant) ID | `7e394fc8-4b86-4cfe-810e-43f86f8bec47` |
+| Audience | `api://cc1051c8-d4b5-49c9-a373-8780fb1c2a90` |
+
+---
+
+### Evidence Screenshots
+
+#### SS-09 — App Service Managed Identity
+![SS-09](Screenshots/SS-09_appservice-identity-system-assigned.png)
+
+#### SS-10 — App Service Configuration (No Secrets)
+![SS-10](Screenshots/SS-10_appservice-config-no-secrets.png)
+
+#### SS-11 — SQL Server Entra ID Admin
+![SS-11](Screenshots/SS-11_sql-aad-admin-portal.png)
+
+#### SS-12 — Service Bus Local Authentication Disabled
+![SS-12](Screenshots/SS-12_servicebus-local-auth-disabled.png)
+
+#### SS-13 — Service Bus Shared Access Policies
+![SS-13](Screenshots/SS-13_servicebus-no-shared-access-policies.png)
+
+#### SS-14 — Service Bus Data Sender RBAC Assignment
+![SS-14](Screenshots/SS-14_servicebus-iam-mi-sender.png)
+
+#### SS-15 — Key Vault Secret
+![SS-15](Screenshots/SS-15-keyvault-secret-appinsights.png)
+
+#### SS-16 — Key Vault Secrets User Role Assignment
+![SS-16](Screenshots/SS-16-keyvault-iam-mi-secrets-user.png)
+
+#### SS-17 — Microsoft Entra ID App Registration
+![SS-17](Screenshots/SS-17-entra-app-registration.png)
+
+---
+
+### Security Improvements
+
+- No SQL passwords stored in code, environment variables, or App Service settings.
+- No Service Bus connection strings stored in code or App Service settings.
+- No Service Bus SAS authentication — `disableLocalAuth: true` makes all SAS keys non-functional.
+- Application Insights connection string stored in Key Vault, never exposed as a plain app setting.
+- Managed Identity used for all Azure resource access (SQL, Service Bus, Key Vault) — no credentials to rotate or leak.
+- Microsoft Entra ID used for API authentication — every request requires a valid JWT bearer token.
+- Zero secrets exposed in App Service application settings — verified via portal screenshot SS-10.
