@@ -363,6 +363,25 @@ A new app registration **BusBooking API** was created in Microsoft Entra ID:
 
 **Goal:** Make production legible. Wire OpenTelemetry → Application Insights for distributed tracing across API → Service Bus → Worker → Database. Write KQL queries to answer operational questions (latency percentiles, dependency breakdown, error rates). Configure an alert on error rate.
 
+### Deliverables Checklist
+
+| # | Requirement | Status |
+|---|---|---|
+| 1 | Swap legacy AI SDK → `Azure.Monitor.OpenTelemetry.AspNetCore` 1.3.0 | Done |
+| 2 | Wire `UseAzureMonitor()` + `WithTracing()` in `Program.cs` | Done |
+| 3 | Custom `ActivitySource("BusBooking.Worker")` spans in `SeatExpiryService` | Done |
+| 4 | Custom `ActivitySource("BusBooking.Messaging")` spans in `ServiceBusEventPublisher` | Done |
+| 5 | W3C `traceparent` propagation into Service Bus message properties | Done |
+| 6 | Structured logging with `{named}` placeholders throughout | Done |
+| 7 | Distributed trace stitched: Worker span → SQL child spans share `operation_Id` | Done |
+| 8 | KQL Query 1 — p50/p99 latency by endpoint | Done |
+| 9 | KQL Query 2 — dependency call breakdown (SQL, InProc, HTTP) | Done |
+| 10 | KQL Query 3 — end-to-end trace by `operation_Id` | Done |
+| 11 | KQL Query 4 — worker span stats (`seats.released`, `schedules.scanned`) | Done |
+| 12 | KQL Query 5 — error rate by endpoint | Done |
+| 13 | Alert rule `BusBooking-ErrorRate-Alert` provisioned in Azure (severity 2, PT5M/PT15M) | Done |
+| 14 | Application Map showing full dependency topology | Done |
+
 ---
 
 ### What Changed
@@ -677,16 +696,41 @@ Confirmed via `az monitor scheduled-query show`:
 ### Evidence Screenshots
 
 #### SS-18 — Application Insights Live Metrics
+**Proves:** OTel SDK is connected to Application Insights and telemetry is flowing in real time. The Live Metrics blade shows the App Service instance (`app-busbooking-dev-paqrwn`) as a connected server with active incoming request rate and dependency call rate — confirming `UseAzureMonitor()` is wired up correctly and the `APPLICATIONINSIGHTS_CONNECTION_STRING` Key Vault reference is resolving.
+
 ![SS-18](Screenshots/SS-18_appinsights-live-metrics.png)
 
+---
+
 #### SS-19 — Distributed Trace End-to-End (Transaction Search)
+**Proves:** Distributed tracing is stitched across process boundaries. The waterfall view shows `SeatExpiryService.ReleaseExpiredReservations` (custom `ActivitySource("BusBooking.Worker")` span) as the parent, with SQL dependency spans appearing as children under the same `operation_Id`. All spans share one W3C trace ID — the custom span, the ADO.NET SQL calls, and the OTel export are rendered as a single end-to-end transaction.
+
 ![SS-19](Screenshots/SS-19_appinsights-distributed-trace-end-to-end.png)
 
-#### SS-20 — KQL p50/p99 by Endpoint Query Result
+---
+
+#### SS-20 — KQL p50/p99 by Endpoint
+**Proves:** Request telemetry is queryable with latency percentiles broken down by route template. Query 1 returns p50 and p99 duration (ms) for every endpoint that received traffic — `GET /api/schedules/search`, `GET /openapi/v1.json`, `GET /api/bookings/user/{userId:guid}` — confirming ASP.NET Core request instrumentation is active.
+
 ![SS-20](Screenshots/SS-20_appinsights-kql-p50-p99-by-endpoint.png)
 
-#### SS-21 — KQL Dependency Breakdown Query Result
+---
+
+#### SS-21 — KQL Dependency Breakdown
+**Proves:** All dependency types are captured — `SQL` (ADO.NET/EF Core via SqlClient instrumentation), `InProc` (custom `ActivitySource` spans), `HTTP` (outbound calls including OTel export and MI token acquisition), and `WCF Service` (Live Metrics QuickPulse). The `InProc | SeatExpiryService.ReleaseExpiredReservations` row specifically proves the custom worker span is reaching App Insights.
+
 ![SS-21](Screenshots/SS-21_appinsights-kql-dependency-breakdown.png)
 
+---
+
 #### SS-22 — Alert Rule Configuration
+**Proves:** The error-rate alert rule `BusBooking-ErrorRate-Alert` is provisioned in Azure with severity 2 (Warning), scoped to `ai-busbooking-dev`, evaluating every 5 minutes over a 15-minute window. The KQL query is visible in the expanded Conditions panel, confirming the rule fires whenever `error_rate_pct > 5` returns any rows.
+
 ![SS-22](Screenshots/SS-22_appinsights-alert-rule-error-rate.png)
+
+---
+
+#### SS-23 — Application Map
+**Proves:** Application Insights has automatically discovered and mapped the full runtime dependency topology. The map shows `app-busbo...ev-paqrwn` (App Service) at the centre with edges to `sql-busbo...oking-dev` (Azure SQL, 24 calls, 8.7ms avg) and two outbound HTTP nodes (OTel telemetry export and Live Metrics QuickPulse). This topology is derived entirely from the distributed trace spans — no manual configuration required.
+
+![SS-23](Screenshots/SS-23_appinsights-application-map.png)
