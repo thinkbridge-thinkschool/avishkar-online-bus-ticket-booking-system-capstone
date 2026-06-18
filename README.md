@@ -19,6 +19,7 @@ Four-layer Clean Architecture deployed as a Linux App Service on Azure:
 
 - [Day 24 — azd + Azure Deployment Stacks](#day-24--azd--azure-deployment-stacks)
 - [Day 25 — Identity End-to-End](#day-25--identity-end-to-end)
+- [Day 26 — App Insights + KQL](#day-26--app-insights--kql)
 
 ---
 
@@ -355,3 +356,233 @@ A new app registration **BusBooking API** was created in Microsoft Entra ID:
 - Managed Identity used for all Azure resource access (SQL, Service Bus, Key Vault) — no credentials to rotate or leak.
 - Microsoft Entra ID used for API authentication — every request requires a valid JWT bearer token.
 - Zero secrets exposed in App Service application settings — verified via portal screenshot SS-10.
+
+---
+
+## Day 26 — App Insights + KQL
+
+**Goal:** Make production legible. Wire OpenTelemetry → Application Insights for distributed tracing across API → Service Bus → Worker → Database. Write KQL queries to answer operational questions (latency percentiles, dependency breakdown, error rates). Configure an alert on error rate.
+
+---
+
+### What Changed
+
+#### Package Swap
+
+| Removed | Added |
+|---------|-------|
+| `Microsoft.ApplicationInsights.AspNetCore` 2.22.0 | `Azure.Monitor.OpenTelemetry.AspNetCore` 1.3.0 |
+
+The legacy SDK adds telemetry via middleware hooks. The OTel SDK instruments at the activity/span level — HTTP requests, outbound HTTP, SQL queries, and custom spans all emit to the same W3C trace context, stitching into a single distributed trace in Application Insights.
+
+SQL dependency spans come from the bundled `SqlClient` instrumentation inside `Azure.Monitor.OpenTelemetry.AspNetCore` (the same ADO.NET layer EF Core uses), so no separate EF Core instrumentation package is needed.
+
+#### `Program.cs` — OTel wiring
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .UseAzureMonitor()               // reads APPLICATIONINSIGHTS_CONNECTION_STRING
+    .WithTracing(tracing => tracing
+        .AddSource("BusBooking.Worker")      // SeatExpiryService custom spans
+        .AddSource("BusBooking.Messaging")); // ServiceBusEventPublisher custom spans
+```
+
+#### `appsettings.json` — Sampling + log suppression
+
+```json
+"AzureMonitor": {
+  "SamplingRatio": 1.0
+},
+"Logging": {
+  "LogLevel": {
+    "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
+  }
+}
+```
+
+`SamplingRatio: 1.0` captures every request (appropriate for dev/low-traffic). Suppress EF Core SQL log noise — SQL already appears as a structured dependency span.
+
+#### `SeatExpiryService.cs` — Custom worker spans
+
+```csharp
+private static readonly ActivitySource _source = new("BusBooking.Worker");
+
+using var activity = _source.StartActivity("SeatExpiryService.ReleaseExpiredReservations");
+activity?.SetTag("seats.released", released);
+activity?.SetTag("schedules.scanned", schedules.Count);
+```
+
+Each 5-minute expiry run creates a custom span with structured tags. These appear in Application Insights under the `BusBooking.Worker` dependency type.
+
+#### `ServiceBusEventPublisher.cs` — W3C trace propagation
+
+```csharp
+private static readonly ActivitySource _source = new("BusBooking.Messaging");
+
+using var activity = _source.StartActivity($"ServiceBus.Publish {topic}");
+activity?.SetTag("messaging.system", "servicebus");
+activity?.SetTag("messaging.destination", topic);
+
+// Propagate W3C trace context to downstream consumer
+if (Activity.Current is { } current)
+{
+    message.ApplicationProperties["traceparent"] = current.Id;
+    message.ApplicationProperties["tracestate"] = current.TraceStateString ?? string.Empty;
+}
+```
+
+The `traceparent` header written to the Service Bus message carries the W3C trace ID. A consumer reads this header and calls `Activity.SetParentId()` to continue the trace — so API → Service Bus → Worker spans stitch into one timeline in App Insights.
+
+---
+
+### Distributed Trace Flow
+
+```
+HTTP POST /api/bookings
+│
+├─ [request]  POST /api/bookings                         (ASP.NET Core instrumentation)
+│   ├─ [dependency] sql: INSERT Bookings                 (SqlClient instrumentation)
+│   ├─ [dependency] sql: UPDATE Seats                    (SqlClient instrumentation)
+│   └─ [custom]  ServiceBus.Publish booking-confirmed    (BusBooking.Messaging ActivitySource)
+│                │
+│                └── traceparent → Service Bus message → downstream consumer
+│
+└─ [background] SeatExpiryService.ReleaseExpiredReservations  (BusBooking.Worker ActivitySource)
+    ├─ tags: seats.released=N, schedules.scanned=M
+    └─ [dependency] sql: SELECT Schedules + UPDATE Seats
+```
+
+All spans share the same `operation_Id` (W3C trace ID) so Application Insights renders them as a single end-to-end transaction.
+
+---
+
+### KQL Queries
+
+All queries run in **Application Insights → Logs** (or the Log Analytics workspace linked to the AI resource).
+
+#### 1 — p50 / p99 Latency by Endpoint (last 24 h)
+
+```kql
+requests
+| where timestamp > ago(24h)
+| where success == true
+| summarize
+    p50  = percentile(duration, 50),
+    p99  = percentile(duration, 99),
+    count = count()
+  by name
+| order by p99 desc
+```
+
+`name` = the route template (`GET /api/schedules/search`, `POST /api/bookings`, etc.).
+`duration` is in milliseconds.
+
+#### 2 — Dependency Call Breakdown (last 1 h)
+
+```kql
+dependencies
+| where timestamp > ago(1h)
+| summarize
+    calls     = count(),
+    failures  = countif(success == false),
+    avg_ms    = avg(duration),
+    p99_ms    = percentile(duration, 99)
+  by type, name
+| order by calls desc
+```
+
+`type` = `SQL` (ADO.NET), `Azure Service Bus`, or `InProc` (custom `ActivitySource`).
+`name` for SQL = the stored procedure / command text (truncated).
+
+#### 3 — End-to-End Distributed Trace (stitched across API + Worker)
+
+```kql
+union requests, dependencies, traces
+| where timestamp > ago(1h)
+| where operation_Id == "<paste-trace-id-here>"
+| project timestamp, itemType, name, duration, success, message
+| order by timestamp asc
+```
+
+Replace `<paste-trace-id-here>` with a `traceId` from a booking request log line:
+```
+Published BookingConfirmedEvent to topic booking-confirmed | TraceId=<value>
+```
+
+#### 4 — Worker Spans — Seat Expiry Stats (last 24 h)
+
+```kql
+dependencies
+| where timestamp > ago(24h)
+| where name == "SeatExpiryService.ReleaseExpiredReservations"
+| extend
+    seats_released   = toint(customDimensions["seats.released"]),
+    schedules_scanned = toint(customDimensions["schedules.scanned"])
+| summarize
+    runs          = count(),
+    total_released = sum(seats_released),
+    avg_scanned    = avg(schedules_scanned),
+    p99_ms         = percentile(duration, 99)
+  by bin(timestamp, 1h)
+| order by timestamp desc
+```
+
+#### 5 — Error Rate by Endpoint (last 6 h)
+
+```kql
+requests
+| where timestamp > ago(6h)
+| summarize
+    total    = count(),
+    errors   = countif(success == false),
+    error_rate_pct = round(100.0 * countif(success == false) / count(), 2)
+  by name
+| where total > 5
+| order by error_rate_pct desc
+```
+
+---
+
+### Alert Rule — Error Rate > 5%
+
+**Alert type:** Log (KQL-based)  
+**Resource:** Application Insights (or the linked Log Analytics workspace)  
+**Evaluation frequency:** every 5 minutes  
+**Lookback window:** 15 minutes  
+
+**Alert query:**
+
+```kql
+requests
+| where timestamp > ago(15m)
+| summarize
+    total  = count(),
+    errors = countif(success == false)
+| extend error_rate_pct = 100.0 * errors / total
+| where error_rate_pct > 5
+```
+
+**Threshold:** result count ≥ 1 (any row returned = alert fires)  
+**Severity:** 2 (Warning)  
+**Action group:** email / SMS to on-call
+
+Azure Portal path: `Application Insights → Alerts → + New alert rule → Custom log search`.
+
+---
+
+### Evidence Screenshots
+
+#### SS-18 — Application Insights Live Metrics
+![SS-18](Screenshots/SS-18_appinsights-live-metrics.png)
+
+#### SS-19 — Distributed Trace End-to-End (Transaction Search)
+![SS-19](Screenshots/SS-19_appinsights-distributed-trace-end-to-end.png)
+
+#### SS-20 — KQL p50/p99 by Endpoint Query Result
+![SS-20](Screenshots/SS-20_appinsights-kql-p50-p99-by-endpoint.png)
+
+#### SS-21 — KQL Dependency Breakdown Query Result
+![SS-21](Screenshots/SS-21_appinsights-kql-dependency-breakdown.png)
+
+#### SS-22 — Alert Rule Configuration
+![SS-22](Screenshots/SS-22_appinsights-alert-rule-error-rate.png)

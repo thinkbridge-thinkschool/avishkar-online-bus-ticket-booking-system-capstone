@@ -152,10 +152,6 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=appinsights-connection-string)'
         }
         {
-          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
-          value: '~3'
-        }
-        {
           // Public ID — not a secret. Used by Microsoft.Identity.Web to validate
           // the 'tid' claim in incoming Bearer tokens.
           name: 'AzureAd__TenantId'

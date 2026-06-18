@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using BusBooking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +12,7 @@ internal sealed class SeatExpiryService(
     IServiceScopeFactory scopeFactory,
     ILogger<SeatExpiryService> logger) : BackgroundService
 {
+    private static readonly ActivitySource _source = new("BusBooking.Worker");
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -42,6 +44,8 @@ internal sealed class SeatExpiryService(
 
     private async Task ReleaseExpiredReservationsAsync(CancellationToken ct)
     {
+        using var activity = _source.StartActivity("SeatExpiryService.ReleaseExpiredReservations");
+
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BusBookingDbContext>();
 
@@ -60,10 +64,15 @@ internal sealed class SeatExpiryService(
             }
         }
 
+        activity?.SetTag("seats.released", released);
+        activity?.SetTag("schedules.scanned", schedules.Count);
+
         if (released > 0)
         {
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("SeatExpiryService: released {Count} expired seat reservations", released);
+            logger.LogInformation(
+                "SeatExpiryService: released {ReleasedCount} expired seat reservations across {ScheduleCount} schedules",
+                released, schedules.Count);
         }
     }
 }

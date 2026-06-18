@@ -1,3 +1,4 @@
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BusBooking.Api;
 using BusBooking.Api.Booking;
 using BusBooking.Api.Scheduling;
@@ -7,6 +8,19 @@ using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── OpenTelemetry → Azure Monitor ─────────────────────────────────────────────
+// UseAzureMonitor() reads APPLICATIONINSIGHTS_CONNECTION_STRING automatically.
+// In Azure: resolved from Key Vault reference in App Service settings.
+// Locally: set via user secrets — dotnet user-secrets set "APPLICATIONINSIGHTS_CONNECTION_STRING" "<value>"
+// SQL dependency spans come from the bundled SqlClient instrumentation inside
+// Azure.Monitor.OpenTelemetry.AspNetCore (same ADO.NET layer EF Core uses).
+builder.Services.AddOpenTelemetry()
+    .UseAzureMonitor()
+    .WithTracing(tracing => tracing
+        .AddSource("BusBooking.Worker")      // SeatExpiryService custom spans
+        .AddSource("BusBooking.Messaging")); // ServiceBusEventPublisher custom spans
+
+// ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
