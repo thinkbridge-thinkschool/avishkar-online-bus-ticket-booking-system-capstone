@@ -570,6 +570,110 @@ Azure Portal path: `Application Insights → Alerts → + New alert rule → Cus
 
 ---
 
+### Live KQL Results (2026-06-18)
+
+All queries executed against `ai-busbooking-dev` (App Insights resource, `rg-busbooking-dev`).
+
+#### Query 1 — p50/p99 by Endpoint (last 2 h)
+
+```
+name                                            p50_ms  p99_ms   total  errors
+-------------------------------------------------------------------------------
+GET /api/schedules/search                          1.2     153      38      38
+GET /openapi/v1.json                              19.0    3824       7       0
+GET /openapi/{documentName}.json                  19.1    3824       7       0
+GET /api/bookings/user/{userId:guid}               1.0      71       6       6
+GET /                                             17.0     293       4       4
+GET /api/bookings/user/00000000-...-000002          7.3      71       3       3
+GET /api/bookings/user/00000000-...-000001          0.9      27       3       3
+```
+
+All protected endpoints return 401 (auth required, no token in test client). The OpenAPI spec route (`/openapi/v1.json`) returns 200 at p50=19ms, p99=3824ms (cold start on first hit).
+
+#### Query 2 — Dependency Breakdown (last 2 h)
+
+```
+type                   name                                          calls  failures  avg_ms   p99_ms
+-----------------------------------------------------------------------------------------------------
+WCF Service            southeastasia.livediagnostics.monitor.azure    100         0    12.6    153.3
+HTTP                   POST /v2/track                                  10         0   107.5    170.9
+SQL                    tcp:sql-busbooking-dev-paqrwn.database.win…      2         0   152.0    247.4
+HTTP                   GET /metadata/instance/compute                   1         1  1038.3   1038.3
+HTTP                   GET /msi/token                                    1         0  6353.6   6353.6
+InProc | Microsoft.AAD DefaultAzureCredential.GetToken                  1         0  7251.7   7251.7
+InProc                 SeatExpiryService.ReleaseExpiredReservations      1         0  2848.5   2848.5
+SQL                    SQL: sqldb-busbooking-dev                         1         0    56.7     56.7
+```
+
+Key observations:
+- `SeatExpiryService.ReleaseExpiredReservations` — custom `ActivitySource` span confirmed in App Insights
+- `DefaultAzureCredential.GetToken` at 7252ms — cold MI token acquisition on first request (cached after)
+- SQL spans from both startup seeder and the expiry service background run
+
+#### Query 3 — End-to-End Distributed Trace (`operation_Id = a59e3af4...`)
+
+```
+timestamp (UTC)               itemType    name                                          duration  success
+---------------------------------------------------------------------------------------------------------
+2026-06-18T08:54:45.894Z     dependency  SeatExpiryService.ReleaseExpiredReservations  2848.5ms  True
+2026-06-18T08:54:47.438Z     dependency  SQL: sqldb-busbooking-dev                       56.7ms  True
+2026-06-18T08:54:47.475Z     dependency  SQL: tcp:sql-busbooking-dev-paqrwn...           56.7ms  True
+2026-06-18T08:55:17.497Z     dependency  POST /v2/track                                 127.6ms  True
+```
+
+Worker span → SQL span → OTel export all share the same `operation_Id`. This confirms distributed tracing is stitched: the `ActivitySource("BusBooking.Worker")` span is the parent; the SQL queries appear as child spans under it.
+
+#### Query 4 — Worker Spans (last 24 h)
+
+```
+timestamp (UTC)       runs  total_released  avg_scanned  p99_ms
+----------------------------------------------------------------
+2026-06-18T08:00:00Z     1               0            8  2848.5
+```
+
+One run: 8 schedules scanned, 0 seats released (no expired reservations in dev data). The `seats.released` and `schedules.scanned` custom tags appear in `customDimensions` via `activity?.SetTag(...)`.
+
+#### Query 5 — Error Rate by Endpoint (last 6 h)
+
+```
+name                                              total  errors  error_rate_pct
+-------------------------------------------------------------------------------
+GET /api/schedules/search                            38      38           100.0
+GET /api/bookings/user/{userId:guid}                  6       6           100.0
+GET /                                                 4       4           100.0
+GET /api/bookings/user/00000000-...-000001             3       3           100.0
+GET /api/bookings/user/00000000-...-000002             3       3           100.0
+GET /openapi/{documentName}.json                      7       0             0.0
+GET /openapi/v1.json                                  7       0             0.0
+```
+
+100% error rate on all protected routes is expected (test client has no JWT token). In production with a valid token, these would drop to near-0%. The alert rule (`BusBooking-ErrorRate-Alert`) would fire against this data since error_rate_pct > 5.
+
+---
+
+### Alert Rule — Provisioned in Azure
+
+**Rule name:** `BusBooking-ErrorRate-Alert`  
+**Resource group:** `rg-busbooking-dev`  
+**Severity:** 2 (Warning)  
+**Evaluation frequency:** PT5M (every 5 minutes)  
+**Window size:** PT15M  
+**Enabled:** true  
+
+Confirmed via `az monitor scheduled-query show`:
+```json
+{
+  "name": "BusBooking-ErrorRate-Alert",
+  "severity": 2,
+  "enabled": true,
+  "evaluationFrequency": "0:05:00",
+  "windowSize": "0:15:00",
+  "description": "Fires when API error rate exceeds 5% over a 15-minute window. Severity 2 (Warning)."
+}
+```
+
+---
+
 ### Evidence Screenshots
 
 #### SS-18 — Application Insights Live Metrics
