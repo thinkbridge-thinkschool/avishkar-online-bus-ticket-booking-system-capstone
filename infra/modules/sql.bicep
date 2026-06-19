@@ -1,11 +1,19 @@
 // ============================================================================
 // Module: sql.bicep
 // Provisions: SQL Server + SQL Database + firewall rules + Azure AD admin
+//             + Private Endpoint + Private DNS Zone (Day 27)
 //
 // Day 25 change: Added Azure AD administrator resource so that the
 // post-provision hook can connect using Azure AD auth and run
 // CREATE USER [<app-service-name>] FROM EXTERNAL PROVIDER
 // (required before the App Service MI can authenticate to SQL).
+//
+// Day 27 change: Added private endpoint so App Service reaches SQL through
+// the VNet rather than the public internet. Removed AllowDevClientAccess
+// (0.0.0.0-255.255.255.255) — the wide-open rule was a critical gap.
+// Dev machines needing direct SQL access must add their own IP via:
+//   az sql server firewall-rule create --name DevMachine \
+//     --start-ip-address <your-ip> --end-ip-address <your-ip>
 // ============================================================================
 
 @description('Short application name used for resource naming.')
@@ -38,6 +46,12 @@ param sqlAdminPrincipalId string
 @description('UPN of the Azure AD user to set as SQL Azure AD admin.')
 param sqlAdminPrincipalName string
 
+@description('Resource ID of the private endpoints subnet — used for private endpoint NIC placement.')
+param epSubnetId string
+
+@description('VNet resource ID — used to link the private DNS zone.')
+param vnetId string
+
 // ── Derived names ─────────────────────────────────────────────────────────────
 var suffix     = take(uniqueString(resourceGroup().id), 6)
 var serverName = 'sql-${appName}-${environment}-${suffix}'
@@ -53,7 +67,11 @@ resource sqlServer 'Microsoft.Sql/servers@2022-11-01-preview' = {
     administratorLogin: adminLogin
     administratorLoginPassword: adminPassword
     minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
+    // Keep public access enabled in dev so the post-provision hook (go-sqlcmd)
+    // can run EF migrations. In prod the private endpoint handles all traffic
+    // and this can be toggled to Disabled once the hook is migrated to run
+    // from within the VNet (e.g., a Container App Job).
+    publicNetworkAccess: environment == 'prod' ? 'Disabled' : 'Enabled'
   }
   tags: {
     environment: environment
@@ -77,6 +95,11 @@ resource sqlAadAdmin 'Microsoft.Sql/servers/administrators@2022-11-01-preview' =
 }
 
 // ── Firewall rules ────────────────────────────────────────────────────────────
+// AllowAllWindowsAzureIps (0.0.0.0–0.0.0.0) is the special Azure rule that
+// permits connections from any Azure-hosted service, including App Service.
+// The formerly present AllowDevClientAccess (0.0.0.0–255.255.255.255) rule
+// was removed in Day 27 — it allowed the entire internet. Dev machine access
+// must be granted explicitly via 'az sql server firewall-rule create'.
 
 resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2022-11-01-preview' = {
   parent: sqlServer
@@ -84,15 +107,6 @@ resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2022-11-01-prev
   properties: {
     startIpAddress: '0.0.0.0'
     endIpAddress: '0.0.0.0'
-  }
-}
-
-resource allowDevAccess 'Microsoft.Sql/servers/firewallRules@2022-11-01-preview' = if (environment == 'dev') {
-  parent: sqlServer
-  name: 'AllowDevClientAccess'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '255.255.255.255'
   }
 }
 
@@ -117,6 +131,74 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-11-01-preview' = {
   tags: {
     environment: environment
     app: appName
+  }
+}
+
+// ── Private Endpoint ──────────────────────────────────────────────────────────
+// Places a NIC in snet-endpoints. App Service (via VNet integration on snet-api)
+// routes SQL traffic through this endpoint instead of the public internet.
+
+resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+  name: 'pe-${serverName}'
+  location: location
+  properties: {
+    subnet: {
+      id: epSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'plsc-${serverName}'
+        properties: {
+          privateLinkServiceId: sqlServer.id
+          groupIds: ['sqlServer']
+        }
+      }
+    ]
+  }
+  tags: {
+    environment: environment
+    app: appName
+  }
+}
+
+// ── Private DNS Zone ──────────────────────────────────────────────────────────
+// Resolves *.database.windows.net to the private endpoint IP inside the VNet.
+// Without this, DNS still returns the public IP even when a private endpoint
+// exists, and connections bypass the private endpoint.
+
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink${az.environment().suffixes.sqlServerHostname}'
+  location: 'global'
+  tags: {
+    environment: environment
+    app: appName
+  }
+}
+
+resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateDnsZone
+  name: 'link-${appName}-${environment}'
+  location: 'global'
+  properties: {
+    virtualNetwork: {
+      id: vnetId
+    }
+    registrationEnabled: false
+  }
+}
+
+resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
+  parent: sqlPrivateEndpoint
+  name: 'dzg-sql'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-database-windows-net'
+        properties: {
+          privateDnsZoneId: privateDnsZone.id
+        }
+      }
+    ]
   }
 }
 

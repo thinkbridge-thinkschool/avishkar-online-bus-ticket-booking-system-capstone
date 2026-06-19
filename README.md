@@ -734,3 +734,185 @@ Confirmed via `az monitor scheduled-query show`:
 **Proves:** Application Insights has automatically discovered and mapped the full runtime dependency topology. The map shows `app-busbo...ev-paqrwn` (App Service) at the centre with edges to `sql-busbo...oking-dev` (Azure SQL, 24 calls, 8.7ms avg) and two outbound HTTP nodes (OTel telemetry export and Live Metrics QuickPulse). This topology is derived entirely from the distributed trace spans — no manual configuration required.
 
 ![SS-23](Screenshots/SS-23_appinsights-application-map.png)
+
+
+---
+
+## Day 27 — Security Pass
+
+**Branch:** `day-27-security-pass`  
+**Goal:** Threat-model the system, close the highest-risk gaps, confirm with OWASP ZAP.
+
+---
+
+### STRIDE-Lite Threat Model
+
+| ID | Stride Category | Component | Pre-fix Risk | Mitigation |
+|----|----------------|-----------|-------------|------------|
+| T1 | **S**poofing | All endpoints | High — no fallback auth policy | Added `FallbackPolicy = RequireAuthenticatedUser()` |
+| T2 | **T**ampering | POST /bookings body | Medium — unbounded request size | Kestrel `MaxRequestBodySize = 65536` (64 KB) |
+| T3 | **T**ampering | SeatPassengerRequest fields | Medium — no field-level constraints | `[Range(1,60)]`, `[MaxLength(100)]`, `[Range(0,120)]`, `[MaxLength(10)]` |
+| T4 | **R**epudiation | CancelBooking | High — `RequestingUserId` came from caller body | Removed body field; now extracted from JWT `sub` claim |
+| T5 | **I**nformation Disclosure | SQL Server firewall | Critical — `0.0.0.0-255.255.255.255` rule exposed SQL to internet | Rule removed; private endpoint + DNS zone; prod `publicNetworkAccess: Disabled` |
+| T6 | **I**nformation Disclosure | Unhandled exceptions | High — raw `ex.Message` could leak internals | `UseExceptionHandler` returns RFC 9110 problem-detail JSON with `traceId` only |
+| T7 | **D**enial of Service | All API endpoints | Medium — no throttle; single IP could exhaust App Service | Fixed-window rate limiter: 60 req/min, 429 on exceed |
+| T8 | **E**levation of Privilege | CancelBooking | High — caller could cancel any user's booking | JWT claim extraction closes the spoofed-userId gap (see T4) |
+
+---
+
+### Phase 1 — Infrastructure Hardening (Bicep)
+
+#### Architecture: VNet + Private Endpoint
+
+```
+ Dev Machine ──── HTTPS ────► App Service (snet-api / 10.0.1.0/24)
+                                     │ VNet egress (vnetRouteAllEnabled)
+                                     ▼
+                              Private Endpoint NIC (snet-endpoints / 10.0.2.0/24)
+                                     │ private DNS: privatelink.database.windows.net
+                                     ▼
+                              Azure SQL Server (publicNetworkAccess: Disabled in prod)
+```
+
+#### Changes
+
+| File | Change |
+|------|--------|
+| `infra/modules/vnet.bicep` | **New** — VNet `10.0.0.0/16` with `snet-api` (App Service delegation) and `snet-endpoints` (private endpoint NIC) |
+| `infra/modules/sql.bicep` | Added private endpoint + private DNS zone + VNet link. Removed wide-open `AllowDevClientAccess` rule. Prod: `publicNetworkAccess: Disabled` |
+| `infra/modules/api.bicep` | Added `virtualNetworkSubnetId: apiSubnetId` + `vnetRouteAllEnabled: true` |
+| `infra/main.bicep` | Added `module vnet`; passes `epSubnetId` to sql, `apiSubnetId` to api |
+
+> **Dev note:** Post-provision hook runs from the dev machine so `publicNetworkAccess` stays `Enabled` in dev. `AllowAllWindowsAzureIps` (0.0.0.0-0.0.0.0) handles App Service -> SQL. For dev-machine SQL access, add your IP explicitly: `az sql server firewall-rule create --name DevMachine --start-ip-address <your-ip> --end-ip-address <your-ip>`.
+
+---
+
+### Phase 2 — API Hardening (Program.cs)
+
+```csharp
+// 64 KB max request body
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 65_536);
+
+// Fallback: every endpoint requires auth unless explicitly [AllowAnonymous]
+builder.Services.AddAuthorization(o =>
+    o.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+
+// Fixed-window rate limit: 60 req/min, 429 on exceed
+builder.Services.AddRateLimiter(o => {
+    o.AddFixedWindowLimiter("api", l => { l.Window = TimeSpan.FromMinutes(1); l.PermitLimit = 60; });
+    o.RejectionStatusCode = 429;
+});
+
+// Security headers on every response (runs before auth so even 401s are hardened)
+app.Use(async (ctx, next) => {
+    ctx.Response.Headers["X-Content-Type-Options"]    = "nosniff";
+    ctx.Response.Headers["X-Frame-Options"]           = "DENY";
+    ctx.Response.Headers["Referrer-Policy"]           = "strict-origin-when-cross-origin";
+    ctx.Response.Headers.StrictTransportSecurity      = "max-age=31536000";
+    await next();
+});
+
+// RFC 9110 problem-detail — no raw ex.Message ever reaches the caller
+app.UseExceptionHandler(b => b.Run(async ctx => {
+    ctx.Response.StatusCode  = 500;
+    ctx.Response.ContentType = "application/problem+json";
+    await ctx.Response.WriteAsJsonAsync(new {
+        type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+        title = "An unexpected error occurred.", status = 500,
+        traceId = Activity.Current?.Id ?? ctx.TraceIdentifier
+    });
+}));
+```
+
+---
+
+### Phase 3 — Route Versioning, Input Validation, JWT Fix
+
+**Route versioning**
+- `/api/bookings` → `/api/v1/bookings`
+- `/api/schedules` → `/api/v1/schedules`
+- Both groups: `.RequireRateLimiting("api")`
+
+**Input validation** (`SeatPassengerRequest`)
+```csharp
+public sealed record SeatPassengerRequest(
+    [Range(1, 60)]   int    SeatNumber,
+    [MaxLength(100)] string PassengerName,
+    [Range(0, 120)]  int    PassengerAge,
+    [MaxLength(10)]  string PassengerGender);
+```
+
+`ScheduleEndpoints` rejects `source`/`destination` > 100 chars with `Results.ValidationProblem`.
+
+**CancelBooking JWT fix** (closes T4 + T8)
+```csharp
+// Before: body field CancelBookingRequest(Guid RequestingUserId) — attacker-controlled
+// After:
+var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+if (!Guid.TryParse(userIdClaim, out var userId)) return Results.Unauthorized();
+```
+
+**OpenAPI Bearer scheme** (`BearerSecuritySchemeTransformer`)
+- Implements `IOpenApiDocumentTransformer` against Microsoft.OpenApi v2
+- Uses `OpenApiSecuritySchemeReference("BearerAuth", document)` as requirement key (v2 API)
+- Adds BearerAuth to all operations in the generated spec
+
+---
+
+### OWASP ZAP Baseline Scan Results
+
+**Before (Scan 1)** — after initial Day 27 deploy:
+```
+FAIL-NEW: 0   WARN-NEW: 4   PASS: 63
+Warnings: Strict-Transport-Security missing, Non-Storable, ARR cookie SameSite=None, Session detected
+```
+
+**After (Scan 2)** — after adding `Strict-Transport-Security: max-age=31536000`:
+```
+FAIL-NEW: 0   WARN-NEW: 3   PASS: 64
+```
+
+HSTS promoted from WARN to PASS. Remaining 3 warnings are Azure-platform-level (ARR affinity cookie — not application code).
+
+**Key PASSes proving hardening works:**
+
+| ZAP Rule | ID | Result |
+|----------|----|--------|
+| Anti-clickjacking Header | 10020 | PASS — `X-Frame-Options: DENY` |
+| X-Content-Type-Options Header Missing | 10021 | PASS — `nosniff` present |
+| Strict-Transport-Security Header | 10035 | PASS — `max-age=31536000` |
+| Information Disclosure - Debug Error Messages | 10023 | PASS — problem-detail handler active |
+| Application Error Disclosure | 90022 | PASS — no stack traces in responses |
+| Weak Authentication Method | 10105 | PASS — Bearer JWT only |
+
+---
+
+### Deliverables Checklist
+
+| # | Deliverable | Status |
+|---|-------------|--------|
+| 1 | STRIDE-lite threat model (8 threats, 8 mitigations) | Done |
+| 2 | `infra/modules/vnet.bicep` — VNet + 2 subnets | Done |
+| 3 | `infra/modules/sql.bicep` — private endpoint + DNS zone + firewall tightened | Done |
+| 4 | `infra/modules/api.bicep` — VNet integration | Done |
+| 5 | `infra/main.bicep` — VNet module wired | Done |
+| 6 | `Program.cs` — 64 KB limit, fallback auth, rate limiter, 4 security headers, exception handler | Done |
+| 7 | `BearerSecuritySchemeTransformer.cs` — OpenAPI v2 security scheme | Done |
+| 8 | Routes versioned to `/api/v1/` | Done |
+| 9 | Input validation on `SeatPassengerRequest` + `ScheduleEndpoints` | Done |
+| 10 | `CancelBooking` — userId from JWT claim, body field removed | Done |
+| 11 | `dotnet build` — 0 errors | Done |
+| 12 | `dotnet test` — 17/17 pass | Done |
+| 13 | `azd deploy --environment dev` — deployed | Done |
+| 14 | OWASP ZAP baseline — **64 PASS, 3 WARN (platform), 0 FAIL** | Done |
+
+---
+
+### Evidence Screenshots
+
+| Name | What to capture |
+|------|----------------|
+| SS-24 | ZAP terminal output showing `FAIL-NEW: 0  WARN-NEW: 3  PASS: 64` |
+| SS-25 | App Service → Networking → VNet integration showing `snet-api` (after `azd provision`) |
+| SS-26 | SQL Server → Firewalls — `AllowDevClientAccess` rule **absent**, private endpoint present |
+| SS-27 | curl/Postman response headers showing `x-content-type-options: nosniff`, `x-frame-options: DENY`, `strict-transport-security: max-age=31536000` |

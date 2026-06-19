@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BusBooking.Application.Booking.Commands.CancelBooking;
 using BusBooking.Application.Booking.Commands.CreateBooking;
 using BusBooking.Application.Booking.Queries.GetUserBookings;
@@ -12,7 +13,11 @@ public static class BookingEndpoints
 {
     public static void MapBookingEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/bookings").WithTags("Bookings").RequireAuthorization();
+        var group = app
+            .MapGroup("/api/v1/bookings")
+            .WithTags("Bookings")
+            .RequireAuthorization()
+            .RequireRateLimiting("api");
 
         group.MapPost("/", CreateBooking);
         group.MapGet("/user/{userId:guid}", GetUserBookings);
@@ -30,7 +35,7 @@ public static class BookingEndpoints
         try
         {
             var bookingId = await handler.HandleAsync(command, ct);
-            return Results.Created($"/api/bookings/{bookingId}", new { bookingId });
+            return Results.Created($"/api/v1/bookings/{bookingId}", new { bookingId });
         }
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
@@ -48,16 +53,22 @@ public static class BookingEndpoints
 
     private static async Task<IResult> CancelBooking(
         Guid bookingId,
-        CancelBookingRequest req,
+        HttpContext httpContext,
         IBookingRepository bookingRepo,
         IScheduleRepository scheduleRepo,
         IEventPublisher publisher,
         CancellationToken ct)
     {
+        // Extract the caller's identity from the validated JWT — never from the
+        // request body, which the caller could forge to act as another user.
+        var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+            return Results.Unauthorized();
+
         var handler = new CancelBookingHandler(bookingRepo, scheduleRepo, publisher);
         try
         {
-            await handler.HandleAsync(new CancelBookingCommand(bookingId, req.RequestingUserId), ct);
+            await handler.HandleAsync(new CancelBookingCommand(bookingId, userId), ct);
             return Results.NoContent();
         }
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
@@ -65,5 +76,3 @@ public static class BookingEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 }
-
-public sealed record CancelBookingRequest(Guid RequestingUserId);

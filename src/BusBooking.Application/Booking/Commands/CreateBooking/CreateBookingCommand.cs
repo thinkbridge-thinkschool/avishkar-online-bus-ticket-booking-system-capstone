@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BusBooking.Application.Booking.Commands.CreateBooking;
 
 public sealed record CreateBookingCommand(
@@ -8,7 +10,7 @@ public sealed record CreateBookingCommand(
     IReadOnlyList<SeatPassengerRequest> Seats);
 
 public sealed record SeatPassengerRequest(
-    int SeatNumber,
-    string PassengerName,
-    int PassengerAge,
-    string PassengerGender);
+    [Range(1, 60)]    int    SeatNumber,
+    [MaxLength(100)]  string PassengerName,
+    [Range(0, 120)]   int    PassengerAge,
+    [MaxLength(10)]   string PassengerGender);

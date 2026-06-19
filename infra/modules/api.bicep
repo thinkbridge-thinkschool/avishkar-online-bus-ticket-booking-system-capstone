@@ -49,6 +49,9 @@ param aadClientId string
 @allowed(['B1', 'B2', 'P1v3', 'P2v3'])
 param appServicePlanSku string = 'B1'
 
+@description('Resource ID of the App Service delegation subnet — used for VNet integration (Day 27).')
+param apiSubnetId string
+
 // ── Derived names ─────────────────────────────────────────────────────────────
 var suffix   = take(uniqueString(resourceGroup().id), 6)
 var planName = 'plan-${appName}-${environment}'
@@ -119,12 +122,16 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     httpsOnly: true
+    // Route all outbound traffic through the VNet so SQL traffic reaches the
+    // private endpoint NIC instead of traversing the public internet (Day 27).
+    virtualNetworkSubnetId: apiSubnetId
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|10.0'
       alwaysOn: true
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
+      vnetRouteAllEnabled: true
       appSettings: [
         {
           name: 'ASPNETCORE_ENVIRONMENT'

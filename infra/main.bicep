@@ -75,6 +75,16 @@ var kvName = 'kv-${appName}-${environment}-${suffix}'
 
 // ── Modules ───────────────────────────────────────────────────────────────────
 
+// vnet runs first — sql and api depend on its subnet IDs (Day 27).
+module vnet 'modules/vnet.bicep' = {
+  name: 'deploy-vnet-${environment}'
+  params: {
+    appName: appName
+    location: location
+    environment: environment
+  }
+}
+
 module sql 'modules/sql.bicep' = {
   name: 'deploy-sql-${environment}'
   params: {
@@ -87,6 +97,8 @@ module sql 'modules/sql.bicep' = {
     capacity: sqlCapacity
     sqlAdminPrincipalId: sqlAdminPrincipalId
     sqlAdminPrincipalName: sqlAdminPrincipalName
+    epSubnetId: vnet.outputs.epSubnetId
+    vnetId: vnet.outputs.vnetId
   }
 }
 
@@ -105,6 +117,7 @@ module api 'modules/api.bicep' = {
     tenantId: tenantId
     aadClientId: aadClientId
     appServicePlanSku: appServicePlanSku
+    apiSubnetId: vnet.outputs.apiSubnetId
   }
 }
 

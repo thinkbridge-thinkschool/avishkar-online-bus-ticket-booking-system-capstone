@@ -7,7 +7,11 @@ public static class ScheduleEndpoints
 {
     public static void MapScheduleEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/schedules").WithTags("Schedules").RequireAuthorization();
+        var group = app
+            .MapGroup("/api/v1/schedules")
+            .WithTags("Schedules")
+            .RequireAuthorization()
+            .RequireRateLimiting("api");
 
         group.MapGet("/search", SearchSchedules);
         group.MapGet("/{scheduleId:guid}/seats", GetSeats);
@@ -20,6 +24,13 @@ public static class ScheduleEndpoints
         IScheduleRepository scheduleRepo,
         CancellationToken ct)
     {
+        if (source.Length > 100)
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]> { ["source"] = ["Max 100 characters."] });
+        if (destination.Length > 100)
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]> { ["destination"] = ["Max 100 characters."] });
+
         var handler = new SearchSchedulesHandler(scheduleRepo);
         var results = await handler.HandleAsync(new SearchSchedulesQuery(source, destination, travelDate), ct);
         return Results.Ok(results);
