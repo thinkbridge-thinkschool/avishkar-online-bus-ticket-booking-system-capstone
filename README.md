@@ -20,6 +20,7 @@ Four-layer Clean Architecture deployed as a Linux App Service on Azure:
 - [Day 24 — azd + Azure Deployment Stacks](#day-24--azd--azure-deployment-stacks)
 - [Day 25 — Identity End-to-End](#day-25--identity-end-to-end)
 - [Day 26 — App Insights + KQL](#day-26--app-insights--kql)
+- [Day 27 — Security pass](#day-27--security-pass)
 
 ---
 
