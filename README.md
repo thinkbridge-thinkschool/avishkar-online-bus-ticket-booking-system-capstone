@@ -892,27 +892,70 @@ HSTS promoted from WARN to PASS. Remaining 3 warnings are Azure-platform-level (
 | # | Deliverable | Status |
 |---|-------------|--------|
 | 1 | STRIDE-lite threat model (8 threats, 8 mitigations) | Done |
-| 2 | `infra/modules/vnet.bicep` — VNet + 2 subnets | Done |
-| 3 | `infra/modules/sql.bicep` — private endpoint + DNS zone + firewall tightened | Done |
-| 4 | `infra/modules/api.bicep` — VNet integration | Done |
-| 5 | `infra/main.bicep` — VNet module wired | Done |
-| 6 | `Program.cs` — 64 KB limit, fallback auth, rate limiter, 4 security headers, exception handler | Done |
-| 7 | `BearerSecuritySchemeTransformer.cs` — OpenAPI v2 security scheme | Done |
-| 8 | Routes versioned to `/api/v1/` | Done |
-| 9 | Input validation on `SeatPassengerRequest` + `ScheduleEndpoints` | Done |
-| 10 | `CancelBooking` — userId from JWT claim, body field removed | Done |
-| 11 | `dotnet build` — 0 errors | Done |
-| 12 | `dotnet test` — 17/17 pass | Done |
-| 13 | `azd deploy --environment dev` — deployed | Done |
-| 14 | OWASP ZAP baseline — **64 PASS, 3 WARN (platform), 0 FAIL** | Done |
+| 2 | `infra/modules/vnet.bicep` — VNet `10.0.0.0/16` + `snet-api` + `snet-endpoints` | Done |
+| 3 | `infra/modules/sql.bicep` — private endpoint + private DNS zone + VNet link + DNS zone group | Done |
+| 4 | `infra/modules/sql.bicep` — removed `AllowDevClientAccess (0.0.0.0–255.255.255.255)` firewall rule | Done |
+| 5 | `infra/modules/api.bicep` — `virtualNetworkSubnetId` + `vnetRouteAllEnabled: true` | Done |
+| 6 | `infra/main.bicep` — VNet module wired; subnet IDs passed to sql and api | Done |
+| 7 | `Program.cs` — Kestrel 64 KB limit, fallback auth policy, rate limiter before auth, 4 security headers, RFC 9110 exception handler | Done |
+| 8 | `BearerSecuritySchemeTransformer.cs` — OpenAPI v2-compatible Bearer security scheme | Done |
+| 9 | Routes versioned to `/api/v1/bookings` and `/api/v1/schedules` | Done |
+| 10 | Input validation — `[Range]`/`[MaxLength]` on `SeatPassengerRequest`; 100-char guard on schedule search params | Done |
+| 11 | `CancelBooking` — `RequestingUserId` body field removed; userId extracted from `ClaimTypes.NameIdentifier` JWT claim | Done |
+| 12 | `dotnet build` — 0 errors, 0 code warnings | Done |
+| 13 | `dotnet test` — 17/17 pass | Done |
+| 14 | `azd provision --environment dev` — VNet, private endpoint, DNS zone provisioned to Azure | Done |
+| 15 | `azd deploy --environment dev` — hardened app code deployed | Done |
+| 16 | OWASP ZAP baseline scan — **64 PASS, 3 WARN (platform-level), 0 FAIL** | Done |
+| 17 | Evidence screenshots SS-24 through SS-30 captured | Done |
 
 ---
 
-### Evidence Screenshots
+### Evidence
 
-| Name | What to capture |
-|------|----------------|
-| SS-24 | ZAP terminal output showing `FAIL-NEW: 0  WARN-NEW: 3  PASS: 64` |
-| SS-25 | App Service → Networking → VNet integration showing `snet-api` (after `azd provision`) |
-| SS-26 | SQL Server → Firewalls — `AllowDevClientAccess` rule **absent**, private endpoint present |
-| SS-27 | curl/Postman response headers showing `x-content-type-options: nosniff`, `x-frame-options: DENY`, `strict-transport-security: max-age=31536000` |
+#### SS-24 — OWASP ZAP Baseline Scan Result
+**Proves:** After all security hardening, 0 failures and 64 passes on the ZAP passive baseline scan. HSTS, X-Content-Type-Options, X-Frame-Options all show as PASS. The 3 remaining warnings are Azure ARR affinity platform cookies — not application code.
+
+![SS-24](Screenshots/SS-24_zap-baseline-64pass-0fail.png)
+
+---
+
+#### SS-25 — Security Response Headers (Live)
+**Proves:** All four security headers are present on every response — including 401 Unauthorized — because the headers middleware runs before the authentication middleware. `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Strict-Transport-Security: max-age=31536000` are all visible in the raw curl -I output against the live Azure endpoint.
+
+![SS-25](Screenshots/SS-25_security-headers-all-four-present.png)
+
+---
+
+#### SS-26 — Rate Limiter Returns 429
+**Proves:** The fixed-window rate limiter (`60 req/min`) is active and enforced. Requests 1–60 return `401 Unauthorized` (auth fails, but the rate limiter counts them because `UseRateLimiter()` runs before `UseAuthentication()`). Request 61 onward returns `429 Too Many Requests`.
+
+![SS-26](Screenshots/SS-26_rate-limiter-429.png)
+
+---
+
+#### SS-27 — CancelBooking JWT Claim Extraction
+**Proves:** `CancelBooking` no longer accepts `RequestingUserId` from the request body (which a caller could forge to act as another user). The userId is now extracted exclusively from the validated JWT claim `ClaimTypes.NameIdentifier`. If the claim is missing or not a valid Guid, the endpoint returns `401 Unauthorized`. This closes threat T4 (Repudiation) and T8 (Elevation of Privilege) from the STRIDE model.
+
+![SS-27](Screenshots/SS-27_cancel-booking-jwt-claim-extraction.png)
+
+---
+
+#### SS-28 — Azure Portal: Private Endpoint Provisioned
+**Proves:** `pe-sql-busbooking-dev-paqrwn` is live in Azure with **Provisioning state: Succeeded**, placed in subnet `snet-endpoints` of `vnet-busbooking-dev-paqrwn`, and connected to `sql-busbooking-dev-paqrwn`. SQL traffic from App Service now travels through this private NIC inside the VNet instead of over the public internet.
+
+![SS-28](Screenshots/SS-28_azure-private-endpoint-approved.png)
+
+---
+
+#### SS-29 — Azure Portal: SQL Firewall — Internet-Wide Rule Removed
+**Proves:** The `AllowDevClientAccess (0.0.0.0–255.255.255.255)` rule that previously exposed SQL to the entire internet is **absent**. Only `AllowAllWindowsAzureIps` (Azure-internal services) and `DevMachine` (developer's specific IP) remain. This directly closes T5 (Information Disclosure — Critical) from the STRIDE model.
+
+![SS-29](Screenshots/SS-29_azure-sql-firewall-no-open-rule.png)
+
+---
+
+#### SS-30 — Azure Portal: App Service VNet Integration
+**Proves:** App Service `app-busbooking-dev-paqrwn` is connected to `snet-api` inside `vnet-busbooking-dev-paqrwn` with `vnetRouteAllEnabled: true`. All outbound traffic — including SQL connections — is now routed through the VNet, ensuring traffic reaches the private endpoint NIC rather than the SQL public endpoint.
+
+![SS-30](Screenshots/SS-30_azure-appservice-vnet-integration.png)

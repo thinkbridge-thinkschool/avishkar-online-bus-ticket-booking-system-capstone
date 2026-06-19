@@ -2,6 +2,7 @@
 // Module: servicebus.bicep
 // Provisions: Service Bus Namespace + booking-confirmed + booking-cancelled
 //             topics + Azure Service Bus Data Sender role for the App Service MI
+//             + Private Endpoint + Private DNS Zone (Day 27, Premium SKU only)
 //
 // Day 25 changes:
 //   - disableLocalAuth: true  — SAS keys disabled; all connections must use
@@ -10,6 +11,12 @@
 //   - Added Azure Service Bus Data Sender role assignment for the App Service MI.
 //   - Output changed from SAS connection string to fully qualified namespace
 //     hostname (no secret).
+//
+// Day 27 change: Private endpoint added (Premium SKU only).
+//   Standard SKU does not support private endpoints — Azure platform constraint.
+//   Dev uses Standard (no PE). Prod uses Premium (PE enabled).
+//   When sku == 'Premium', all Service Bus traffic is routed through the VNet
+//   via the private endpoint NIC rather than the public internet.
 // ============================================================================
 
 @description('Short application name used for resource naming.')
@@ -22,12 +29,18 @@ param location string
 @allowed(['dev', 'prod'])
 param environment string
 
-@description('Service Bus namespace SKU. Standard is the minimum for topics.')
+@description('Service Bus namespace SKU. Standard is the minimum for topics. Premium required for private endpoints.')
 @allowed(['Standard', 'Premium'])
 param sku string = 'Standard'
 
 @description('Principal ID of the App Service system-assigned managed identity.')
 param webAppPrincipalId string
+
+@description('Resource ID of the private endpoints subnet — used for private endpoint NIC placement (Premium only).')
+param epSubnetId string
+
+@description('VNet resource ID — used to link the private DNS zone (Premium only).')
+param vnetId string
 
 // ── Derived names ─────────────────────────────────────────────────────────────
 var suffix        = take(uniqueString(resourceGroup().id), 6)
@@ -38,6 +51,8 @@ var topicCancelled = 'booking-cancelled'
 // Azure Service Bus Data Sender — send messages only; no listen or manage.
 var serviceBusDataSenderRoleId = '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39'
 
+var isPremium = sku == 'Premium'
+
 // ── Namespace ─────────────────────────────────────────────────────────────────
 
 resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
@@ -46,11 +61,17 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
   sku: {
     name: sku
     tier: sku
+    // Messaging units required for Premium; ignored by Standard.
+    // 1 MU = minimum for dev/prod with private endpoint.
+    capacity: isPremium ? 1 : 0
   }
   properties: {
     minimumTlsVersion: '1.2'
-    disableLocalAuth: true             // SAS keys globally disabled — MI only
-    zoneRedundant: sku == 'Premium' && environment == 'prod'
+    disableLocalAuth: true
+    zoneRedundant: isPremium && environment == 'prod'
+    // Disable public internet access in prod Premium — all traffic via PE.
+    // Standard does not support this property so it is omitted for Standard.
+    publicNetworkAccess: isPremium && environment == 'prod' ? 'Disabled' : 'Enabled'
   }
   tags: {
     environment: environment
@@ -85,8 +106,6 @@ resource topicBookingCancelled 'Microsoft.ServiceBus/namespaces/topics@2022-10-0
 }
 
 // ── RBAC: App Service MI → Azure Service Bus Data Sender ──────────────────────
-// Grants the App Service MI the right to send messages to any topic in this
-// namespace. Does not grant Listen or Manage — least privilege.
 
 resource sbDataSenderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(serviceBusNamespace.id, webAppPrincipalId, serviceBusDataSenderRoleId)
@@ -98,6 +117,72 @@ resource sbDataSenderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' =
     )
     principalId: webAppPrincipalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// ── Private Endpoint (Premium SKU only) ───────────────────────────────────────
+// Standard SKU does not support private endpoints — this block is skipped on dev.
+// Group ID for Service Bus namespaces is 'namespace'.
+
+resource sbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = if (isPremium) {
+  name: 'pe-${namespaceName}'
+  location: location
+  properties: {
+    subnet: {
+      id: epSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'plsc-${namespaceName}'
+        properties: {
+          privateLinkServiceId: serviceBusNamespace.id
+          groupIds: ['namespace']
+        }
+      }
+    ]
+  }
+  tags: {
+    environment: environment
+    app: appName
+  }
+}
+
+// ── Private DNS Zone (Premium SKU only) ───────────────────────────────────────
+// Resolves *.servicebus.windows.net to the private endpoint IP inside the VNet.
+#disable-next-line no-hardcoded-env-urls
+resource sbPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (isPremium) {
+  name: 'privatelink.servicebus.windows.net'
+  location: 'global'
+  tags: {
+    environment: environment
+    app: appName
+  }
+}
+
+resource sbDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (isPremium) {
+  parent: sbPrivateDnsZone
+  name: 'link-sb-${appName}-${environment}'
+  location: 'global'
+  properties: {
+    virtualNetwork: {
+      id: vnetId
+    }
+    registrationEnabled: false
+  }
+}
+
+resource sbDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = if (isPremium) {
+  parent: sbPrivateEndpoint
+  name: 'dzg-sb'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-servicebus-windows-net'
+        properties: {
+          privateDnsZoneId: sbPrivateDnsZone.id
+        }
+      }
+    ]
   }
 }
 

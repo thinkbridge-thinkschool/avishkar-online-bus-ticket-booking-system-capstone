@@ -93,9 +93,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous(); // exempt from fallback auth policy in dev
 
 app.UseHttpsRedirection();
+app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseRateLimiter();
 
 app.MapScheduleEndpoints();
 app.MapBookingEndpoints();

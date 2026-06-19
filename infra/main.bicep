@@ -61,7 +61,9 @@ param aadClientId string
 
 var sqlSkuName        = environment == 'prod' ? 'S2'   : 'Basic'
 var sqlCapacity       = environment == 'prod' ? 50     : 5
-var serviceBusSku     = 'Standard'
+// Premium required for private endpoints. Standard used on dev to avoid cost
+// and namespace recreation (Azure does not support in-place Standard→Premium upgrade).
+var serviceBusSku     = environment == 'prod' ? 'Premium' : 'Standard'
 var appServicePlanSku = environment == 'prod' ? 'B2'   : 'B1'
 
 // ── Pre-computed resource names ───────────────────────────────────────────────
@@ -129,6 +131,8 @@ module serviceBus 'modules/servicebus.bicep' = {
     environment: environment
     sku: serviceBusSku
     webAppPrincipalId: api.outputs.managedIdentityPrincipalId
+    epSubnetId: vnet.outputs.epSubnetId
+    vnetId: vnet.outputs.vnetId
   }
 }
 
@@ -140,6 +144,8 @@ module keyVault 'modules/keyvault.bicep' = {
     environment: environment
     appInsightsConnectionString: api.outputs.appInsightsConnectionString
     webAppPrincipalId: api.outputs.managedIdentityPrincipalId
+    epSubnetId: vnet.outputs.epSubnetId
+    vnetId: vnet.outputs.vnetId
   }
 }
 

@@ -2,6 +2,7 @@
 // Module: keyvault.bicep
 // Provisions: Key Vault + App Insights connection string secret
 //             + Key Vault Secrets User role for the App Service MI
+//             + Private Endpoint + Private DNS Zone (Day 27)
 //
 // Why this module exists:
 //   APPLICATIONINSIGHTS_CONNECTION_STRING must not sit as a plain app setting.
@@ -29,6 +30,12 @@ param appInsightsConnectionString string
 @description('Principal ID of the App Service system-assigned managed identity.')
 param webAppPrincipalId string
 
+@description('Resource ID of the private endpoints subnet — used for private endpoint NIC placement.')
+param epSubnetId string
+
+@description('VNet resource ID — used to link the private DNS zone.')
+param vnetId string
+
 // ── Derived names ─────────────────────────────────────────────────────────────
 var suffix  = take(uniqueString(resourceGroup().id), 6)
 var kvName  = 'kv-${appName}-${environment}-${suffix}'
@@ -47,11 +54,13 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
       name: 'standard'
     }
     tenantId: tenant().tenantId
-    enableRbacAuthorization: true       // RBAC model, not legacy access policies
+    enableRbacAuthorization: true
     enableSoftDelete: true
-    softDeleteRetentionInDays: 7        // minimum; fine for a capstone project
+    softDeleteRetentionInDays: 7
     enabledForTemplateDeployment: false
-    publicNetworkAccess: 'Enabled'
+    // Disable public internet access in prod — all traffic via private endpoint.
+    // Keep enabled in dev so azd provision (ARM deployment) can write secrets.
+    publicNetworkAccess: environment == 'prod' ? 'Disabled' : 'Enabled'
   }
   tags: {
     environment: environment
@@ -75,7 +84,6 @@ resource appInsightsSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
 // ── RBAC: App Service MI → Key Vault Secrets User ─────────────────────────────
 
 resource kvSecretsUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  // Deterministic GUID prevents duplicate role assignments on re-deploy.
   name: guid(keyVault.id, webAppPrincipalId, keyVaultSecretsUserRoleId)
   scope: keyVault
   properties: {
@@ -85,6 +93,74 @@ resource kvSecretsUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' 
     )
     principalId: webAppPrincipalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// ── Private Endpoint ──────────────────────────────────────────────────────────
+// App Service (via VNet integration) reaches Key Vault through the private NIC
+// instead of over the public internet. Group ID for Key Vault is 'vault'.
+
+resource kvPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+  name: 'pe-${kvName}'
+  location: location
+  properties: {
+    subnet: {
+      id: epSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'plsc-${kvName}'
+        properties: {
+          privateLinkServiceId: keyVault.id
+          groupIds: ['vault']
+        }
+      }
+    ]
+  }
+  tags: {
+    environment: environment
+    app: appName
+  }
+}
+
+// ── Private DNS Zone ──────────────────────────────────────────────────────────
+// Key Vault private link uses privatelink.vaultcore.azure.net — note this is
+// different from the public FQDN suffix (.vault.azure.net). Both are required:
+// the public CNAME redirects to the private FQDN at resolution time.
+#disable-next-line no-hardcoded-env-urls
+resource kvPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.vaultcore.azure.net'
+  location: 'global'
+  tags: {
+    environment: environment
+    app: appName
+  }
+}
+
+resource kvDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: kvPrivateDnsZone
+  name: 'link-kv-${appName}-${environment}'
+  location: 'global'
+  properties: {
+    virtualNetwork: {
+      id: vnetId
+    }
+    registrationEnabled: false
+  }
+}
+
+resource kvDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
+  parent: kvPrivateEndpoint
+  name: 'dzg-kv'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-vaultcore-azure-net'
+        properties: {
+          privateDnsZoneId: kvPrivateDnsZone.id
+        }
+      }
+    ]
   }
 }
 
