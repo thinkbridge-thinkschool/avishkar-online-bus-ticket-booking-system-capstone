@@ -1,0 +1,34 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else {
+  <h1>Vendor Dashboard</h1>
+  @if (vendor(); as v) {
+    <div class="card" style="margin-bottom:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h2 style="margin:0">{{ v.companyName }}</h2>
+          <p style="color:#6b7280;margin:.25rem 0 0">{{ v.email }}</p>
+        </div>
+        <app-status-badge [status]="v.status" />
+      </div>
+    </div>
+  }
+
+  <div class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem">
+    <div class="card" style="text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ buses().length }}</div>
+      <div style="color:#6b7280;font-size:.875rem">Total Buses</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ schedules().length }}</div>
+      <div style="color:#6b7280;font-size:.875rem">Schedules</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:1rem;flex-wrap:wrap">
+    <a routerLink="/vendor/buses" class="btn btn-secondary">Manage Buses</a>
+    <a routerLink="/vendor/schedules" class="btn btn-primary">Manage Schedules</a>
+  </div>
+}

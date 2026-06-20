@@ -1,11 +1,22 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { MsalService } from '@azure/msal-angular';
+import { AuthService } from './core/services/auth.service';
+import { NavBarComponent } from './shared/components/nav-bar/nav-bar';
 
 @Component({
   selector: 'app-root',
-  imports: [],
+  imports: [RouterOutlet, NavBarComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
 })
-export class App {
-  protected readonly title = signal('bus-booking-ui');
+export class App implements OnInit {
+  constructor(
+    private readonly msal: MsalService,
+    readonly auth: AuthService
+  ) {}
+
+  ngOnInit(): void {
+    this.auth.initialize();
+  }
 }

@@ -1,0 +1,88 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error() && !schedule()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (schedule(); as s) {
+  <h1>Book Your Ticket</h1>
+  <p class="route-summary">{{ s.fromCityName }} → {{ s.toCityName }} | {{ formatTime(s.departureTime) }}</p>
+
+  <div class="booking-layout">
+    <section class="card seat-section">
+      <h2>Select Seats</h2>
+      <app-seat-map
+        [totalSeats]="s.totalSeats"
+        [bookedSeats]="bookedSeatNumbers()"
+        [maxSelectable]="6"
+        [(selected)]="selectedSeats"
+        (selectedChange)="onSeatsChange($event)"
+      />
+    </section>
+
+    @if (selectedSeats().length > 0) {
+      <form [formGroup]="form" (ngSubmit)="submit()" class="passenger-form">
+        <h2>Passenger Details</h2>
+        @if (error()) {
+          <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
+        }
+
+        <div formArrayName="passengers">
+          @for (seat of selectedSeats(); track seat; let i = $index) {
+            <div class="passenger-block card" [formGroupName]="i">
+              <h3>Seat {{ seat }}</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label [for]="'name-' + i">Full Name *</label>
+                  <input [id]="'name-' + i" formControlName="passengerName" class="form-control"
+                    [attr.aria-invalid]="!!fieldError(i, 'passengerName')"
+                    [attr.aria-describedby]="fieldError(i,'passengerName') ? 'err-name-'+i : null" />
+                  @if (fieldError(i, 'passengerName'); as e) {
+                    <span class="field-error" [id]="'err-name-'+i" role="alert">{{ e }}</span>
+                  }
+                </div>
+                <div class="form-group">
+                  <label [for]="'age-' + i">Age *</label>
+                  <input [id]="'age-' + i" type="number" formControlName="passengerAge" class="form-control"
+                    [attr.aria-invalid]="!!fieldError(i, 'passengerAge')" />
+                  @if (fieldError(i, 'passengerAge'); as e) {
+                    <span class="field-error" role="alert">{{ e }}</span>
+                  }
+                </div>
+                <div class="form-group">
+                  <label [for]="'gender-' + i">Gender *</label>
+                  <select [id]="'gender-' + i" formControlName="passengerGender" class="form-control"
+                    [attr.aria-invalid]="!!fieldError(i, 'passengerGender')">
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label [for]="'phone-' + i">Phone</label>
+                  <input [id]="'phone-' + i" type="tel" formControlName="passengerPhone" class="form-control" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'email-' + i">Email</label>
+                  <input [id]="'email-' + i" type="email" formControlName="passengerEmail" class="form-control"
+                    [attr.aria-invalid]="!!fieldError(i, 'passengerEmail')" />
+                  @if (fieldError(i, 'passengerEmail'); as e) {
+                    <span class="field-error" role="alert">{{ e }}</span>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="total-row">
+          <span>Total: <strong>₹{{ (s.pricePerSeat * selectedSeats().length) }}</strong></span>
+          <button class="btn btn-primary" type="submit" [disabled]="submitting()">
+            {{ submitting() ? 'Processing…' : 'Proceed to Payment' }}
+          </button>
+        </div>
+      </form>
+    }
+  </div>
+}

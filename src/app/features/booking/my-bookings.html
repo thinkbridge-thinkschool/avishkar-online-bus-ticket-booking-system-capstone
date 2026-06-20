@@ -1,0 +1,29 @@
+<h1>My Bookings</h1>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (bookings().length === 0) {
+  <div class="empty-state">
+    <h3>No bookings yet</h3>
+    <p>You haven't booked any bus tickets yet.</p>
+    <a routerLink="/" class="btn btn-primary" style="margin-top:1rem">Search Buses</a>
+  </div>
+} @else {
+  <div style="display:flex;flex-direction:column;gap:1rem">
+    @for (b of bookings(); track b.bookingId) {
+      <div class="card booking-row">
+        <div class="booking-info">
+          <strong>{{ b.fromCityName }} → {{ b.toCityName }}</strong>
+          <span class="booking-date">{{ formatDate(b.createdAt) }}</span>
+        </div>
+        <div class="booking-meta">
+          <app-status-badge [status]="b.status" />
+          <span class="amount">₹{{ b.totalAmount }}</span>
+          <a [routerLink]="['/bookings', b.bookingId]" class="btn btn-outline btn-sm">View</a>
+        </div>
+      </div>
+    }
+  </div>
+}

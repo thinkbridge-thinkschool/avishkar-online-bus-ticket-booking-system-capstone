@@ -1,0 +1,48 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error() && !booking()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (booking(); as b) {
+  <div style="max-width:500px">
+    <h1>Complete Payment</h1>
+    <div class="card" style="margin-bottom:1.5rem">
+      <dl style="display:grid;grid-template-columns:auto 1fr;gap:0.5rem 1rem;margin:0">
+        <dt style="color:#6b7280;font-size:.875rem">Route</dt>
+        <dd style="margin:0;font-weight:600">{{ b.fromCityName }} → {{ b.toCityName }}</dd>
+        <dt style="color:#6b7280;font-size:.875rem">Seats</dt>
+        <dd style="margin:0">{{ b.bookedSeats.length }}</dd>
+        <dt style="color:#6b7280;font-size:.875rem">Amount</dt>
+        <dd style="margin:0;font-size:1.4rem;font-weight:700;color:#1a2b4a">₹{{ b.totalAmount }}</dd>
+      </dl>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="card">
+      <h2>Select Payment Method</h2>
+      @if (error()) {
+        <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
+      }
+
+      <div class="form-group">
+        <fieldset>
+          <legend style="font-weight:600;margin-bottom:.75rem">Payment Method</legend>
+          @for (m of paymentMethods; track m.value) {
+            <label class="radio-label">
+              <input type="radio" formControlName="method" [value]="m.value" />
+              {{ m.label }}
+            </label>
+          }
+        </fieldset>
+      </div>
+
+      <div class="form-group">
+        <label for="txId">Transaction ID (optional)</label>
+        <input id="txId" class="form-control" formControlName="transactionId"
+          placeholder="Enter UPI/reference ID" />
+      </div>
+
+      <button class="btn btn-primary" style="width:100%" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Processing…' : 'Pay ₹' + booking()?.totalAmount }}
+      </button>
+    </form>
+  </div>
+}
