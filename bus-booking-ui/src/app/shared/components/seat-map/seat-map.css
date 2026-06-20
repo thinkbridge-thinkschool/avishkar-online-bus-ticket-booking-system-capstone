@@ -1,0 +1,84 @@
+.seat-map { font-size: 0.875rem; }
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  color: #6b7280;
+}
+
+.seat-sample {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.seat-sample.available { background: #e2e8f0; border: 1px solid #cbd5e1; }
+.seat-sample.selected  { background: #1a2b4a; }
+.seat-sample.booked    { background: #fca5a5; }
+
+.bus-outline {
+  border: 2px solid #94a3b8;
+  border-radius: 12px;
+  padding: 1rem;
+  display: inline-block;
+  background: #f8fafc;
+}
+
+.driver-area {
+  text-align: center;
+  padding: 0.4rem;
+  background: #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.seat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.aisle { width: 16px; flex-shrink: 0; }
+
+.seat {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s, background 0.15s;
+}
+
+.seat.available {
+  background: #e2e8f0;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+.seat.available:hover { background: #cbd5e1; transform: scale(1.05); }
+
+.seat.selected {
+  background: #1a2b4a;
+  color: #fff;
+}
+.seat.selected:hover { background: #243d68; }
+
+.seat.booked {
+  background: #fca5a5;
+  color: #7f1d1d;
+  cursor: not-allowed;
+}
+
+.selection-info {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: #1a2b4a;
+  font-weight: 500;
+}

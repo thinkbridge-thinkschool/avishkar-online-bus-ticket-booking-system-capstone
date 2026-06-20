@@ -1,0 +1,81 @@
+.hero {
+  background: linear-gradient(135deg, #1a2b4a 0%, #243d68 100%);
+  padding: 4rem 1.5rem;
+  margin: -1.5rem -1.5rem 2rem;
+  color: #fff;
+}
+
+.hero-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.hero h1 {
+  font-size: 2.5rem;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  opacity: 0.85;
+  margin-bottom: 2rem;
+}
+
+.search-card {
+  padding: 2rem;
+}
+
+.search-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.search-btn {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+}
+
+.features {
+  padding: 2rem 0;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.feature-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.feature-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.feature-card h3 {
+  font-size: 1.1rem;
+  color: #1a2b4a;
+  margin-bottom: 0.4rem;
+}
+
+.feature-card p {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .search-form { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 1.75rem; }
+}

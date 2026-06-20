@@ -1,0 +1,13 @@
+.star-row { display: flex; gap: 0.25rem; }
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: #cbd5e1;
+  transition: color 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+.star-btn.filled { color: #f5a623; }
+.star-btn:hover { color: #f5a623; }

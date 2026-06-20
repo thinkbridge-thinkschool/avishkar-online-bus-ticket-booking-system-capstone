@@ -1,0 +1,16 @@
+.route-summary { color: var(--text-muted); margin-bottom: 1.5rem; }
+.booking-layout { display: flex; flex-direction: column; gap: 1.5rem; }
+.seat-section h2, .passenger-form h2 { margin-bottom: 1rem; }
+.passenger-block { margin-bottom: 1rem; }
+.passenger-block h3 { font-size: 1rem; color: var(--navy); margin-bottom: 1rem; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg);
+  border-radius: var(--radius);
+  margin-top: 1rem;
+}
+.total-row strong { font-size: 1.3rem; color: var(--navy); }

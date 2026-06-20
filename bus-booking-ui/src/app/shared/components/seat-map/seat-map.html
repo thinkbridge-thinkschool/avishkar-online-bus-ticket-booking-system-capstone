@@ -1,0 +1,36 @@
+<div class="seat-map" role="group" aria-label="Seat selection">
+  <div class="legend" aria-hidden="true">
+    <span class="seat-sample available"></span> Available
+    <span class="seat-sample selected"></span> Selected
+    <span class="seat-sample booked"></span> Booked
+  </div>
+
+  <div class="bus-outline">
+    <div class="driver-area" aria-hidden="true">🚌 Driver</div>
+    @for (row of rows(); track $index) {
+      <div class="seat-row">
+        @for (seat of row; track seat) {
+          <button
+            class="seat"
+            [class]="seatClass(seat)"
+            [attr.aria-label]="'Seat ' + seat + (isBooked(seat) ? ' - booked' : isSelected(seat) ? ' - selected' : ' - available')"
+            [attr.aria-pressed]="isSelected(seat)"
+            [disabled]="isBooked(seat)"
+            (click)="toggle(seat)"
+            type="button"
+          >{{ seat }}</button>
+          @if ($index === 1) {
+            <span class="aisle" aria-hidden="true"></span>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  <p class="selection-info">
+    Selected: {{ selected().length }} / {{ maxSelectable() }} seats
+    @if (selected().length > 0) {
+      — Seats: {{ selected().join(', ') }}
+    }
+  </p>
+</div>

@@ -1,0 +1,51 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (submitted()) {
+  <div style="max-width:480px;margin:2rem auto;text-align:center" class="card">
+    <span style="font-size:3rem">⭐</span>
+    <h1>Thank you for your feedback!</h1>
+    <p>Your review helps other travellers make better choices.</p>
+    <a routerLink="/bookings" class="btn btn-primary" style="margin-top:1rem">Back to Bookings</a>
+  </div>
+} @else {
+  <div style="max-width:480px">
+    <h1>Leave Feedback</h1>
+    @if (booking(); as b) {
+      <p style="color:#6b7280;margin-bottom:1.5rem">{{ b.fromCityName }} → {{ b.toCityName }}</p>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="card">
+      @if (error()) {
+        <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
+      }
+
+      <div class="form-group">
+        <label>Rating *</label>
+        <div class="star-row" role="group" aria-label="Rating">
+          @for (s of stars; track s) {
+            <button type="button" class="star-btn"
+              [class.filled]="s <= form.controls.rating.value"
+              (click)="setRating(s)"
+              [attr.aria-label]="s + ' star' + (s > 1 ? 's' : '')"
+              [attr.aria-pressed]="s <= form.controls.rating.value">
+              ★
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="comment">Comment (optional)</label>
+        <textarea id="comment" class="form-control" formControlName="comment"
+          rows="4" maxlength="1000" placeholder="Share your experience…"></textarea>
+      </div>
+
+      <div style="display:flex;gap:1rem">
+        <a routerLink="/bookings" class="btn btn-outline">Cancel</a>
+        <button class="btn btn-primary" type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Submitting…' : 'Submit Feedback' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

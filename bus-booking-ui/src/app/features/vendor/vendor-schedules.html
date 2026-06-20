@@ -1,0 +1,90 @@
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+  <h1>My Schedules</h1>
+  <button class="btn btn-primary" (click)="showForm.set(!showForm())" type="button">
+    {{ showForm() ? 'Cancel' : '+ Add Schedule' }}
+  </button>
+</div>
+
+@if (showForm()) {
+  <div class="card" style="margin-bottom:1.5rem">
+    <h2>Add Schedule</h2>
+    @if (error()) {
+      <div class="error-alert" role="alert">{{ error() }}</div>
+    }
+    <form [formGroup]="form" (ngSubmit)="addSchedule()">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="form-group">
+          <label for="route">Route *</label>
+          <select id="route" class="form-control" formControlName="routeId">
+            <option value="">Select route</option>
+            @for (r of routes(); track r.routeId) {
+              <option [value]="r.routeId">{{ r.fromCityName }} → {{ r.toCityName }}</option>
+            }
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="bus">Bus *</label>
+          <select id="bus" class="form-control" formControlName="busId">
+            <option value="">Select bus</option>
+            @for (b of buses(); track b.busId) {
+              <option [value]="b.busId">{{ b.busNumber }} ({{ b.busType }})</option>
+            }
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="dep">Departure *</label>
+          <input id="dep" type="datetime-local" class="form-control" formControlName="departureTime" />
+        </div>
+        <div class="form-group">
+          <label for="arr">Arrival *</label>
+          <input id="arr" type="datetime-local" class="form-control" formControlName="arrivalTime" />
+        </div>
+        <div class="form-group">
+          <label for="price">Price/Seat (₹) *</label>
+          <input id="price" type="number" class="form-control" formControlName="pricePerSeat" min="1" />
+        </div>
+      </div>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Adding…' : 'Add Schedule' }}
+      </button>
+    </form>
+  </div>
+}
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (schedules().length === 0) {
+  <div class="empty-state">
+    <h3>No schedules yet</h3>
+  </div>
+} @else {
+  <div class="card" style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="border-bottom:2px solid #e2e8f0">
+          <th style="text-align:left;padding:.75rem">Route</th>
+          <th style="text-align:left;padding:.75rem">Departure</th>
+          <th style="text-align:left;padding:.75rem">Arrival</th>
+          <th style="text-align:left;padding:.75rem">Price</th>
+          <th style="text-align:left;padding:.75rem">Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (s of schedules(); track s.scheduleId) {
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:.75rem">{{ s.fromCityName }} → {{ s.toCityName }}</td>
+            <td style="padding:.75rem">{{ formatDT(s.departureTime) }}</td>
+            <td style="padding:.75rem">{{ formatDT(s.arrivalTime) }}</td>
+            <td style="padding:.75rem">₹{{ s.pricePerSeat }}</td>
+            <td style="padding:.75rem"><app-status-badge [status]="s.status" /></td>
+            <td style="padding:.75rem">
+              <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .75rem"
+                (click)="deleteSchedule(s.scheduleId)" type="button">Delete</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

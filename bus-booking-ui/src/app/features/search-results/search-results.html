@@ -1,0 +1,49 @@
+<div class="page-header">
+  <h1>
+    {{ fromCityName() }} → {{ toCityName() }}
+  </h1>
+  <p class="date-label">{{ travelDate() | date:'fullDate' }}</p>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (schedules().length === 0) {
+  <div class="empty-state">
+    <h3>No buses found</h3>
+    <p>No schedules available for this route on the selected date.</p>
+  </div>
+} @else {
+  <p class="result-count">{{ schedules().length }} bus(es) found</p>
+  <div class="results-list">
+    @for (s of schedules(); track s.scheduleId) {
+      <div class="schedule-card card">
+        <div class="schedule-header">
+          <span class="bus-type">{{ s.busType ?? s.busId }}</span>
+          <span class="available-seats" [class.low-seats]="s.availableSeats < 5">
+            {{ s.availableSeats }} seats left
+          </span>
+        </div>
+        <div class="schedule-times">
+          <div class="time-block">
+            <span class="time">{{ formatTime(s.departureTime) }}</span>
+            <span class="city">{{ s.fromCityName }}</span>
+          </div>
+          <div class="duration-line" aria-hidden="true">✈</div>
+          <div class="time-block">
+            <span class="time">{{ formatTime(s.arrivalTime) }}</span>
+            <span class="city">{{ s.toCityName }}</span>
+          </div>
+        </div>
+        <div class="schedule-footer">
+          <span class="price">₹{{ s.pricePerSeat }}</span>
+          <button class="btn btn-primary" (click)="book(s.scheduleId)" type="button"
+            [disabled]="s.availableSeats === 0">
+            {{ s.availableSeats === 0 ? 'Sold Out' : 'Book Now' }}
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}

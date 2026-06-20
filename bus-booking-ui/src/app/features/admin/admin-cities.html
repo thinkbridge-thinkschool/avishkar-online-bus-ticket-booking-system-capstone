@@ -1,0 +1,44 @@
+<h1>City Management</h1>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start">
+  <div class="card">
+    <h2>Add City</h2>
+    @if (error()) {
+      <div class="error-alert" role="alert">{{ error() }}</div>
+    }
+    <form [formGroup]="form" (ngSubmit)="addCity()">
+      <div class="form-group">
+        <label for="cityName">City Name *</label>
+        <input id="cityName" class="form-control" formControlName="cityName" placeholder="e.g. Mumbai" />
+        @if (form.controls.cityName.invalid && form.controls.cityName.touched) {
+          <span class="field-error" role="alert">City name is required.</span>
+        }
+      </div>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Adding…' : 'Add City' }}
+      </button>
+    </form>
+  </div>
+
+  <div>
+    @if (loading()) {
+      <app-loading-spinner />
+    } @else {
+      <div class="card">
+        <h2>Cities ({{ cities().length }})</h2>
+        @if (cities().length === 0) {
+          <p style="color:#6b7280">No cities added yet.</p>
+        } @else {
+          <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.5rem">
+            @for (c of cities(); track c.cityId) {
+              <li style="display:flex;justify-content:space-between;align-items:center;padding:.5rem;border:1px solid #e2e8f0;border-radius:6px">
+                <span>{{ c.cityName }}</span>
+                <button class="btn btn-danger" style="font-size:.8rem;padding:.25rem .6rem"
+                  (click)="deleteCity(c.cityId)" type="button">✕</button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </div>
+</div>

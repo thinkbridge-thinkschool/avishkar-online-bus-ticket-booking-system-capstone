@@ -1,0 +1,51 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (booking(); as b) {
+  <div style="max-width:640px">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h1 style="margin:0">Booking Details</h1>
+        <app-status-badge [status]="b.status" />
+      </div>
+
+      <dl class="detail-list">
+        <dt>Booking ID</dt><dd>{{ b.bookingId }}</dd>
+        <dt>Route</dt><dd>{{ b.fromCityName }} → {{ b.toCityName }}</dd>
+        <dt>Departure</dt><dd>{{ formatDateTime(b.departureTime ?? b.createdAt) }}</dd>
+        <dt>Total Amount</dt><dd style="font-weight:700;color:#1a2b4a">₹{{ b.totalAmount }}</dd>
+        <dt>Booked On</dt><dd>{{ formatDateTime(b.createdAt) }}</dd>
+      </dl>
+
+      <h3>Passengers</h3>
+      <table class="passengers-table">
+        <thead>
+          <tr><th>Seat</th><th>Name</th><th>Age</th><th>Gender</th></tr>
+        </thead>
+        <tbody>
+          @for (seat of b.bookedSeats; track seat.seatNumber) {
+            <tr>
+              <td>{{ seat.seatNumber }}</td>
+              <td>{{ seat.passengerName }}</td>
+              <td>{{ seat.passengerAge }}</td>
+              <td>{{ seat.passengerGender }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap">
+        <a routerLink="/bookings" class="btn btn-outline">Back to Bookings</a>
+        @if (b.status === 'Confirmed') {
+          <a [routerLink]="['/feedback', b.bookingId]" class="btn btn-secondary">Leave Feedback</a>
+        }
+        @if (b.status === 'Pending' || b.status === 'PaymentPending') {
+          <button class="btn btn-danger" (click)="cancel()" [disabled]="cancelling()" type="button">
+            {{ cancelling() ? 'Cancelling…' : 'Cancel Booking' }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

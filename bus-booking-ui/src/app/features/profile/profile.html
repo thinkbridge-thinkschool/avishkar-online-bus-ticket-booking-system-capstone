@@ -1,0 +1,46 @@
+<h1>My Profile</h1>
+@if (loading()) {
+  <app-loading-spinner />
+} @else {
+  <div style="max-width:480px">
+    <form [formGroup]="form" (ngSubmit)="save()" class="card">
+      @if (error()) {
+        <div class="error-alert" role="alert">{{ error() }}</div>
+      }
+      @if (saved()) {
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:.75rem;color:#15803d;margin-bottom:1rem" role="status">
+          Profile updated successfully.
+        </div>
+      }
+
+      <div class="form-group">
+        <label for="email">Email (read-only)</label>
+        <input id="email" class="form-control" [value]="profile()?.email ?? ''" readonly
+          style="background:#f8fafc;color:#6b7280" />
+      </div>
+
+      <div class="form-group">
+        <label for="fullName">Full Name *</label>
+        <input id="fullName" class="form-control" formControlName="fullName"
+          [attr.aria-invalid]="form.controls.fullName.invalid && form.controls.fullName.touched" />
+        @if (form.controls.fullName.invalid && form.controls.fullName.touched) {
+          <span class="field-error" role="alert">Full name is required.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="phone">Phone Number</label>
+        <input id="phone" type="tel" class="form-control" formControlName="phoneNumber" />
+      </div>
+
+      <div class="form-group">
+        <label for="address">Address</label>
+        <textarea id="address" class="form-control" formControlName="address" rows="3"></textarea>
+      </div>
+
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Saving…' : 'Save Changes' }}
+      </button>
+    </form>
+  </div>
+}

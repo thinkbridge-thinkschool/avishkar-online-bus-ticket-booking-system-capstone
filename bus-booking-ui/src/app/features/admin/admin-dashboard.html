@@ -1,0 +1,36 @@
+<h1>Admin Dashboard</h1>
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (dashboard(); as d) {
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem">
+    <div class="card" style="text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ d.totalUsers }}</div>
+      <div style="color:#6b7280;font-size:.875rem">Users</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ d.totalVendors }}</div>
+      <div style="color:#6b7280;font-size:.875rem">Vendors</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ d.totalBookings }}</div>
+      <div style="color:#6b7280;font-size:.875rem">Bookings</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#e85d04">₹{{ d.totalRevenue }}</div>
+      <div style="color:#6b7280;font-size:.875rem">Revenue</div>
+    </div>
+    @if (d.pendingVendors > 0) {
+      <div class="card" style="text-align:center;border:2px solid #f5a623">
+        <div style="font-size:2rem;font-weight:700;color:#f5a623">{{ d.pendingVendors }}</div>
+        <div style="color:#6b7280;font-size:.875rem">Pending Vendors</div>
+      </div>
+    }
+  </div>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap">
+    <a routerLink="/admin/vendors" class="btn btn-primary">Manage Vendors</a>
+    <a routerLink="/admin/cities" class="btn btn-secondary">Manage Cities</a>
+    <a routerLink="/admin/routes" class="btn btn-outline">Manage Routes</a>
+  </div>
+}

@@ -1,0 +1,73 @@
+<section class="hero">
+  <div class="hero-content">
+    <h1>Book Your Bus Ticket</h1>
+    <p class="subtitle">Fast, easy, and reliable bus booking across India.</p>
+
+    <div class="search-card card">
+      @if (error) {
+        <div class="error-alert" role="alert" aria-live="polite">{{ error }}</div>
+      }
+      <form (ngSubmit)="search()" #f="ngForm" class="search-form">
+        <div class="form-group">
+          <label for="from">From</label>
+          <select id="from" class="form-control"
+            [(ngModel)]="fromCityId"
+            name="from"
+            required
+            aria-required="true">
+            <option value="">Select origin city</option>
+            @for (city of cities(); track city.cityId) {
+              <option [value]="city.cityId">{{ city.cityName }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="to">To</label>
+          <select id="to" class="form-control"
+            [(ngModel)]="toCityId"
+            name="to"
+            required
+            aria-required="true">
+            <option value="">Select destination city</option>
+            @for (city of cities(); track city.cityId) {
+              <option [value]="city.cityId">{{ city.cityName }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="date">Travel Date</label>
+          <input id="date" type="date" class="form-control"
+            [(ngModel)]="travelDate"
+            name="date"
+            [min]="today"
+            required
+            aria-required="true" />
+        </div>
+
+        <button class="btn btn-primary search-btn" type="submit">Search Buses</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="feature-grid">
+    <div class="feature-card">
+      <span class="feature-icon" aria-hidden="true">🎯</span>
+      <h3>Wide Coverage</h3>
+      <p>Routes connecting hundreds of cities across the country.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon" aria-hidden="true">💳</span>
+      <h3>Secure Payments</h3>
+      <p>Multiple payment options — UPI, cards, net banking, wallets.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon" aria-hidden="true">📱</span>
+      <h3>Instant Confirmation</h3>
+      <p>Get your e-ticket instantly upon successful booking.</p>
+    </div>
+  </div>
+</section>
