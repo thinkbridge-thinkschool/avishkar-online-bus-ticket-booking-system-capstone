@@ -13,6 +13,8 @@ internal sealed class RouteConfiguration : IEntityTypeConfiguration<Route>
         builder.Property(r => r.Destination).HasMaxLength(100).IsRequired();
         // SearchAsync filters on (Source, Destination) on every search request.
         builder.HasIndex(r => new { r.Source, r.Destination });
+        builder.Property(r => r.SourceCityId);
+        builder.Property(r => r.DestinationCityId);
         // Computed property — no column.
         builder.Ignore(r => r.Name);
         builder.Ignore(r => r.DomainEvents);

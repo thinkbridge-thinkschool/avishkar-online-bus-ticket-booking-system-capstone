@@ -47,6 +47,12 @@ internal sealed class ScheduleRepository(BusBookingDbContext db) : IScheduleRepo
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Schedule>> GetByVendorIdAsync(Guid vendorId, CancellationToken ct = default) =>
+        await db.Schedules
+                .Include(s => s.Seats)
+                .Where(s => db.Buses.Any(b => b.Id == s.BusId && b.VendorId == vendorId))
+                .ToListAsync(ct);
+
     public async Task AddAsync(Schedule schedule, CancellationToken ct = default) =>
         await db.Schedules.AddAsync(schedule, ct);
 

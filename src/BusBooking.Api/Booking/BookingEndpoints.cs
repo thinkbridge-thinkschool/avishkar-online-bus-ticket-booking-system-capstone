@@ -28,10 +28,9 @@ public static class BookingEndpoints
         CreateBookingCommand command,
         IScheduleRepository scheduleRepo,
         IBookingRepository bookingRepo,
-        IEventPublisher publisher,
         CancellationToken ct)
     {
-        var handler = new CreateBookingHandler(scheduleRepo, bookingRepo, publisher);
+        var handler = new CreateBookingHandler(scheduleRepo, bookingRepo);
         try
         {
             var bookingId = await handler.HandleAsync(command, ct);

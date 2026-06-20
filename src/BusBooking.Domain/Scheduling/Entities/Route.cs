@@ -7,6 +7,8 @@ public sealed class Route : BaseEntity
     public string Source { get; private set; } = default!;
     public string Destination { get; private set; } = default!;
     public string Name => $"{Source} → {Destination}";
+    public Guid? SourceCityId { get; private set; }
+    public Guid? DestinationCityId { get; private set; }
 
     private Route() { }
 

@@ -1,8 +1,16 @@
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BusBooking.Api;
+using BusBooking.Api.Admin;
 using BusBooking.Api.Booking;
+using BusBooking.Api.Buses;
+using BusBooking.Api.Cities;
+using BusBooking.Api.Feedback;
 using BusBooking.Api.OpenApi;
+using BusBooking.Api.Payments;
+using BusBooking.Api.Routes;
 using BusBooking.Api.Scheduling;
+using BusBooking.Api.Users;
+using BusBooking.Api.Vendors;
 using BusBooking.Application.Common;
 using BusBooking.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
@@ -41,10 +49,14 @@ builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration)
 
 // Fallback policy: any endpoint without explicit [AllowAnonymous] requires a
 // valid Bearer token. This closes the "forgotten RequireAuthorization" gap.
+// AdminOnly policy maps to the BusBooking.Admin Entra ID app role.
 builder.Services.AddAuthorization(o =>
+{
     o.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
-        .Build());
+        .Build();
+    o.AddPolicy("AdminOnly", p => p.RequireClaim("roles", "BusBooking.Admin"));
+});
 
 // ── Rate limiting: fixed window 60 req/min per policy ─────────────────────────
 builder.Services.AddRateLimiter(o =>
@@ -99,6 +111,14 @@ app.UseAuthorization();
 
 app.MapScheduleEndpoints();
 app.MapBookingEndpoints();
+app.MapCityEndpoints();
+app.MapRouteEndpoints();
+app.MapBusEndpoints();
+app.MapVendorEndpoints();
+app.MapUserEndpoints();
+app.MapAdminEndpoints();
+app.MapPaymentEndpoints();
+app.MapFeedbackEndpoints();
 
 // Seed on startup in Development
 if (app.Environment.IsDevelopment())

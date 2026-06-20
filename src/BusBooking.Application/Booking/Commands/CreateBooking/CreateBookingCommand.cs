@@ -10,7 +10,9 @@ public sealed record CreateBookingCommand(
     IReadOnlyList<SeatPassengerRequest> Seats);
 
 public sealed record SeatPassengerRequest(
-    [Range(1, 60)]    int    SeatNumber,
-    [MaxLength(100)]  string PassengerName,
-    [Range(0, 120)]   int    PassengerAge,
-    [MaxLength(10)]   string PassengerGender);
+    [Range(1, 60)]    int     SeatNumber,
+    [MaxLength(100)]  string  PassengerName,
+    [Range(0, 120)]   int     PassengerAge,
+    [MaxLength(10)]   string  PassengerGender,
+    [MaxLength(15)]   string? PassengerPhone,
+    [MaxLength(200)]  string? PassengerEmail);

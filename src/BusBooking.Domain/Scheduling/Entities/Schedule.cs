@@ -55,6 +55,13 @@ public sealed class Schedule : BaseEntity
     public IReadOnlyList<Seat> GetExpiredReservations() =>
         _seats.Where(s => s.IsLockExpired()).ToList();
 
+    public void UpdateTimes(TimeOnly departure, TimeOnly arrival)
+    {
+        DepartureTime = departure;
+        ArrivalTime = arrival;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Deactivate()
     {
         IsActive = false;

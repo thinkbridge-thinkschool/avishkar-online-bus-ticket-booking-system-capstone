@@ -13,6 +13,8 @@ internal sealed class BusConfiguration : IEntityTypeConfiguration<Bus>
         builder.Property(b => b.BusName).HasMaxLength(100).IsRequired();
         // Consistent with SeatType/SeatStatus: store enum as string for readability.
         builder.Property(b => b.BusType).HasConversion<string>().HasMaxLength(20);
+        builder.Property(b => b.IsActive).IsRequired();
+        builder.HasIndex(b => b.VendorId);
         builder.Ignore(b => b.DomainEvents);
     }
 }

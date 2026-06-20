@@ -42,7 +42,7 @@ public sealed class Booking : BaseEntity
 
     public void Confirm(string userName)
     {
-        if (Status != BookingStatus.Pending)
+        if (Status != BookingStatus.Pending && Status != BookingStatus.PaymentPending)
             throw new InvalidOperationException($"Cannot confirm a booking in '{Status}' status.");
 
         Status = BookingStatus.Confirmed;
@@ -51,6 +51,24 @@ public sealed class Booking : BaseEntity
         RaiseDomainEvent(new BookingConfirmedEvent(
             Id, UserEmail, userName, ScheduleId, TotalAmount,
             _seats.Select(s => s.SeatNumber).ToList()));
+    }
+
+    public void AwaitPayment()
+    {
+        if (Status != BookingStatus.Pending)
+            throw new InvalidOperationException("Booking must be Pending to await payment.");
+
+        Status = BookingStatus.PaymentPending;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void MarkPaymentFailed()
+    {
+        if (Status != BookingStatus.PaymentPending)
+            throw new InvalidOperationException("Booking must be in PaymentPending state.");
+
+        Status = BookingStatus.PaymentFailed;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Cancel()
