@@ -1,8 +1,11 @@
-<div class="page-header">
-  <h1>
-    {{ fromCityName() }} → {{ toCityName() }}
-  </h1>
-  <p class="date-label">{{ travelDate() | date:'fullDate' }}</p>
+﻿<!-- ── Page header ───────────────────────────────────────────────────────── -->
+<div class="sr-header">
+  <div class="sr-route-cities">
+    <span class="from-city">{{ fromCityName() }}</span>
+    <i class="fas fa-arrow-right sr-arrow" aria-hidden="true"></i>
+    <span class="to-city">{{ toCityName() }}</span>
+  </div>
+  <p class="sr-date">{{ formatTravelDate(travelDate()) }}</p>
 </div>
 
 @if (loading()) {
@@ -11,38 +14,111 @@
   <div class="error-alert" role="alert">{{ error() }}</div>
 } @else if (schedules().length === 0) {
   <div class="empty-state">
+    <div class="empty-icon">🚌</div>
     <h3>No buses found</h3>
     <p>No schedules available for this route on the selected date.</p>
   </div>
 } @else {
-  <p class="result-count">{{ schedules().length }} bus(es) found</p>
+
+  <!-- ── Filter / Sort bar ─────────────────────────────────────────────── -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span class="bar-label"><i class="fas fa-filter" aria-hidden="true"></i> Type</span>
+      <button class="filter-chip" [class.active]="typeFilter() === ''" (click)="typeFilter.set('')" type="button">All</button>
+      <button class="filter-chip" [class.active]="typeFilter() === 'Seater'" (click)="typeFilter.set('Seater')" type="button">Seater</button>
+      <button class="filter-chip" [class.active]="typeFilter() === 'SemiSleeper'" (click)="typeFilter.set('SemiSleeper')" type="button">Semi-Sleeper</button>
+      <button class="filter-chip" [class.active]="typeFilter() === 'Sleeper'" (click)="typeFilter.set('Sleeper')" type="button">Sleeper</button>
+    </div>
+    <div class="sort-group">
+      <span class="bar-label"><i class="fas fa-sort" aria-hidden="true"></i> Sort</span>
+      <button class="sort-btn" [class.active]="sortBy() === 'departure'" (click)="sortBy.set('departure')" type="button">
+        <i class="fas fa-clock" aria-hidden="true"></i> Departure
+      </button>
+      <button class="sort-btn" [class.active]="sortBy() === 'price'" (click)="sortBy.set('price')" type="button">
+        <i class="fas fa-tag" aria-hidden="true"></i> Price
+      </button>
+    </div>
+  </div>
+
+  <p class="result-count">
+    <i class="fas fa-bus" aria-hidden="true"></i>
+    <strong>{{ filteredSchedules().length }}</strong> bus{{ filteredSchedules().length === 1 ? '' : 'es' }} available
+  </p>
+
+  <!-- ── Results list ───────────────────────────────────────────────────── -->
   <div class="results-list">
-    @for (s of schedules(); track s.scheduleId) {
-      <div class="schedule-card card">
-        <div class="schedule-header">
-          <span class="bus-type">{{ s.busType ?? s.busId }}</span>
-          <span class="available-seats" [class.low-seats]="s.availableSeats < 5">
-            {{ s.availableSeats }} seats left
+    @for (s of filteredSchedules(); track s.scheduleId) {
+      <div class="schedule-card">
+
+        <!-- LEFT: operator info ─────────────────────────────────────────── -->
+        <div class="card-left">
+          <div class="bus-header">
+            <span class="bus-name">{{ s.busName }}</span>
+            <span class="bus-type-badge" [attr.data-type]="s.busType">
+              {{ busTypeLabel(s.busType ?? '') }}
+            </span>
+          </div>
+          <span class="bus-number">
+            <i class="fas fa-id-card" aria-hidden="true"></i> {{ s.busNumber }}
           </span>
-        </div>
-        <div class="schedule-times">
-          <div class="time-block">
-            <span class="time">{{ formatTime(s.departureTime) }}</span>
-            <span class="city">{{ s.fromCityName }}</span>
+          <div class="amenities">
+            <span class="amenity"><i class="fas fa-snowflake" aria-hidden="true"></i> AC</span>
+            <span class="amenity"><i class="fas fa-wifi" aria-hidden="true"></i> WiFi</span>
+            @if (s.busType === 'Sleeper' || s.busType === 'SemiSleeper') {
+              <span class="amenity"><i class="fas fa-charging-station" aria-hidden="true"></i> Charging</span>
+            }
+            @if (s.busType === 'Sleeper') {
+              <span class="amenity"><i class="fas fa-moon" aria-hidden="true"></i> Blanket</span>
+            }
           </div>
-          <div class="duration-line" aria-hidden="true">✈</div>
-          <div class="time-block">
-            <span class="time">{{ formatTime(s.arrivalTime) }}</span>
-            <span class="city">{{ s.toCityName }}</span>
+        </div>
+
+        <!-- CENTER: journey timeline ─────────────────────────────────────── -->
+        <div class="card-center">
+          <div class="journey">
+            <div class="j-time">
+              <span class="j-clock">{{ formatTime(s.departureTime) }}</span>
+              <span class="j-city">{{ s.source }}</span>
+            </div>
+            <div class="j-line">
+              <span class="j-dur">{{ duration(s.departureTime, s.arrivalTime) }}</span>
+              <div class="j-track"></div>
+            </div>
+            <div class="j-time j-end">
+              <span class="j-clock">{{ formatTime(s.arrivalTime) }}</span>
+              <span class="j-city">{{ s.destination }}</span>
+            </div>
           </div>
         </div>
-        <div class="schedule-footer">
-          <span class="price">₹{{ s.pricePerSeat }}</span>
-          <button class="btn btn-primary" (click)="book(s.scheduleId)" type="button"
+
+        <!-- RIGHT: price + book ─────────────────────────────────────────── -->
+        <div class="card-right">
+          @if (s.minSeatPrice !== null && s.minSeatPrice !== undefined) {
+            <div class="price-block">
+              <span class="price-label">Starting from</span>
+              <span class="price">₹{{ s.minSeatPrice }}</span>
+            </div>
+          } @else {
+            <span class="sold-out-text">Sold Out</span>
+          }
+          <div class="seats-pill" [class.low]="s.availableSeats < 5">
+            <i class="fas fa-chair" aria-hidden="true"></i> {{ s.availableSeats }} seats left
+          </div>
+          <button
+            class="btn btn-primary book-btn"
+            (click)="book(s)"
+            type="button"
             [disabled]="s.availableSeats === 0">
-            {{ s.availableSeats === 0 ? 'Sold Out' : 'Book Now' }}
+            @if (s.availableSeats === 0) {
+              Sold Out
+            } @else if (!auth.isAuthenticated()) {
+              <i class="fas fa-sign-in-alt" aria-hidden="true"></i> Sign in to Book
+            } @else {
+              Book Now <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            }
           </button>
         </div>
+
       </div>
     }
   </div>

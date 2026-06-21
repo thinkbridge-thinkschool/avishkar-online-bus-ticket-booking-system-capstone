@@ -9,6 +9,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/home/home').then(m => m.HomeComponent),
   },
   {
+    path: 'signup',
+    loadComponent: () => import('./features/signup/signup').then(m => m.SignupComponent),
+  },
+  {
     path: 'search',
     loadComponent: () =>
       import('./features/search-results/search-results').then(m => m.SearchResultsComponent),
@@ -37,16 +41,16 @@ export const routes: Routes = [
       import('./features/booking/booking-detail').then(m => m.BookingDetailComponent),
   },
   {
-    path: 'payment/:bookingId',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./features/payment/payment-process').then(m => m.PaymentProcessComponent),
-  },
-  {
     path: 'payment/confirm',
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/payment/payment-confirm').then(m => m.PaymentConfirmComponent),
+  },
+  {
+    path: 'payment/:bookingId',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/payment/payment-process').then(m => m.PaymentProcessComponent),
   },
   {
     path: 'feedback/:bookingId',

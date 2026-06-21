@@ -1,88 +1,286 @@
-@if (loading()) {
+﻿@if (loading()) {
   <app-loading-spinner />
 } @else if (error() && !schedule()) {
   <div class="error-alert" role="alert">{{ error() }}</div>
 } @else if (schedule(); as s) {
-  <h1>Book Your Ticket</h1>
-  <p class="route-summary">{{ s.fromCityName }} → {{ s.toCityName }} | {{ formatTime(s.departureTime) }}</p>
 
+  <!-- ── Gradient Header ─────────────────────────────────────────────── -->
+  <div class="booking-header">
+    <div class="bh-content">
+      <div class="bh-title">
+        <h1>Book Your Ticket</h1>
+        @if (displayBusName()) {
+          <div class="bh-bus">
+            <i class="fas fa-bus" aria-hidden="true"></i>
+            <span>{{ displayBusName() }}</span>
+            @if (displayBusNumber()) {
+              <span class="bh-bus-num">{{ displayBusNumber() }}</span>
+            }
+          </div>
+        }
+      </div>
+      <div class="bh-journey">
+        @if (displayDepartureTime()) {
+          <div class="bh-stop">
+            <span class="bh-time">{{ formatTime(displayDepartureTime()) }}</span>
+            <span class="bh-city">{{ displaySource() }}</span>
+          </div>
+          <div class="bh-middle">
+            @if (displayArrivalTime()) {
+              <span class="bh-dur">{{ duration(displayDepartureTime(), displayArrivalTime()) }}</span>
+            }
+            <div class="bh-line"></div>
+          </div>
+          <div class="bh-stop bh-stop-end">
+            @if (displayArrivalTime()) {
+              <span class="bh-time">{{ formatTime(displayArrivalTime()) }}</span>
+            }
+            <span class="bh-city">{{ displayDestination() }}</span>
+          </div>
+        } @else {
+          <span class="bh-route-text">{{ displaySource() }} → {{ displayDestination() }}</span>
+        }
+        @if (displayTravelDate()) {
+          <div class="bh-date">
+            <i class="far fa-calendar-alt" aria-hidden="true"></i> {{ formatDate(displayTravelDate()) }}
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Steps ──────────────────────────────────────────────────────── -->
+  <div class="booking-steps">
+    <div class="step" [class.step-done]="selectedSeats().length > 0">
+      <div class="step-circle">
+        @if (selectedSeats().length > 0) {
+          <i class="fas fa-check" aria-hidden="true"></i>
+        } @else { 1 }
+      </div>
+      <span class="step-label">Select Seats</span>
+    </div>
+    <div class="step-connector" [class.connector-active]="selectedSeats().length > 0"></div>
+    <div class="step" [class.step-active]="selectedSeats().length > 0">
+      <div class="step-circle">2</div>
+      <span class="step-label">Passenger Details</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step">
+      <div class="step-circle">3</div>
+      <span class="step-label">Payment</span>
+    </div>
+  </div>
+
+  <!-- ── Two-column layout ──────────────────────────────────────────── -->
   <div class="booking-layout">
-    <section class="card seat-section">
-      <h2>Select Seats</h2>
-      <app-seat-map
-        [totalSeats]="s.totalSeats"
-        [bookedSeats]="bookedSeatNumbers()"
-        [maxSelectable]="6"
-        [(selected)]="selectedSeats"
-        (selectedChange)="onSeatsChange($event)"
-      />
+
+    <!-- LEFT: Seat Map ─────────────────────────────────────────────── -->
+    <section class="seat-section">
+      <div class="card seat-card">
+        <h2 class="section-title">
+          <i class="fas fa-map-marker-alt" aria-hidden="true"></i> Choose Your Seat
+        </h2>
+        <app-seat-map
+          [totalSeats]="s.totalSeats ?? 40"
+          [bookedSeats]="bookedSeatNumbers()"
+          [maxSelectable]="6"
+          [(selected)]="selectedSeats"
+          (selectedChange)="onSeatsChange($event)"
+        />
+      </div>
     </section>
 
-    @if (selectedSeats().length > 0) {
-      <form [formGroup]="form" (ngSubmit)="submit()" class="passenger-form">
-        <h2>Passenger Details</h2>
-        @if (error()) {
-          <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
+    <!-- RIGHT: Summary + Form ────────────────────────────────────── -->
+    <div class="booking-right">
+
+      <!-- Trip summary card ─────────────────────────────────────── -->
+      <div class="card summary-card">
+        <h2 class="section-title">
+          <i class="fas fa-receipt" aria-hidden="true"></i> Trip Summary
+        </h2>
+
+        <!-- Journey timeline -->
+        @if (displayDepartureTime()) {
+          <div class="summary-journey">
+            <div class="sj-stop">
+              <span class="sj-time">{{ formatTime(displayDepartureTime()) }}</span>
+              <span class="sj-city">{{ displaySource() }}</span>
+            </div>
+            <div class="sj-line">
+              @if (displayArrivalTime()) {
+                <span class="sj-dur">{{ duration(displayDepartureTime(), displayArrivalTime()) }}</span>
+              }
+              <div class="sj-track"></div>
+            </div>
+            <div class="sj-stop sj-end">
+              @if (displayArrivalTime()) {
+                <span class="sj-time">{{ formatTime(displayArrivalTime()) }}</span>
+              }
+              <span class="sj-city">{{ displayDestination() }}</span>
+            </div>
+          </div>
         }
 
-        <div formArrayName="passengers">
-          @for (seat of selectedSeats(); track seat; let i = $index) {
-            <div class="passenger-block card" [formGroupName]="i">
-              <h3>Seat {{ seat }}</h3>
-              <div class="form-row">
-                <div class="form-group">
-                  <label [for]="'name-' + i">Full Name *</label>
-                  <input [id]="'name-' + i" formControlName="passengerName" class="form-control"
-                    [attr.aria-invalid]="!!fieldError(i, 'passengerName')"
-                    [attr.aria-describedby]="fieldError(i,'passengerName') ? 'err-name-'+i : null" />
-                  @if (fieldError(i, 'passengerName'); as e) {
-                    <span class="field-error" [id]="'err-name-'+i" role="alert">{{ e }}</span>
-                  }
-                </div>
-                <div class="form-group">
-                  <label [for]="'age-' + i">Age *</label>
-                  <input [id]="'age-' + i" type="number" formControlName="passengerAge" class="form-control"
-                    [attr.aria-invalid]="!!fieldError(i, 'passengerAge')" />
-                  @if (fieldError(i, 'passengerAge'); as e) {
-                    <span class="field-error" role="alert">{{ e }}</span>
-                  }
-                </div>
-                <div class="form-group">
-                  <label [for]="'gender-' + i">Gender *</label>
-                  <select [id]="'gender-' + i" formControlName="passengerGender" class="form-control"
-                    [attr.aria-invalid]="!!fieldError(i, 'passengerGender')">
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label [for]="'phone-' + i">Phone</label>
-                  <input [id]="'phone-' + i" type="tel" formControlName="passengerPhone" class="form-control" />
-                </div>
-                <div class="form-group">
-                  <label [for]="'email-' + i">Email</label>
-                  <input [id]="'email-' + i" type="email" formControlName="passengerEmail" class="form-control"
-                    [attr.aria-invalid]="!!fieldError(i, 'passengerEmail')" />
-                  @if (fieldError(i, 'passengerEmail'); as e) {
-                    <span class="field-error" role="alert">{{ e }}</span>
-                  }
-                </div>
-              </div>
+        <!-- Detail rows -->
+        <div class="summary-details">
+          @if (displayBusName()) {
+            <div class="sd-row">
+              <span class="sd-key"><i class="fas fa-bus" aria-hidden="true"></i> Bus</span>
+              <span class="sd-val">{{ displayBusName() }}</span>
             </div>
           }
+          @if (displayTravelDate()) {
+            <div class="sd-row">
+              <span class="sd-key"><i class="far fa-calendar-alt" aria-hidden="true"></i> Date</span>
+              <span class="sd-val">{{ formatDate(displayTravelDate()) }}</span>
+            </div>
+          }
+          @if (displayMinPrice() !== null) {
+            <div class="sd-row">
+              <span class="sd-key"><i class="fas fa-tag" aria-hidden="true"></i> Price / seat</span>
+              <span class="sd-val sd-price">₹{{ displayMinPrice() }}</span>
+            </div>
+          }
+          <div class="sd-row">
+            <span class="sd-key"><i class="fas fa-chair" aria-hidden="true"></i> Seats</span>
+            <span class="sd-val">
+              @if (selectedSeats().length === 0) {
+                <span class="sd-none">None selected</span>
+              } @else {
+                {{ selectedSeats().length }} seat{{ selectedSeats().length > 1 ? 's' : '' }} selected
+              }
+            </span>
+          </div>
         </div>
 
-        <div class="total-row">
-          <span>Total: <strong>₹{{ (s.pricePerSeat * selectedSeats().length) }}</strong></span>
-          <button class="btn btn-primary" type="submit" [disabled]="submitting()">
-            {{ submitting() ? 'Processing…' : 'Proceed to Payment' }}
-          </button>
+        @if (selectedSeats().length > 0) {
+          <div class="seats-chips">
+            @for (sn of selectedSeats(); track sn) {
+              <span class="seat-chip">
+                <i class="fas fa-chair" aria-hidden="true"></i> {{ sn }}
+              </span>
+            }
+          </div>
+          @if (displayMinPrice() !== null) {
+            <div class="total-amount">
+              <div class="total-label">
+                <i class="fas fa-receipt" aria-hidden="true"></i>
+                <span>Total &mdash; {{ selectedSeats().length }} seat{{ selectedSeats().length > 1 ? 's' : '' }}</span>
+              </div>
+              <strong class="total-value">₹{{ displayMinPrice()! * selectedSeats().length }}</strong>
+            </div>
+          }
+        }
+      </div>
+
+      <!-- Passenger form or empty state -->
+      @if (selectedSeats().length > 0) {
+        <form [formGroup]="form" (ngSubmit)="submit()" class="passenger-form">
+          <h2 class="section-title">
+            <i class="fas fa-users" aria-hidden="true"></i> Passenger Details
+          </h2>
+          @if (error()) {
+            <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
+          }
+
+          <div formArrayName="passengers">
+            @for (seat of selectedSeats(); track seat; let i = $index) {
+              <div class="passenger-block" [formGroupName]="i">
+                <div class="pb-header">
+                  <div class="pb-seat-badge">
+                    <i class="fas fa-chair" aria-hidden="true"></i> Seat {{ seat }}
+                  </div>
+                  <span class="pb-pax-label">Passenger {{ i + 1 }}</span>
+                </div>
+                <div class="pb-body">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label [for]="'name-' + i">
+                        <i class="fas fa-user" aria-hidden="true"></i> Full Name *
+                      </label>
+                      <input [id]="'name-' + i" formControlName="passengerName" class="form-control"
+                        placeholder="Enter full name"
+                        [attr.aria-invalid]="!!fieldError(i, 'passengerName')" />
+                      @if (fieldError(i, 'passengerName'); as e) {
+                        <span class="field-error" role="alert">{{ e }}</span>
+                      }
+                    </div>
+                    <div class="form-group">
+                      <label [for]="'age-' + i">
+                        <i class="fas fa-birthday-cake" aria-hidden="true"></i> Age *
+                      </label>
+                      <input [id]="'age-' + i" type="number" formControlName="passengerAge" class="form-control"
+                        placeholder="e.g. 28" min="1" max="120"
+                        [attr.aria-invalid]="!!fieldError(i, 'passengerAge')" />
+                      @if (fieldError(i, 'passengerAge'); as e) {
+                        <span class="field-error" role="alert">{{ e }}</span>
+                      }
+                    </div>
+                    <div class="form-group">
+                      <label [for]="'gender-' + i">
+                        <i class="fas fa-venus-mars" aria-hidden="true"></i> Gender *
+                      </label>
+                      <select [id]="'gender-' + i" formControlName="passengerGender" class="form-control"
+                        [attr.aria-invalid]="!!fieldError(i, 'passengerGender')">
+                        <option value="">Select gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      @if (fieldError(i, 'passengerGender'); as e) {
+                        <span class="field-error" role="alert">{{ e }}</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label [for]="'phone-' + i">
+                        <i class="fas fa-phone" aria-hidden="true"></i> Phone
+                      </label>
+                      <input [id]="'phone-' + i" type="tel" formControlName="passengerPhone"
+                        class="form-control" placeholder="10-digit mobile number" />
+                    </div>
+                    <div class="form-group">
+                      <label [for]="'email-' + i">
+                        <i class="fas fa-envelope" aria-hidden="true"></i> Email
+                      </label>
+                      <input [id]="'email-' + i" type="email" formControlName="passengerEmail"
+                        class="form-control" placeholder="name@email.com"
+                        [attr.aria-invalid]="!!fieldError(i, 'passengerEmail')" />
+                      @if (fieldError(i, 'passengerEmail'); as e) {
+                        <span class="field-error" role="alert">{{ e }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="submit-row">
+            <div class="submit-secure">
+              <i class="fas fa-shield-alt" aria-hidden="true"></i>
+              <span>Secured by Razorpay</span>
+            </div>
+            <button class="btn btn-primary submit-btn" type="submit" [disabled]="submitting()">
+              @if (submitting()) {
+                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Processing…
+              } @else {
+                Proceed to Payment <i class="fas fa-arrow-right" aria-hidden="true"></i>
+              }
+            </button>
+          </div>
+        </form>
+      } @else {
+        <div class="card empty-state">
+          <div class="empty-icon-wrap">
+            <i class="fas fa-couch empty-icon" aria-hidden="true"></i>
+          </div>
+          <h3>Select Your Seats</h3>
+          <p>Choose up to <strong>6 seats</strong> from the map on the left. Your passenger details form will appear here.</p>
         </div>
-      </form>
-    }
+      }
+
+    </div>
   </div>
 }

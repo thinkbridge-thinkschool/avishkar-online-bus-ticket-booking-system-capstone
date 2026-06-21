@@ -1,0 +1,355 @@
+/* ── Gradient Header ──────────────────────────────────────────────────────── */
+.pp-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  margin: -1.5rem -1.5rem 1.75rem;
+  padding: 1.75rem 2.5rem;
+}
+
+.pp-header-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pp-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pp-title i { font-size: 1.3rem; opacity: 0.85; }
+
+.pp-title h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+}
+
+.pp-route {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pp-city { font-size: 1.15rem; font-weight: 700; color: #fff; }
+.pp-arrow { font-size: 1.1rem; opacity: 0.8; }
+
+.pp-date-chip {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 0.25rem 0.9rem;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+/* ── Two-column layout ────────────────────────────────────────────────────── */
+.pp-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* ── Section title ────────────────────────────────────────────────────────── */
+.pp-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f0eeff;
+}
+
+.pp-section-title i { color: var(--primary); }
+
+/* ── Journey mini-timeline ────────────────────────────────────────────────── */
+.pp-journey {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, rgba(102,126,234,0.06) 0%, rgba(118,75,162,0.06) 100%);
+  border-radius: var(--radius);
+  padding: 0.875rem 1.1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(102,126,234,0.15);
+}
+
+.ppj-stop { display: flex; flex-direction: column; flex-shrink: 0; }
+.ppj-end { align-items: flex-end; text-align: right; }
+
+.ppj-time { font-size: 1.2rem; font-weight: 800; color: var(--navy); line-height: 1; }
+.ppj-city { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.12rem; }
+
+.ppj-middle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ppj-dur {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(102,126,234,0.1);
+  border-radius: 8px;
+  padding: 0.1rem 0.5rem;
+}
+
+.ppj-track {
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 2px;
+  position: relative;
+}
+
+.ppj-track::after {
+  content: '';
+  position: absolute;
+  right: -3px; top: -3px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--primary-dark);
+}
+
+/* ── Trip details ─────────────────────────────────────────────────────────── */
+.pp-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.ppd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ppd-key {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ppd-key i { color: var(--primary); width: 14px; text-align: center; }
+.ppd-val { font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+
+.ppd-num {
+  background: rgba(102,126,234,0.1);
+  color: var(--primary);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ── Seat breakdown ───────────────────────────────────────────────────────── */
+.pp-seat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.pp-seat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #fafaff;
+  border-radius: 8px;
+  border: 1px solid rgba(102,126,234,0.12);
+}
+
+.pp-seat-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pp-seat-name { flex: 1; font-size: 0.9rem; font-weight: 500; color: var(--text); }
+.pp-seat-price { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
+
+/* ── Total ────────────────────────────────────────────────────────────────── */
+.pp-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  background: linear-gradient(135deg, rgba(102,126,234,0.08) 0%, rgba(118,75,162,0.08) 100%);
+  border-radius: var(--radius);
+  border: 1px solid rgba(102,126,234,0.25);
+}
+
+.pp-total-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.pp-total-label i { color: var(--primary); }
+.pp-total-value { font-size: 1.6rem; font-weight: 800; color: var(--navy); }
+
+/* ── Right column ─────────────────────────────────────────────────────────── */
+.pp-pay-side { display: flex; flex-direction: column; gap: 1rem; }
+
+/* ── Trust indicators ─────────────────────────────────────────────────────── */
+.pp-trust { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem; }
+
+.pp-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pp-trust-item i { color: var(--green); width: 16px; text-align: center; }
+
+/* ── Payment methods ──────────────────────────────────────────────────────── */
+.pp-methods { margin-bottom: 1.25rem; }
+
+.pp-methods-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.6rem;
+}
+
+.pp-method-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.pp-method-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  background: #f8f7ff;
+  border: 1px solid rgba(102,126,234,0.2);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.pp-method-pill i { font-size: 0.75rem; }
+
+/* ── Amount display ───────────────────────────────────────────────────────── */
+.pp-amount-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(102,126,234,0.06) 0%, rgba(118,75,162,0.06) 100%);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(102,126,234,0.15);
+}
+
+.pp-amount-label { font-size: 0.875rem; color: var(--text-muted); }
+.pp-amount-value { font-size: 1.5rem; font-weight: 800; color: var(--navy); }
+
+/* ── Pay button ───────────────────────────────────────────────────────────── */
+.pp-pay-btn {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 0.875rem;
+}
+
+.pp-powered {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.pp-powered i { color: var(--green); font-size: 0.8rem; }
+
+/* ── Cancellation policy ──────────────────────────────────────────────────── */
+.pp-policy-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pp-policy-title i { color: var(--primary); }
+
+.pp-policy-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pp-policy-list li {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding-left: 1.1rem;
+  position: relative;
+}
+
+.pp-policy-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .pp-layout { grid-template-columns: 1fr; }
+  .pp-header-content { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 640px) {
+  .pp-header { margin: -1rem -1rem 1.25rem; padding: 1.25rem 1rem; }
+}

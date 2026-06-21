@@ -11,8 +11,20 @@ export interface Payment {
   createdAt: string;
 }
 
+export interface CreateOrderRequest {
+  bookingId: string;
+}
+
+export interface CreateOrderResponse {
+  orderId: string;
+  amountPaise: number;
+  currency: string;
+  keyId: string;
+}
+
 export interface ProcessPaymentRequest {
   bookingId: string;
-  method: PaymentMethod;
-  transactionId?: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
 }

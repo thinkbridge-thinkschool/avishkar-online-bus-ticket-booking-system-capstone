@@ -7,6 +7,7 @@ using BusBooking.Application.Payments.Commands.ProcessPayment;
 using BusBooking.Application.Payments.Queries.GetPayment;
 using BusBooking.Application.Payments.Queries.GetUserPayments;
 using BusBooking.Application.Scheduling.Repositories;
+using BusBooking.Domain.Booking.Enums;
 
 namespace BusBooking.Api.Payments;
 
@@ -20,22 +21,57 @@ public static class PaymentEndpoints
             .RequireAuthorization()
             .RequireRateLimiting("api");
 
-        group.MapPost("/process", ProcessPayment);
-        group.MapGet("/{paymentId:guid}", GetPayment);
+        group.MapPost("/create-order", CreateOrder);
+        group.MapPost("/", ProcessPayment);
         group.MapGet("/user/{userId:guid}", GetUserPayments);
+        group.MapGet("/{paymentId:guid}", GetPayment);
+    }
+
+    private static async Task<IResult> CreateOrder(
+        CreateOrderBody body,
+        HttpContext httpContext,
+        IBookingRepository bookingRepo,
+        RazorpayService? razorpay,
+        CancellationToken ct)
+    {
+        if (razorpay is null)
+            return Results.Problem("Payment gateway not configured.", statusCode: StatusCodes.Status503ServiceUnavailable);
+
+        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+
+        var booking = await bookingRepo.GetByIdAsync(body.BookingId, ct);
+        if (booking is null) return Results.NotFound("Booking not found.");
+        if (booking.UserId != userId) return Results.Forbid();
+
+        var order = await razorpay.CreateOrderAsync(booking.TotalAmount, $"booking-{body.BookingId:N}", ct);
+        return Results.Ok(order);
     }
 
     private static async Task<IResult> ProcessPayment(
-        ProcessPaymentCommand command,
+        RazorpayProcessPaymentBody body,
         HttpContext httpContext,
         IPaymentRepository paymentRepo,
         IBookingRepository bookingRepo,
         IScheduleRepository scheduleRepo,
         IEventPublisher publisher,
+        RazorpayService? razorpay,
         CancellationToken ct)
     {
-        if (!GetUserId(httpContext, out var userId)) return Results.Unauthorized();
-        if (command.UserId != userId) return Results.Forbid();
+        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+
+        if (razorpay is null)
+            return Results.Problem("Payment gateway not configured.", statusCode: StatusCodes.Status503ServiceUnavailable);
+
+        if (!razorpay.VerifySignature(body.RazorpayOrderId, body.RazorpayPaymentId, body.RazorpaySignature))
+            return Results.BadRequest("Payment signature verification failed.");
+
+        var userName = httpContext.User.FindFirst("name")?.Value
+                    ?? httpContext.User.FindFirst(ClaimTypes.Name)?.Value
+                    ?? httpContext.User.FindFirst("preferred_username")?.Value
+                    ?? "";
+
+        var command = new ProcessPaymentCommand(
+            body.BookingId, userId, userName, PaymentMethod.UPI, body.RazorpayPaymentId);
 
         var handler = new ProcessPaymentHandler(paymentRepo, bookingRepo, scheduleRepo, publisher);
         try
@@ -52,7 +88,7 @@ public static class PaymentEndpoints
         Guid paymentId, HttpContext httpContext,
         IPaymentRepository paymentRepo, IBookingRepository bookingRepo, CancellationToken ct)
     {
-        if (!GetUserId(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
 
         var handler = new GetPaymentHandler(paymentRepo, bookingRepo);
         try
@@ -72,6 +108,18 @@ public static class PaymentEndpoints
         return Results.Ok(payments);
     }
 
-    private static bool GetUserId(HttpContext ctx, out Guid userId) =>
-        Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out userId);
+    private static bool GetUserOid(HttpContext ctx, out Guid userId)
+    {
+        var oidValue = ctx.User.FindFirst("oid")?.Value
+                    ?? ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+        return Guid.TryParse(oidValue, out userId);
+    }
 }
+
+public sealed record CreateOrderBody(Guid BookingId);
+
+public sealed record RazorpayProcessPaymentBody(
+    Guid BookingId,
+    string RazorpayOrderId,
+    string RazorpayPaymentId,
+    string RazorpaySignature);

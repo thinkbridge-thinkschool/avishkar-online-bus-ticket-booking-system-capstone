@@ -1,6 +1,6 @@
-import { Component, OnInit, inject, input, signal, computed } from '@angular/core';
+﻿import { Component, OnInit, inject, input, signal, computed } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ScheduleService } from '../../core/services/schedule.service';
 import { BookingService } from '../../core/services/booking.service';
 import { SeatMapComponent } from '../../shared/components/seat-map/seat-map';
@@ -17,6 +17,7 @@ export class BookingNewComponent implements OnInit {
   readonly scheduleId = input.required<string>();
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly activatedRoute = inject(ActivatedRoute);
   private readonly scheduleService = inject(ScheduleService);
   private readonly bookingService = inject(BookingService);
 
@@ -26,9 +27,19 @@ export class BookingNewComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly selectedSeats = signal<number[]>([]);
 
+  // Display-only fields passed as query params from search results
+  readonly displaySource = signal('');
+  readonly displayDestination = signal('');
+  readonly displayBusName = signal('');
+  readonly displayBusNumber = signal('');
+  readonly displayDepartureTime = signal('');
+  readonly displayArrivalTime = signal('');
+  readonly displayTravelDate = signal('');
+  readonly displayMinPrice = signal<number | null>(null);
+
   readonly bookedSeatNumbers = computed<number[]>(() => {
     const s = this.schedule();
-    if (!s) return [];
+    if (!s || !s.totalSeats) return [];
     return Array.from(
       { length: (s.totalSeats - s.availableSeats) },
       (_, i) => i + 1
@@ -54,6 +65,16 @@ export class BookingNewComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    const qp = this.activatedRoute.snapshot.queryParams;
+    this.displaySource.set(qp['source'] ?? '');
+    this.displayDestination.set(qp['destination'] ?? '');
+    this.displayBusName.set(qp['busName'] ?? '');
+    this.displayBusNumber.set(qp['busNumber'] ?? '');
+    this.displayDepartureTime.set(qp['departureTime'] ?? '');
+    this.displayArrivalTime.set(qp['arrivalTime'] ?? '');
+    this.displayTravelDate.set(qp['travelDate'] ?? '');
+    this.displayMinPrice.set(qp['minSeatPrice'] ? +qp['minSeatPrice'] : null);
+
     try {
       const s = await this.scheduleService.getById(this.scheduleId());
       this.schedule.set(s);
@@ -66,7 +87,6 @@ export class BookingNewComponent implements OnInit {
 
   onSeatsChange(seats: number[]): void {
     this.selectedSeats.set(seats);
-    const current = this.passengersArray.length;
     const needed = seats.length;
     while (this.passengersArray.length < needed) {
       this.passengersArray.push(this.createPassengerGroup());
@@ -106,9 +126,21 @@ export class BookingNewComponent implements OnInit {
       }));
       const bookingId = await this.bookingService.createBooking({
         scheduleId: this.scheduleId(),
-        passengers,
+        seats: passengers,
       });
-      await this.router.navigate(['/payment', bookingId]);
+      await this.router.navigate(['/payment', bookingId], {
+        queryParams: {
+          source: this.displaySource(),
+          destination: this.displayDestination(),
+          busName: this.displayBusName(),
+          busNumber: this.displayBusNumber(),
+          departureTime: this.displayDepartureTime(),
+          arrivalTime: this.displayArrivalTime(),
+          travelDate: this.displayTravelDate(),
+          minSeatPrice: this.displayMinPrice() ?? '',
+          seatCount: this.selectedSeats().length,
+        },
+      });
     } catch (err: unknown) {
       this.error.set((err as Error).message);
     } finally {
@@ -116,8 +148,35 @@ export class BookingNewComponent implements OnInit {
     }
   }
 
-  formatTime(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  formatTime(t: string): string {
+    if (!t) return '';
+    if (t.includes('T') || t.length > 8) {
+      return new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+    const [h, m] = t.split(':').map(Number);
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
+  }
+
+  formatDate(d: string): string {
+    if (!d) return '';
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', {
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    });
+  }
+
+  duration(dep: string, arr: string): string {
+    if (!dep || !arr) return '';
+    const [dh, dm] = dep.split(':').map(Number);
+    const [ah, am] = arr.split(':').map(Number);
+    let depMins = dh * 60 + dm;
+    let arrMins = ah * 60 + am;
+    if (arrMins <= depMins) arrMins += 24 * 60;
+    const diff = arrMins - depMins;
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
   }
 
   fieldError(i: number, name: string): string | null {

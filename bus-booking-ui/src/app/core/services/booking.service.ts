@@ -8,7 +8,10 @@ export class BookingService {
   constructor(private readonly http: HttpClient) {}
 
   async createBooking(cmd: CreateBookingRequest): Promise<string> {
-    return firstValueFrom(this.http.post<string>('/api/v1/bookings', cmd));
+    const res = await firstValueFrom(
+      this.http.post<{ bookingId: string }>('/api/v1/bookings', cmd)
+    );
+    return res.bookingId;
   }
 
   async getMyBookings(): Promise<Booking[]> {

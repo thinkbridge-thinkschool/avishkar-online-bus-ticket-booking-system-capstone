@@ -6,4 +6,5 @@ public sealed record ProcessPaymentCommand(
     Guid BookingId,
     Guid UserId,
     string UserName,
-    PaymentMethod PaymentMethod);
+    PaymentMethod PaymentMethod,
+    string? GatewayTransactionId = null);

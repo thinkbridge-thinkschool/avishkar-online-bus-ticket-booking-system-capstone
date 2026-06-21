@@ -1,4 +1,5 @@
 using BusBooking.Application.Buses;
+using BusBooking.Application.Cities;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Commands.CreateSchedule;
 using BusBooking.Application.Scheduling.Commands.DeleteSchedule;
@@ -20,9 +21,9 @@ public static class ScheduleEndpoints
             .RequireAuthorization()
             .RequireRateLimiting("api");
 
-        group.MapGet("/search", SearchSchedules);
-        group.MapGet("/{scheduleId:guid}", GetScheduleById);
-        group.MapGet("/{scheduleId:guid}/seats", GetSeats);
+        group.MapGet("/search", SearchSchedules).AllowAnonymous();
+        group.MapGet("/{scheduleId:guid}", GetScheduleById).AllowAnonymous();
+        group.MapGet("/{scheduleId:guid}/seats", GetSeats).AllowAnonymous();
         group.MapGet("/vendor/{vendorId:guid}", GetVendorSchedules);
         group.MapPost("/", CreateSchedule);
         group.MapPut("/{scheduleId:guid}", UpdateSchedule);
@@ -30,18 +31,17 @@ public static class ScheduleEndpoints
     }
 
     private static async Task<IResult> SearchSchedules(
-        string source, string destination, DateOnly travelDate,
-        IScheduleRepository scheduleRepo, CancellationToken ct)
+        Guid fromCityId, Guid toCityId, DateOnly travelDate,
+        IScheduleRepository scheduleRepo, ICityRepository cityRepo, CancellationToken ct)
     {
-        if (source.Length > 100)
-            return Results.ValidationProblem(
-                new Dictionary<string, string[]> { ["source"] = ["Max 100 characters."] });
-        if (destination.Length > 100)
-            return Results.ValidationProblem(
-                new Dictionary<string, string[]> { ["destination"] = ["Max 100 characters."] });
+        var fromCity = await cityRepo.GetByIdAsync(fromCityId, ct);
+        var toCity   = await cityRepo.GetByIdAsync(toCityId, ct);
+        if (fromCity is null || toCity is null)
+            return Results.NotFound("One or more cities not found.");
 
         var handler = new SearchSchedulesHandler(scheduleRepo);
-        var results = await handler.HandleAsync(new SearchSchedulesQuery(source, destination, travelDate), ct);
+        var results = await handler.HandleAsync(
+            new SearchSchedulesQuery(fromCity.CityName, toCity.CityName, travelDate), ct);
         return Results.Ok(results);
     }
 

@@ -30,7 +30,8 @@ public sealed class ProcessPaymentHandler(
 
         var payment = Payment.Create(command.BookingId, booking.TotalAmount, command.PaymentMethod);
 
-        var gatewayId = "GW-" + Guid.NewGuid().ToString("N")[..16].ToUpperInvariant();
+        var gatewayId = command.GatewayTransactionId
+            ?? "GW-" + Guid.NewGuid().ToString("N")[..16].ToUpperInvariant();
         payment.Complete(gatewayId);
 
         await paymentRepo.AddAsync(payment, ct);

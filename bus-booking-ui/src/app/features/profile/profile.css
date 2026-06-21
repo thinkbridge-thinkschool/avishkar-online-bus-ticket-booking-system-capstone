@@ -1,0 +1,288 @@
+/* ── Gradient Header ──────────────────────────────────────────────────────── */
+.pr-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  margin: -1.5rem -1.5rem 1.75rem;
+  padding: 2rem 2.5rem;
+}
+
+.pr-header-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* ── Avatar ───────────────────────────────────────────────────────────────── */
+.pr-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.22);
+  border: 3px solid rgba(255,255,255,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+}
+
+.pr-header-text h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 0.3rem;
+}
+
+.pr-header-email {
+  font-size: 0.88rem;
+  opacity: 0.82;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+/* ── Two-column layout ────────────────────────────────────────────────────── */
+.pr-layout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* ── Section titles ───────────────────────────────────────────────────────── */
+.pr-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f0eeff;
+}
+
+.pr-section-title i { color: var(--primary); }
+
+/* ── Success banner ───────────────────────────────────────────────────────── */
+.pr-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  color: #15803d;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  animation: pr-slide-in 0.3s ease;
+}
+
+@keyframes pr-slide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pr-success-banner i { font-size: 1rem; }
+
+/* ── Form fields ──────────────────────────────────────────────────────────── */
+.form-group { margin-bottom: 1.25rem; }
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: var(--text);
+}
+
+.form-group label i { color: var(--primary); width: 14px; text-align: center; font-size: 0.8rem; }
+
+/* Read-only email field wrapper */
+.pr-readonly-field {
+  position: relative;
+}
+
+.pr-email-input {
+  background: #f8f7ff !important;
+  color: var(--text-muted) !important;
+  padding-right: 2.5rem;
+  cursor: default;
+}
+
+.pr-lock-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.pr-field-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+/* ── Submit row ───────────────────────────────────────────────────────────── */
+.pr-submit-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+}
+
+.pr-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.75rem;
+  font-size: 0.95rem;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+.pr-sidebar { display: flex; flex-direction: column; gap: 1rem; }
+
+/* ── Account card ─────────────────────────────────────────────────────────── */
+.pr-account-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pr-account-row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.pr-acc-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.pr-acc-icon-email {
+  background: rgba(102,126,234,0.1);
+  color: var(--primary);
+}
+
+.pr-acc-icon-microsoft {
+  background: rgba(0,120,212,0.1);
+  color: #0078d4;
+}
+
+.pr-acc-icon-status {
+  background: rgba(34,197,94,0.1);
+  color: #16a34a;
+}
+
+.pr-acc-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.pr-acc-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.pr-acc-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-acc-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #16a34a;
+  background: rgba(34,197,94,0.1);
+  border-radius: 20px;
+  padding: 0.15rem 0.65rem;
+}
+
+/* ── Tips card ────────────────────────────────────────────────────────────── */
+.pr-tips-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.875rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.pr-tips-title i { color: var(--primary); }
+
+.pr-tips-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.pr-tips-list li {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding-left: 1.1rem;
+  position: relative;
+  line-height: 1.45;
+}
+
+.pr-tips-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+  font-size: 0.75rem;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .pr-layout { grid-template-columns: 1fr; }
+  .pr-sidebar { order: -1; }
+}
+
+@media (max-width: 640px) {
+  .pr-header { margin: -1rem -1rem 1.25rem; padding: 1.5rem 1rem; }
+  .pr-avatar { width: 58px; height: 58px; font-size: 1.4rem; }
+  .pr-header-text h1 { font-size: 1.3rem; }
+  .pr-submit-row { justify-content: stretch; }
+  .pr-save-btn { width: 100%; justify-content: center; }
+}

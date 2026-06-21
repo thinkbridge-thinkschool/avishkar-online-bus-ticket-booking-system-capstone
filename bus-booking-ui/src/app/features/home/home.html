@@ -1,73 +1,216 @@
+﻿<!-- ── HERO ──────────────────────────────────────────────────────────────── -->
 <section class="hero">
-  <div class="hero-content">
-    <h1>Book Your Bus Ticket</h1>
-    <p class="subtitle">Fast, easy, and reliable bus booking across India.</p>
-
-    <div class="search-card card">
-      @if (error) {
-        <div class="error-alert" role="alert" aria-live="polite">{{ error }}</div>
-      }
-      <form (ngSubmit)="search()" #f="ngForm" class="search-form">
-        <div class="form-group">
-          <label for="from">From</label>
-          <select id="from" class="form-control"
-            [(ngModel)]="fromCityId"
-            name="from"
-            required
-            aria-required="true">
-            <option value="">Select origin city</option>
-            @for (city of cities(); track city.cityId) {
-              <option [value]="city.cityId">{{ city.cityName }}</option>
-            }
-          </select>
+  <div class="hero-inner">
+    <div class="hero-text">
+      <p class="hero-eyebrow"><i class="fas fa-bus" aria-hidden="true"></i> India's Trusted Bus Booking Platform</p>
+      <h1>Travel Smarter,<br>Book Faster</h1>
+      <p class="hero-subtitle">
+        Search thousands of routes, compare prices, and book your seat in minutes.
+        Your comfortable journey starts here.
+      </p>
+      <div class="hero-badges">
+        <div class="hero-badge">
+          <i class="fas fa-shield-alt" aria-hidden="true"></i>
+          <span>Safe & Secure</span>
         </div>
-
-        <div class="form-group">
-          <label for="to">To</label>
-          <select id="to" class="form-control"
-            [(ngModel)]="toCityId"
-            name="to"
-            required
-            aria-required="true">
-            <option value="">Select destination city</option>
-            @for (city of cities(); track city.cityId) {
-              <option [value]="city.cityId">{{ city.cityName }}</option>
-            }
-          </select>
+        <div class="hero-badge">
+          <i class="fas fa-headset" aria-hidden="true"></i>
+          <span>24/7 Support</span>
         </div>
-
-        <div class="form-group">
-          <label for="date">Travel Date</label>
-          <input id="date" type="date" class="form-control"
-            [(ngModel)]="travelDate"
-            name="date"
-            [min]="today"
-            required
-            aria-required="true" />
+        <div class="hero-badge">
+          <i class="fas fa-tag" aria-hidden="true"></i>
+          <span>Best Prices</span>
         </div>
+      </div>
+    </div>
 
-        <button class="btn btn-primary search-btn" type="submit">Search Buses</button>
-      </form>
+    <div class="hero-form-col">
+      <div class="search-card">
+        <h2 class="search-title">
+          <i class="fas fa-search" aria-hidden="true"></i> Find Your Bus
+        </h2>
+        @if (error) {
+          <div class="error-alert" role="alert" aria-live="polite">{{ error }}</div>
+        }
+        <form (ngSubmit)="search()" #f="ngForm" class="search-form">
+          <div class="form-group">
+            <label for="from">
+              <i class="fas fa-map-marker-alt" aria-hidden="true"></i> From
+            </label>
+            <select id="from" class="form-control"
+              [(ngModel)]="fromCityId"
+              name="from"
+              required
+              aria-required="true">
+              <option value="">Select origin city</option>
+              @for (city of cities(); track city.cityId) {
+                <option [value]="city.cityId">{{ city.cityName }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="to">
+              <i class="fas fa-map-marker" aria-hidden="true"></i> To
+            </label>
+            <select id="to" class="form-control"
+              [(ngModel)]="toCityId"
+              name="to"
+              required
+              aria-required="true">
+              <option value="">Select destination city</option>
+              @for (city of cities(); track city.cityId) {
+                <option [value]="city.cityId">{{ city.cityName }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="date">
+              <i class="far fa-calendar-alt" aria-hidden="true"></i> Travel Date
+            </label>
+            <input id="date" type="date" class="form-control"
+              [(ngModel)]="travelDate"
+              name="date"
+              [min]="today"
+              required
+              aria-required="true" />
+          </div>
+
+          <button class="btn btn-primary search-btn" type="submit">
+            <i class="fas fa-search" aria-hidden="true"></i> Search Buses
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="features">
-  <div class="feature-grid">
-    <div class="feature-card">
-      <span class="feature-icon" aria-hidden="true">🎯</span>
-      <h3>Wide Coverage</h3>
-      <p>Routes connecting hundreds of cities across the country.</p>
+<!-- ── WHY CHOOSE US ──────────────────────────────────────────────────────── -->
+<section class="why-choose-us" id="about">
+  <div class="section-container">
+    <div class="section-header">
+      <h2>Why Choose BusBooking?</h2>
+      <p>Experience the most convenient way to travel across India</p>
     </div>
-    <div class="feature-card">
-      <span class="feature-icon" aria-hidden="true">💳</span>
-      <h3>Secure Payments</h3>
-      <p>Multiple payment options — UPI, cards, net banking, wallets.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon" aria-hidden="true">📱</span>
-      <h3>Instant Confirmation</h3>
-      <p>Get your e-ticket instantly upon successful booking.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon-wrap" aria-hidden="true">
+          <i class="fas fa-route"></i>
+        </div>
+        <h3>Wide Coverage</h3>
+        <p>Routes connecting hundreds of cities and towns across India, with multiple departure times daily.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-wrap" aria-hidden="true">
+          <i class="fas fa-lock"></i>
+        </div>
+        <h3>Secure Payments</h3>
+        <p>UPI, credit/debit cards, net banking, and digital wallets — all secured by Razorpay's trusted gateway.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-wrap" aria-hidden="true">
+          <i class="fas fa-bolt"></i>
+        </div>
+        <h3>Instant Confirmation</h3>
+        <p>Your e-ticket is issued the moment payment is confirmed. No waiting — your seat is locked in seconds.</p>
+      </div>
     </div>
   </div>
 </section>
+
+<!-- ── FAQ ───────────────────────────────────────────────────────────────── -->
+<section class="faq-section" id="faq">
+  <div class="section-container">
+    <div class="section-header">
+      <h2>Frequently Asked Questions</h2>
+      <p>Everything you need to know about booking with BusBooking</p>
+    </div>
+    <div class="faq-list">
+
+      <details class="faq-item">
+        <summary class="faq-question">
+          <i class="fas fa-question-circle faq-q-icon" aria-hidden="true"></i>
+          <span>How do I book a bus ticket?</span>
+          <i class="fas fa-chevron-down faq-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="faq-answer">
+          <p>Search for buses by selecting your origin, destination, and travel date. Choose your preferred bus, pick your seats, fill in passenger details, and complete the payment. Your e-ticket is issued instantly.</p>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-question">
+          <i class="fas fa-question-circle faq-q-icon" aria-hidden="true"></i>
+          <span>What payment methods are accepted?</span>
+          <i class="fas fa-chevron-down faq-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="faq-answer">
+          <p>We accept all major payment methods through Razorpay — UPI (PhonePe, Google Pay, Paytm), credit and debit cards (Visa, Mastercard, RuPay), net banking, and popular digital wallets.</p>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-question">
+          <i class="fas fa-question-circle faq-q-icon" aria-hidden="true"></i>
+          <span>Can I cancel or modify my booking?</span>
+          <i class="fas fa-chevron-down faq-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="faq-answer">
+          <p>Cancellation policies depend on the bus operator. View your bookings in the My Bookings section. For cancellations or changes, contact our support team at least 2 hours before departure.</p>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-question">
+          <i class="fas fa-question-circle faq-q-icon" aria-hidden="true"></i>
+          <span>How do I get my ticket after booking?</span>
+          <i class="fas fa-chevron-down faq-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="faq-answer">
+          <p>After successful payment, your e-ticket appears in My Bookings. It shows your seat number, boarding point, and booking reference. Present it to the bus conductor when boarding.</p>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-question">
+          <i class="fas fa-question-circle faq-q-icon" aria-hidden="true"></i>
+          <span>Do I need an account to book tickets?</span>
+          <i class="fas fa-chevron-down faq-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="faq-answer">
+          <p>Yes, you need to sign in with your Microsoft account to book tickets. This ensures your bookings are securely linked to your profile and accessible from any device.</p>
+        </div>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ─────────────────────────────────────────────────────────────── -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-logo">🚌 BusBooking</div>
+      <p>Your trusted partner for comfortable and affordable bus travel across India. Book smarter, travel better.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Quick Links</h4>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/#about">About Us</a></li>
+        <li><a href="/#faq">FAQs</a></li>
+        <li><a href="/bookings">My Bookings</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Contact Us</h4>
+      <p><i class="fas fa-envelope" aria-hidden="true"></i> support&#64;busbooking.in</p>
+      <p><i class="fas fa-phone" aria-hidden="true"></i> 1800-123-4567 (Toll Free)</p>
+      <p><i class="fas fa-clock" aria-hidden="true"></i> Mon–Sun, 24 / 7</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>&copy; 2026 BusBooking. All rights reserved.</p>
+  </div>
+</footer>

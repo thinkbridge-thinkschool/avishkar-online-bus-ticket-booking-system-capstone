@@ -17,7 +17,7 @@ public sealed class GetUserBookingsHandler(IBookingRepository bookingRepo)
                 b.TotalAmount,
                 b.BookedAt,
                 b.Seats
-                    .Select(s => new BookedSeatDto(s.SeatNumber, s.PassengerName, s.PassengerAge, s.SeatPrice))
+                    .Select(s => new BookedSeatDto(s.SeatNumber, s.PassengerName, s.PassengerAge, s.SeatPrice, s.PassengerGender))
                     .ToList()))
             .ToList();
     }

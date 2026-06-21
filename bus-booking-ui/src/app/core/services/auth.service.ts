@@ -23,10 +23,12 @@ export class AuthService {
 
   initialize(): void {
     this.msal.instance.initialize().then(() => {
-      this.msal.instance.handleRedirectPromise().then(() => {
-        const accounts = this.msal.instance.getAllAccounts();
-        this._account.set(accounts[0] ?? null);
-      });
+      this.msal.instance.handleRedirectPromise()
+        .catch(() => null)  // swallow redirect errors; account loaded below regardless
+        .finally(() => {
+          const accounts = this.msal.instance.getAllAccounts();
+          this._account.set(accounts[0] ?? null);
+        });
     });
   }
 
@@ -39,16 +41,23 @@ export class AuthService {
   }
 
   async getAccessToken(): Promise<string | null> {
+    return this.acquireToken(false);
+  }
+
+  async getAccessTokenForced(): Promise<string | null> {
+    return this.acquireToken(true);
+  }
+
+  private async acquireToken(forceRefresh: boolean): Promise<string | null> {
     const account = this._account();
     if (!account) return null;
 
-    const request: SilentRequest = {
-      scopes: environment.msal.scopes,
-      account,
-    };
-
     try {
-      const result = await this.msal.instance.acquireTokenSilent(request);
+      const result = await this.msal.instance.acquireTokenSilent({
+        scopes: environment.msal.scopes,
+        account,
+        forceRefresh,
+      });
       this._token.set(result.accessToken);
       return result.accessToken;
     } catch {

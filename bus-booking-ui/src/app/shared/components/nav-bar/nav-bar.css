@@ -1,11 +1,14 @@
-.navbar {
+﻿.navbar {
   display: flex;
   align-items: center;
   gap: 1.5rem;
   padding: 0.75rem 1.5rem;
-  background: #1a2b4a;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .brand {
@@ -31,7 +34,7 @@
 }
 
 .nav-links a {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   padding: 0.4rem 0.75rem;
   border-radius: 6px;
@@ -41,7 +44,7 @@
 
 .nav-links a:hover,
 .nav-links a.active {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.15);
   color: #fff;
 }
 
@@ -55,7 +58,7 @@
 
 .user-name {
   font-size: 0.875rem;
-  opacity: 0.85;
+  opacity: 0.9;
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -63,18 +66,21 @@
 }
 
 .btn-primary {
-  background: #e85d04;
+  background: rgba(255, 255, 255, 0.18);
   color: #fff;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 6px;
-  padding: 0.4rem 1rem;
+  padding: 0.4rem 1.1rem;
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 600;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
 }
 
-.btn-primary:hover { background: #c44e03; }
+.btn-primary:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: #fff;
+}
 
 .btn-outline {
   background: transparent;
@@ -92,8 +98,25 @@
   color: #fff;
 }
 
+.btn-signup {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-signup:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
 @media (max-width: 768px) {
-  .navbar { flex-wrap: wrap; }
+  .navbar { flex-wrap: wrap; padding: 0.6rem 1rem; }
   .nav-links { width: 100%; order: 3; }
   .nav-auth { margin-left: 0; }
 }

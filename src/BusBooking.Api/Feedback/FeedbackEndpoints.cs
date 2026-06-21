@@ -8,6 +8,7 @@ using BusBooking.Application.Feedback.Commands.UpdateFeedback;
 using BusBooking.Application.Feedback.Queries.GetFeedbackBySchedule;
 using BusBooking.Application.Feedback.Queries.GetFeedbackByUser;
 using BusBooking.Application.Feedback.Queries.GetFeedbackStatistics;
+using BusBooking.Domain.Feedback.Enums;
 
 namespace BusBooking.Api.Feedback;
 
@@ -30,11 +31,14 @@ public static class FeedbackEndpoints
     }
 
     private static async Task<IResult> CreateFeedback(
-        CreateFeedbackCommand command, HttpContext httpContext,
+        CreateFeedbackBody body, HttpContext httpContext,
         IFeedbackRepository feedbackRepo, IBookingRepository bookingRepo, CancellationToken ct)
     {
-        if (!GetUserId(httpContext, out var userId)) return Results.Unauthorized();
-        if (command.UserId != userId) return Results.Forbid();
+        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+
+        var command = new CreateFeedbackCommand(
+            userId, body.BookingId, body.ScheduleId, body.Rating,
+            body.Comment ?? string.Empty, body.Category ?? FeedbackCategory.General);
 
         var handler = new CreateFeedbackHandler(feedbackRepo, bookingRepo);
         try
@@ -51,7 +55,7 @@ public static class FeedbackEndpoints
         Guid feedbackId, UpdateFeedbackRequest body, HttpContext httpContext,
         IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
-        if (!GetUserId(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
 
         var command = new UpdateFeedbackCommand(feedbackId, userId, body.Rating, body.Comment, body.Category);
         var handler = new UpdateFeedbackHandler(feedbackRepo);
@@ -67,7 +71,7 @@ public static class FeedbackEndpoints
     private static async Task<IResult> DeleteFeedback(
         Guid feedbackId, HttpContext httpContext, IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
-        if (!GetUserId(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
 
         var handler = new DeleteFeedbackHandler(feedbackRepo);
         try
@@ -103,9 +107,20 @@ public static class FeedbackEndpoints
         return Results.Ok(stats);
     }
 
-    private static bool GetUserId(HttpContext ctx, out Guid userId) =>
-        Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out userId);
+    private static bool GetUserOid(HttpContext ctx, out Guid userId)
+    {
+        var oidValue = ctx.User.FindFirst("oid")?.Value
+                    ?? ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+        return Guid.TryParse(oidValue, out userId);
+    }
 }
 
+public sealed record CreateFeedbackBody(
+    Guid BookingId,
+    Guid ScheduleId,
+    int Rating,
+    string? Comment = null,
+    FeedbackCategory? Category = null);
+
 public sealed record UpdateFeedbackRequest(
-    int Rating, string Comment, BusBooking.Domain.Feedback.Enums.FeedbackCategory Category);
+    int Rating, string Comment, FeedbackCategory Category);

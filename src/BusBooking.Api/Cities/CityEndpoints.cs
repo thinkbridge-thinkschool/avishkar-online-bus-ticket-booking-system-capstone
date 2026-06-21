@@ -13,10 +13,9 @@ public static class CityEndpoints
         var group = app
             .MapGroup("/api/v1/cities")
             .WithTags("Cities")
-            .RequireAuthorization()
             .RequireRateLimiting("api");
 
-        group.MapGet("/", GetAllCities);
+        group.MapGet("/", GetAllCities).AllowAnonymous();
         group.MapPost("/", CreateCity).RequireAuthorization("AdminOnly");
         group.MapDelete("/{cityId:guid}", DeleteCity).RequireAuthorization("AdminOnly");
     }

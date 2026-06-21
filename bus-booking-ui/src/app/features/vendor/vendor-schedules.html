@@ -73,11 +73,11 @@
       <tbody>
         @for (s of schedules(); track s.scheduleId) {
           <tr style="border-bottom:1px solid #e2e8f0">
-            <td style="padding:.75rem">{{ s.fromCityName }} → {{ s.toCityName }}</td>
+            <td style="padding:.75rem">{{ s.busName ?? s.busId ?? '—' }}</td>
             <td style="padding:.75rem">{{ formatDT(s.departureTime) }}</td>
             <td style="padding:.75rem">{{ formatDT(s.arrivalTime) }}</td>
-            <td style="padding:.75rem">₹{{ s.pricePerSeat }}</td>
-            <td style="padding:.75rem"><app-status-badge [status]="s.status" /></td>
+            <td style="padding:.75rem">{{ s.minSeatPrice !== null && s.minSeatPrice !== undefined ? '₹' + s.minSeatPrice : '—' }}</td>
+            <td style="padding:.75rem"><app-status-badge [status]="s.isActive !== false ? 'Active' : 'Inactive'" /></td>
             <td style="padding:.75rem">
               <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .75rem"
                 (click)="deleteSchedule(s.scheduleId)" type="button">Delete</button>

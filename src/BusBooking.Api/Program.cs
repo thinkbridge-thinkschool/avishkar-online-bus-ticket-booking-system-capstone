@@ -13,7 +13,9 @@ using BusBooking.Api.Users;
 using BusBooking.Api.Vendors;
 using BusBooking.Application.Common;
 using BusBooking.Infrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Identity.Web;
 
@@ -30,11 +32,12 @@ builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 65_536);
 // Locally: set via user secrets — dotnet user-secrets set "APPLICATIONINSIGHTS_CONNECTION_STRING" "<value>"
 // SQL dependency spans come from the bundled SqlClient instrumentation inside
 // Azure.Monitor.OpenTelemetry.AspNetCore (same ADO.NET layer EF Core uses).
-builder.Services.AddOpenTelemetry()
-    .UseAzureMonitor()
+var otelBuilder = builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddSource("BusBooking.Worker")      // SeatExpiryService custom spans
         .AddSource("BusBooking.Messaging")); // ServiceBusEventPublisher custom spans
+if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+    otelBuilder.UseAzureMonitor();
 
 // ── OpenAPI with Bearer security scheme ───────────────────────────────────────
 builder.Services.AddOpenApi(o => o.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
@@ -43,18 +46,55 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// ── Authentication + Authorization ───────────────────────────────────────────
-// JWT bearer validation — reads AzureAd:TenantId / AzureAd:ClientId from config.
-builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration);
+// Razorpay — named HttpClient with Basic auth; service registered only when keys are present
+var rzpKeyId = builder.Configuration["Razorpay:KeyId"];
+var rzpKeySecret = builder.Configuration["Razorpay:KeySecret"];
+if (!string.IsNullOrEmpty(rzpKeyId) && rzpKeyId != "rzp_test_REPLACE_WITH_YOUR_KEY_ID")
+{
+    builder.Services.AddHttpClient("Razorpay", client =>
+    {
+        var creds = Convert.ToBase64String(
+            System.Text.Encoding.UTF8.GetBytes($"{rzpKeyId}:{rzpKeySecret}"));
+        client.BaseAddress = new Uri("https://api.razorpay.com/v1/");
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", creds);
+    });
+    builder.Services.AddScoped<BusBooking.Api.Payments.RazorpayService>();
+}
 
-// Fallback policy: any endpoint without explicit [AllowAnonymous] requires a
-// valid Bearer token. This closes the "forgotten RequireAuthorization" gap.
-// AdminOnly policy maps to the BusBooking.Admin Entra ID app role.
+// ── Authentication + Authorization ───────────────────────────────────────────
+// When AzureAd:ClientId is configured (Azure / CI), enable full JWT Bearer validation.
+// When it is absent (local dev without an Entra app registration), skip JWT auth so
+// anonymous endpoints still work. Protected endpoints return 401 as expected.
+var hasAzureAdConfig = !string.IsNullOrEmpty(builder.Configuration["AzureAd:ClientId"]);
+if (hasAzureAdConfig)
+{
+    builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration);
+
+    // Accept both v1 tokens (aud = clientId) and v2 tokens (aud = api://clientId)
+    // so the app works regardless of whether requestedAccessTokenVersion is 1 or 2.
+    var clientId = builder.Configuration["AzureAd:ClientId"]!;
+    builder.Services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, opts =>
+    {
+        opts.TokenValidationParameters.ValidAudiences =
+        [
+            clientId,
+            $"api://{clientId}",
+        ];
+    });
+}
+
 builder.Services.AddAuthorization(o =>
 {
-    o.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
+    if (hasAzureAdConfig)
+    {
+        // Fallback policy: any endpoint without explicit [AllowAnonymous] requires a
+        // valid Bearer token. This closes the "forgotten RequireAuthorization" gap.
+        o.FallbackPolicy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+    }
+    // AdminOnly policy maps to the BusBooking.Admin Entra ID app role.
     o.AddPolicy("AdminOnly", p => p.RequireClaim("roles", "BusBooking.Admin"));
 });
 
@@ -106,7 +146,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit
-app.UseAuthentication();
+if (hasAzureAdConfig)
+    app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapScheduleEndpoints();
@@ -120,10 +161,12 @@ app.MapAdminEndpoints();
 app.MapPaymentEndpoints();
 app.MapFeedbackEndpoints();
 
-// Seed on startup in Development
+// Apply any pending EF migrations and seed in Development
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<BusBooking.Infrastructure.Persistence.BusBookingDbContext>();
+    await db.Database.MigrateAsync();
     var seeder = scope.ServiceProvider.GetRequiredService<BusBooking.Infrastructure.Persistence.DatabaseSeeder>();
     await seeder.SeedAsync();
 }

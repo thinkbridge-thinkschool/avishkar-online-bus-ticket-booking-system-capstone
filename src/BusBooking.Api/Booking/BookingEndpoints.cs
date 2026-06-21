@@ -20,16 +20,35 @@ public static class BookingEndpoints
             .RequireRateLimiting("api");
 
         group.MapPost("/", CreateBooking);
+        group.MapGet("/my", GetMyBookings);
+        group.MapGet("/{bookingId:guid}", GetBookingById);
         group.MapGet("/user/{userId:guid}", GetUserBookings);
         group.MapPost("/{bookingId:guid}/cancel", CancelBooking);
     }
 
     private static async Task<IResult> CreateBooking(
-        CreateBookingCommand command,
+        CreateBookingBody body,
+        ClaimsPrincipal principal,
         IScheduleRepository scheduleRepo,
         IBookingRepository bookingRepo,
         CancellationToken ct)
     {
+        var oidValue = principal.FindFirst("oid")?.Value
+                    ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+                    ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (oidValue is null || !Guid.TryParse(oidValue, out var userId))
+            return Results.Unauthorized();
+
+        var userEmail = principal.FindFirst("preferred_username")?.Value
+                     ?? principal.FindFirst("upn")?.Value
+                     ?? principal.FindFirst(ClaimTypes.Email)?.Value
+                     ?? "";
+        var userName = principal.FindFirst("name")?.Value
+                    ?? principal.FindFirst(ClaimTypes.Name)?.Value
+                    ?? userEmail;
+
+        var command = new CreateBookingCommand(userId, userEmail, userName, body.ScheduleId, body.Seats);
         var handler = new CreateBookingHandler(scheduleRepo, bookingRepo);
         try
         {
@@ -38,6 +57,50 @@ public static class BookingEndpoints
         }
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
+        catch (ArgumentException ex) { return Results.BadRequest(ex.Message); }
+    }
+
+    private static async Task<IResult> GetMyBookings(
+        ClaimsPrincipal principal,
+        IBookingRepository bookingRepo,
+        CancellationToken ct)
+    {
+        var oidValue = principal.FindFirst("oid")?.Value
+                    ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+        if (!Guid.TryParse(oidValue, out var userId))
+            return Results.Unauthorized();
+
+        var handler = new GetUserBookingsHandler(bookingRepo);
+        var dtos = await handler.HandleAsync(new GetUserBookingsQuery(userId), ct);
+        return Results.Ok(dtos);
+    }
+
+    private static async Task<IResult> GetBookingById(
+        Guid bookingId,
+        ClaimsPrincipal principal,
+        IBookingRepository bookingRepo,
+        CancellationToken ct)
+    {
+        var oidValue = principal.FindFirst("oid")?.Value
+                    ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+        if (!Guid.TryParse(oidValue, out var userId))
+            return Results.Unauthorized();
+
+        var booking = await bookingRepo.GetByIdAsync(bookingId, ct);
+        if (booking is null) return Results.NotFound();
+        if (booking.UserId != userId) return Results.Forbid();
+
+        var dto = new BookingDto(
+            booking.Id,
+            booking.ScheduleId,
+            booking.Status,
+            booking.TotalAmount,
+            booking.BookedAt,
+            booking.Seats
+                .Select(s => new BookedSeatDto(s.SeatNumber, s.PassengerName, s.PassengerAge, s.SeatPrice, s.PassengerGender))
+                .ToList());
+
+        return Results.Ok(dto);
     }
 
     private static async Task<IResult> GetUserBookings(
@@ -58,9 +121,9 @@ public static class BookingEndpoints
         IEventPublisher publisher,
         CancellationToken ct)
     {
-        // Extract the caller's identity from the validated JWT — never from the
-        // request body, which the caller could forge to act as another user.
-        var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userIdClaim = httpContext.User.FindFirst("oid")?.Value
+                       ?? httpContext.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+                       ?? httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdClaim, out var userId))
             return Results.Unauthorized();
 
@@ -75,3 +138,7 @@ public static class BookingEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 }
+
+public sealed record CreateBookingBody(
+    Guid ScheduleId,
+    IReadOnlyList<SeatPassengerRequest> Seats);

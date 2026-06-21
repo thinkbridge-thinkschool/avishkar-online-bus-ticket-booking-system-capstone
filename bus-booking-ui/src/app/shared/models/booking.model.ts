@@ -9,28 +9,25 @@ export interface BookedSeat {
   seatNumber: number;
   passengerName: string;
   passengerAge: number;
-  passengerGender: string;
-  price: number;
-  passengerPhone?: string;
-  passengerEmail?: string;
+  seatPrice: number;
+  passengerGender?: string;
 }
 
 export interface Booking {
   bookingId: string;
-  userId: string;
   scheduleId: string;
+  status: BookingStatus;
+  totalAmount: number;
+  bookedAt: string;
+  seats: BookedSeat[];
   fromCityName?: string;
   toCityName?: string;
   departureTime?: string;
-  bookedSeats: BookedSeat[];
-  status: BookingStatus;
-  totalAmount: number;
-  createdAt: string;
 }
 
 export interface CreateBookingRequest {
   scheduleId: string;
-  passengers: {
+  seats: {
     seatNumber: number;
     passengerName: string;
     passengerAge: number;

@@ -67,5 +67,16 @@ export class FeedbackFormComponent implements OnInit {
     this.form.controls.rating.setValue(n);
   }
 
+  get ratingLabel(): string {
+    const labels: Record<number, string> = {
+      1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very Good', 5: 'Excellent',
+    };
+    return labels[this.form.controls.rating.value] ?? '';
+  }
+
+  get commentLength(): number {
+    return (this.form.controls.comment.value ?? '').length;
+  }
+
   stars = [1, 2, 3, 4, 5];
 }

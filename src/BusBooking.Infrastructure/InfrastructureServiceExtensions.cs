@@ -30,7 +30,10 @@ public static class InfrastructureServiceExtensions
 
         var sbNamespace = config["ServiceBus:Namespace"];
         if (!string.IsNullOrEmpty(sbNamespace))
+        {
             services.AddSingleton(_ => new ServiceBusClient(sbNamespace, new DefaultAzureCredential()));
+            services.AddScoped<IEventPublisher, ServiceBusEventPublisher>();
+        }
 
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IScheduleRepository, ScheduleRepository>();
@@ -41,7 +44,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IFeedbackRepository, FeedbackRepository>();
-        services.AddScoped<IEventPublisher, ServiceBusEventPublisher>();
 
         services.AddHostedService<SeatExpiryService>();
         services.AddHostedService<BookingCleanupService>();

@@ -9,6 +9,7 @@ import type { Booking } from '../../shared/models/booking.model';
   selector: 'app-booking-detail',
   imports: [RouterLink, LoadingSpinnerComponent, StatusBadgeComponent],
   templateUrl: './booking-detail.html',
+  styleUrl: './booking-detail.css',
 })
 export class BookingDetailComponent implements OnInit {
   readonly id = input.required<string>();
@@ -42,7 +43,34 @@ export class BookingDetailComponent implements OnInit {
     }
   }
 
+  copyBookingId(): void {
+    const id = this.booking()?.bookingId ?? '';
+    if (id) navigator.clipboard.writeText(id).catch(() => {});
+  }
+
   formatDateTime(iso: string): string {
-    return new Date(iso).toLocaleString('en-IN');
+    if (!iso) return '';
+    return new Date(iso).toLocaleString('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true,
+    });
+  }
+
+  formatDate(iso: string): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
+  }
+
+  formatTime(t: string): string {
+    if (!t) return '';
+    if (t.includes('T') || t.length > 8) {
+      return new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+    const [h, m] = t.split(':').map(Number);
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
   }
 }
