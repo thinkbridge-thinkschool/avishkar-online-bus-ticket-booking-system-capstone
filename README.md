@@ -21,6 +21,7 @@ Four-layer Clean Architecture deployed as a Linux App Service on Azure:
 - [Day 25 — Identity End-to-End](#day-25--identity-end-to-end)
 - [Day 26 — App Insights + KQL](#day-26--app-insights--kql)
 - [Day 27 — Security pass](#day-27--security-pass)
+- [Day 28 — Design Review + ADR](#day-28--design-review--adr)
 
 ---
 
@@ -960,3 +961,139 @@ HSTS promoted from WARN to PASS. Remaining 3 warnings are Azure-platform-level (
 **Proves:** App Service `app-busbooking-dev-paqrwn` is connected to `snet-api` inside `vnet-busbooking-dev-paqrwn` with `vnetRouteAllEnabled: true`. All outbound traffic — including SQL connections — is now routed through the VNet, ensuring traffic reaches the private endpoint NIC rather than the SQL public endpoint.
 
 ![SS-30](Screenshots/SS-30_azure-appservice-vnet-integration.png)
+
+---
+
+## Day 28 — Design Review + ADR
+
+**Branch:** `day-28-design-review-adr`
+
+Mentor and peer critique of the architecture inherited from Day 27 (Security Pass). The exercise: identify the one architectural decision that carries the most interesting tradeoff, write a formal ADR for it, and produce a forward-looking day-by-day build plan.
+
+---
+
+### What was reviewed
+
+The full system as of Day 27:
+
+| Area | State |
+|---|---|
+| Domain model | Booking aggregate, Schedule/Seat/Bus/Route entities, domain events |
+| Application layer | CQRS — CreateBooking, CancelBooking, SearchSchedules, GetUserBookings |
+| Infrastructure | EF Core + Azure SQL, ServiceBusEventPublisher, SeatExpiryService |
+| API | 5 Minimal API endpoints, JWT/Entra ID auth, rate limiting, security headers |
+| Azure IaC | VNet + private endpoints (SQL, KV, SB), Deployment Stacks, MI everywhere |
+| Observability | OTel → App Insights, custom spans, W3C trace propagation |
+| Security | STRIDE 8-threat model, ZAP 64/64 pass, RowVersion concurrency |
+
+---
+
+### Top critique — and how it changed the design
+
+**Critique: SeatExpiryService is not safe under horizontal scaling.**
+
+The current background service loads all active schedules into memory every 5 minutes, calls `seat.Release()` on each expired seat, and calls `db.SaveChangesAsync()`. On a single App Service instance this is correct. On two instances running simultaneously it produces a double-write:
+
+```
+Instance A:  LoadSchedules() → Release(Seat 7) → SaveChangesAsync()  ✓
+Instance B:  LoadSchedules() → Release(Seat 7) → SaveChangesAsync()  → DbUpdateConcurrencyException
+```
+
+EF's RowVersion causes Instance B's `SaveChangesAsync` to throw. The catch-and-retry-in-5-min behaviour means the release is delayed but not dropped — however, App Insights will register the exception as a runtime error, and the 5-minute retry delay widens the hold window.
+
+**How it changed the design:**
+
+The `SeatExpiryService` mitigation is documented in ADR-001 and queued for implementation: replace the load-modify-save batch with a single atomic SQL UPDATE:
+
+```sql
+UPDATE Seats
+SET    Status   = 'Available',
+       LockedAt = NULL
+WHERE  Status   = 'Reserved'
+  AND  LockedAt < DATEADD(minute, -10, GETUTCDATE())
+```
+
+This is inherently idempotent — two concurrent executions on different instances both reach the same final state (`Available`) without a conflict. The RowVersion check is bypassed because we are resolving a stale intermediate state, not competing to win the same business write. Implementation: `db.Database.ExecuteSqlRawAsync(sql, ct)` replaces the current foreach loop.
+
+**Other critiques identified:**
+
+| # | Critique | Severity | Resolution |
+|---|---|---|---|
+| 1 | SeatExpiryService multi-instance race | **High** | SQL UPDATE mitigation (see above) |
+| 2 | `CreateBookingHandler` publishes to Service Bus with no consumer | Medium | Consumer/worker is a future day deliverable |
+| 3 | Fixed-window rate limiter allows boundary burst (60+60 = 120 req over 2 sec) | Medium | Sliding window is the correct algorithm; acceptable for capstone |
+| 4 | No User entity — userId sourced entirely from JWT | Low | Deliberate; Entra ID is the identity store; no value in duplicating |
+| 5 | `BookingRepository.SaveChangesAsync` catches `DbUpdateConcurrencyException` but the retry is the caller's responsibility | Low | Documented in ADR; maps to HTTP 409 at endpoint level |
+
+---
+
+### Architecture Decision Record
+
+**ADR-001: Seat Reservation Locking Strategy**
+Full ADR: [`docs/adr/ADR-001-seat-reservation-locking.md`](docs/adr/ADR-001-seat-reservation-locking.md)
+
+**One-paragraph summary:**
+
+The booking flow reserves seats with a 10-minute in-entity `LockedAt` timestamp; a `SeatExpiryService` background worker releases them every 5 minutes. Correctness under concurrent writes is enforced by an EF `RowVersion` (`[Timestamp]`) on `Seat`, which translates to a `WHERE RowVersion = @expected` predicate in the SQL UPDATE — only one writer can win. Three alternatives were evaluated: pessimistic SQL `UPDLOCK` (rejected: deadlock risk, holds DB connection during user checkout), Azure Redis Cache distributed lock (rejected: +$15–60/mo, doubles infrastructure surface, overkill for <100 concurrent booking attempts), and no reservation period (rejected: eliminates the 10-minute hold that is a UX requirement for any bus/flight booking flow). The chosen approach is zero additional cost, correct for the current single-instance dev profile, and can be made safe for horizontal scaling by replacing the `SeatExpiryService` batch loop with the idempotent SQL UPDATE described in the ADR's mitigation section.
+
+**Decision outcome table:**
+
+| Criterion | Optimistic + LockedAt | UPDLOCK | Redis Lock | No Hold |
+|---|---|---|---|---|
+| Prevents double-booking | ✓ | ✓ | ✓ | ✓ |
+| Multi-instance expiry safe | ✗ (mitigatable) | N/A | ✓ | N/A |
+| Additional Azure cost | $0 | $0 | +$15–60/mo | $0 |
+| UX hold period | ✓ 10 min | ✓ | ✓ | ✗ |
+| Domain model complexity | Low | Medium | High | Lowest |
+
+---
+
+### Day-by-Day Build Plan
+
+| Day | Focus | Key deliverables |
+|---|---|---|
+| **1** | Environment + .NET fundamentals | Dev toolchain verified (.NET 10, Node 24, Git, VS Code); Hello World in C# + TypeScript; QuotesApi — 4 Minimal API endpoints, EF Core SQLite, DI, cancellation tokens, ProblemDetails |
+| **2** | DDD + auth foundations | DI lifetimes + IClock abstraction; async/await with cancellation end-to-end; rich Collection aggregate (invariants, factory, value objects); JWT auth with BCrypt + single-use rotating refresh tokens |
+| **3** | Entra ID + test pyramid | Entra ID JWT validation; dual auth schemes (own issuer + Entra); authorization policies and custom handlers; xUnit domain tests; WebApplicationFactory integration tests; Testcontainers SQL Server in CI |
+| **4** | CI/CD + observability | GitHub Actions CI (build → test → 70% coverage gate); Serilog with structured logs and correlation IDs; OpenTelemetry tracing with Jaeger/Aspire; App Insights wired; IOptions configuration pattern |
+| **5** | Containers + cloud deployment | Slow-endpoint diagnosis from distributed traces; `dotnet publish` container (no Dockerfile); Azure Container Apps deploy via azd; first App Insights KQL query; Polly retry + circuit breaker on HTTP calls |
+| **7** | SQL depth — joins, CTEs, windows | CTEs with multi-table joins; ROW_NUMBER / RANK / LAG / running totals; UNION / INTERSECT / EXCEPT from a business spec |
+| **8** | Indexes + execution plans | Clustered vs non-clustered on 100k rows; covering index with INCLUDE to eliminate key lookups; before/after execution plans with `SET STATISTICS IO ON` |
+| **9** | Transactions + concurrency | Isolation levels (READ UNCOMMITTED → SERIALIZABLE); dirty/non-repeatable/phantom read reproductions; deadlock graph capture and consistent lock-ordering fix |
+| **10** | EF Core internals | Change tracker + identity resolution; `AsNoTracking` allocation/time benchmark (10k rows); projection queries; catching accidental client-side evaluation |
+| **11** | Performance profiling | N+1 profiling (bombardier/k6, p50/p99, execution plan); eliminate N+1 with Include/projection + covering index; 10× p99 reduction documented with before/after plans |
+| **12** | CQRS-lite + Dapper | Read model vs write model on one feature (separate query/command paths, denormalized projection); Dapper vs EF on hot read path with timing proof and usage rule |
+| **13** | Angular 21 — signals + zoneless | Standalone zoneless app (`signal()` / `computed()` / `effect()`, `@if` / `@for`, `inject()`); quotes list + detail component wired to real Week-1 API; AI-directed, manually verified |
+| **14** | Angular forms + accessibility | Reactive form with validators, `aria-invalid` / `aria-describedby`, keyboard operation, focus-on-error; Signal Forms preview API comparison vs reactive forms |
+| **15** | Angular HTTP + interceptors | `HttpClient` functional interceptors (auth header, retry with backoff, ProblemDetails → typed app error); characterization test pins real API contract before UI |
+| **16** | Angular routing + state | Lazy-loaded routes; functional auth guard with redirect; View Transitions (list → detail); signal-based state service; rule for when to reach for NgRx |
+| **17** | Azure Static Web Apps | Angular 21 frontend live on Azure SWA; Managed Identity to backend API (no stored secret); Lighthouse ≥ 95 |
+| **18** | Background jobs | `BackgroundService` draining an in-memory queue; `IHostedService` vs Hangfire for scheduled work; graceful shutdown via `CancellationToken` |
+| **19** | Azure Service Bus | Publish to topic with two subscriptions; competing-consumer worker; idempotent handlers (message-ID dedupe); DLQ catching a poison message |
+| **20** | Outbox pattern | Transactional outbox — domain change + outbox row in one EF transaction; relay service publishes and marks sent; crash-proof no-lost-message proof |
+| **21** | HybridCache + stampede protection | `HybridCache` (in-memory + Redis); stampede protection so a cold cache doesn't fan out N DB hits; hit rate and DB load drop measured under concurrent load |
+| **22** | Resilience + capstone design | Polly pipeline (retry, circuit breaker, timeout, bulkhead); capstone design — bounded contexts, core aggregate, async flows; solution scaffolded |
+| **23** | Bicep IaC | Parameterised Bicep modules (App Service, SQL, Service Bus); dev/prod parameter files; no portal click-ops |
+| **24** ✓ | azd + Deployment Stacks | Two-env IaC; Deployment Stack lifecycle — drift prevention, orphan deletion, atomic teardown via azd |
+| **25** ✓ | Identity End-to-End | Managed Identity for API→SQL and API→Service Bus; Key Vault references for App Insights connection string; zero secrets in app settings or source |
+| **26** ✓ | App Insights + KQL | OTel → App Insights (traces, logs, metrics); 5 live KQL queries (p50/p99, dependency breakdown, booking funnel); alert rule on error rate |
+| **27** ✓ | Security Pass | STRIDE 8-threat model; VNet + private endpoints (SQL, KV, SB); OWASP ZAP 64/64 pass; JWT claim extraction fix; fixed-window rate limiter; security headers |
+| **28** ✓ | Design Review + ADR | ADR-001 (seat locking — 3 alternatives evaluated); multi-instance `SeatExpiryService` critique + SQL UPDATE mitigation; complete Day 1–32 build plan |
+| **29** | Build Day 1 — foundation + happy path | Angular 21 + MSAL: schedule search → seat picker → booking confirm → My Bookings; HTTP interceptor with bearer token; all flows against live dev API |
+| **30** | Build Day 2 — feature completeness | Payslip booking receipt; responsive seat-picker grid (window/aisle/middle colour-coded); MSAL silent token refresh; PR open for review; comments addressed |
+| **31** | Polish — tests, perf, security | Unit + integration + 1 E2E test; k6 load test (50 VUs, p95 latency, 409/429 rates under contention); security re-check; green CI gate |
+| **32** | Ship + demo + postmortem | Live deployment; demo video; one-page postmortem (hardest bug, what I'd change, proudest moment) |
+
+---
+
+### Evidence
+
+#### SS-31 — ADR Created: `docs/adr/ADR-001-seat-reservation-locking.md`
+**Proves:** The Architecture Decision Record for the seat reservation locking strategy exists in the repository. Shows the file in the explorer with the full ADR content visible — Status: Accepted, three alternatives evaluated (UPDLOCK, Redis, No Reservation), consequences (positive and negative), and the SQL UPDATE mitigation for the multi-instance expiry race.
+
+
+---
+
+#### SS-32 — Design Review Notes: Multi-Instance Critique
+**Proves:** The top critique — `SeatExpiryService` is not idempotent across multiple App Service instances — is documented with the failing sequence diagram and the SQL UPDATE mitigation. Shows the critique written in the README Day 28 section with the load-modify-save vs. direct UPDATE comparison.
+

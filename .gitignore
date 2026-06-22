@@ -23,6 +23,13 @@ infra/main.json
 ## scratch / curl output
 200
 
+## Angular / Node.js (bus-booking-ui)
+## These dirs are generated on feature-product-evolution; they persist in the
+## working tree after switching branches because git only removes tracked files.
+bus-booking-ui/node_modules/
+bus-booking-ui/dist/
+bus-booking-ui/.angular/
+
 ## OS
 .DS_Store
 Thumbs.db
