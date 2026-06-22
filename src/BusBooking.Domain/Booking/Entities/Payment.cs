@@ -4,9 +4,10 @@ using BusBooking.Domain.Common;
 
 namespace BusBooking.Domain.Booking.Entities;
 
-public sealed class Payment : BaseEntity
+public sealed class Payment : BaseEntity, ITenantEntity
 {
     public Guid BookingId { get; private set; }
+    public Guid TenantId { get; private set; }
     public decimal Amount { get; private set; }
     public PaymentMethod Method { get; private set; }
     public PaymentStatus Status { get; private set; } = PaymentStatus.Pending;
@@ -16,7 +17,7 @@ public sealed class Payment : BaseEntity
 
     private Payment() { }
 
-    public static Payment Create(Guid bookingId, decimal amount, PaymentMethod method)
+    public static Payment Create(Guid bookingId, decimal amount, PaymentMethod method, Guid tenantId)
     {
         if (amount <= 0)
             throw new ArgumentException("Amount must be greater than zero.", nameof(amount));
@@ -24,9 +25,10 @@ public sealed class Payment : BaseEntity
         return new Payment
         {
             BookingId = bookingId,
-            Amount = amount,
-            Method = method,
-            Status = PaymentStatus.Pending
+            TenantId  = tenantId,
+            Amount    = amount,
+            Method    = method,
+            Status    = PaymentStatus.Pending
         };
     }
 

@@ -8,7 +8,8 @@ public sealed class BookingStatusFlowTests
 {
     private static BookingAggregate MakeBooking() => BookingAggregate.Create(
         Guid.NewGuid(), "user@example.com", Guid.NewGuid(),
-        [new BookedSeat(1, "Test User", 30, "Male", 500m, null, null)]);
+        [new BookedSeat(1, "Test User", 30, "Male", 500m, null, null)],
+        Guid.NewGuid());
 
     [Fact]
     public void AwaitPayment_FromPending_ShouldTransitionToPaymentPending()

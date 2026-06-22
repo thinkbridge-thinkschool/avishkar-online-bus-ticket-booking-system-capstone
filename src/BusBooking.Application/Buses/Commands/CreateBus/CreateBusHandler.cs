@@ -10,7 +10,8 @@ public sealed class CreateBusHandler(IBusRepository busRepo)
         if (exists)
             throw new InvalidOperationException($"A bus with number '{command.BusNumber}' already exists.");
 
-        var bus = Bus.Create(command.BusNumber, command.BusName, command.BusType, command.TotalSeats, command.VendorId);
+        // TODO(Phase-4): replace Guid.Empty with tenantId from ITenantContext
+        var bus = Bus.Create(command.BusNumber, command.BusName, command.BusType, command.TotalSeats, command.VendorId, Guid.Empty);
         await busRepo.AddAsync(bus, ct);
         await busRepo.SaveChangesAsync(ct);
         return bus.Id;

@@ -5,11 +5,12 @@ using BusBooking.Domain.Common;
 
 namespace BusBooking.Domain.Booking.Aggregates;
 
-public sealed class Booking : BaseEntity
+public sealed class Booking : BaseEntity, ITenantEntity
 {
     public Guid UserId { get; private set; }
     public string UserEmail { get; private set; } = default!;
     public Guid ScheduleId { get; private set; }
+    public Guid TenantId { get; private set; }
     public BookingStatus Status { get; private set; } = BookingStatus.Pending;
     public decimal TotalAmount { get; private set; }
     public DateTime BookedAt { get; private set; }
@@ -19,16 +20,17 @@ public sealed class Booking : BaseEntity
 
     private Booking() { }
 
-    public static Booking Create(Guid userId, string userEmail, Guid scheduleId, IEnumerable<BookedSeat> seats)
+    public static Booking Create(Guid userId, string userEmail, Guid scheduleId, IEnumerable<BookedSeat> seats, Guid tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userEmail);
 
         var booking = new Booking
         {
-            UserId = userId,
-            UserEmail = userEmail,
+            UserId     = userId,
+            UserEmail  = userEmail,
             ScheduleId = scheduleId,
-            BookedAt = DateTime.UtcNow,
+            TenantId   = tenantId,
+            BookedAt   = DateTime.UtcNow,
         };
 
         booking._seats.AddRange(seats);

@@ -3,10 +3,11 @@ using BusBooking.Domain.Scheduling.Enums;
 
 namespace BusBooking.Domain.Scheduling.Entities;
 
-public sealed class Schedule : BaseEntity
+public sealed class Schedule : BaseEntity, ITenantEntity
 {
     public Guid BusId { get; private set; }
     public Guid RouteId { get; private set; }
+    public Guid TenantId { get; private set; }
     public DateOnly TravelDate { get; private set; }
     public TimeOnly DepartureTime { get; private set; }
     public TimeOnly ArrivalTime { get; private set; }
@@ -18,8 +19,8 @@ public sealed class Schedule : BaseEntity
 
     private Schedule() { }
 
-    public static Schedule Create(Guid busId, Guid routeId, DateOnly travelDate, TimeOnly departure, TimeOnly arrival) =>
-        new() { BusId = busId, RouteId = routeId, TravelDate = travelDate, DepartureTime = departure, ArrivalTime = arrival };
+    public static Schedule Create(Guid busId, Guid routeId, DateOnly travelDate, TimeOnly departure, TimeOnly arrival, Guid tenantId) =>
+        new() { BusId = busId, RouteId = routeId, TravelDate = travelDate, DepartureTime = departure, ArrivalTime = arrival, TenantId = tenantId };
 
     public void AddSeats(IEnumerable<Seat> seats) => _seats.AddRange(seats);
 

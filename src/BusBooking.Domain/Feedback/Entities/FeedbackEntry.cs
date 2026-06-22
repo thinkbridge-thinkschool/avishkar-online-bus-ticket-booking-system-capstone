@@ -3,18 +3,19 @@ using BusBooking.Domain.Feedback.Enums;
 
 namespace BusBooking.Domain.Feedback.Entities;
 
-public sealed class FeedbackEntry : BaseEntity
+public sealed class FeedbackEntry : BaseEntity, ITenantEntity
 {
     public Guid UserId { get; private set; }
     public Guid BookingId { get; private set; }
     public Guid ScheduleId { get; private set; }
+    public Guid TenantId { get; private set; }
     public int Rating { get; private set; }
     public string Comment { get; private set; } = default!;
     public FeedbackCategory Category { get; private set; }
 
     private FeedbackEntry() { }
 
-    public static FeedbackEntry Create(Guid userId, Guid bookingId, Guid scheduleId, int rating, string comment, FeedbackCategory category)
+    public static FeedbackEntry Create(Guid userId, Guid bookingId, Guid scheduleId, int rating, string comment, FeedbackCategory category, Guid tenantId)
     {
         if (userId == Guid.Empty)
             throw new ArgumentException("UserId must not be empty.", nameof(userId));
@@ -30,12 +31,13 @@ public sealed class FeedbackEntry : BaseEntity
 
         return new FeedbackEntry
         {
-            UserId = userId,
-            BookingId = bookingId,
+            UserId     = userId,
+            BookingId  = bookingId,
             ScheduleId = scheduleId,
-            Rating = rating,
-            Comment = comment,
-            Category = category
+            TenantId   = tenantId,
+            Rating     = rating,
+            Comment    = comment,
+            Category   = category
         };
     }
 
@@ -47,9 +49,9 @@ public sealed class FeedbackEntry : BaseEntity
         if (comment.Length > 1000)
             throw new ArgumentException("Comment must not exceed 1000 characters.", nameof(comment));
 
-        Rating = rating;
-        Comment = comment;
-        Category = category;
+        Rating    = rating;
+        Comment   = comment;
+        Category  = category;
         UpdatedAt = DateTime.UtcNow;
     }
 }

@@ -54,14 +54,16 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
 
         // ── Buses (8 operators) ───────────────────────────────────────────
         var vendorId = Guid.NewGuid();
-        var bus1 = Bus.Create("MH12-AB-1234", "Shivneri Express",  BusType.Seater,      40, vendorId);
-        var bus2 = Bus.Create("MH12-CD-5678", "Volvo Sleeper",     BusType.Sleeper,     36, vendorId);
-        var bus3 = Bus.Create("MH12-EF-9012", "City Link Semi",    BusType.SemiSleeper, 38, vendorId);
-        var bus4 = Bus.Create("MH04-GH-3456", "Orange Travels",    BusType.Seater,      45, vendorId);
-        var bus5 = Bus.Create("MH04-IJ-7890", "Neeta Tours VIP",   BusType.Sleeper,     40, vendorId);
-        var bus6 = Bus.Create("MH12-KL-2345", "Paulo Travels",     BusType.Seater,      52, vendorId);
-        var bus7 = Bus.Create("MH12-MN-6789", "IntrCity SmartBus", BusType.SemiSleeper, 48, vendorId);
-        var bus8 = Bus.Create("MH43-OP-0123", "ZingBus Express",   BusType.Sleeper,     42, vendorId);
+        // TODO(Phase-2): replace Guid.Empty with seedTenantId once Tenant seeding is added
+        var seedTenantId = Guid.Empty;
+        var bus1 = Bus.Create("MH12-AB-1234", "Shivneri Express",  BusType.Seater,      40, vendorId, seedTenantId);
+        var bus2 = Bus.Create("MH12-CD-5678", "Volvo Sleeper",     BusType.Sleeper,     36, vendorId, seedTenantId);
+        var bus3 = Bus.Create("MH12-EF-9012", "City Link Semi",    BusType.SemiSleeper, 38, vendorId, seedTenantId);
+        var bus4 = Bus.Create("MH04-GH-3456", "Orange Travels",    BusType.Seater,      45, vendorId, seedTenantId);
+        var bus5 = Bus.Create("MH04-IJ-7890", "Neeta Tours VIP",   BusType.Sleeper,     40, vendorId, seedTenantId);
+        var bus6 = Bus.Create("MH12-KL-2345", "Paulo Travels",     BusType.Seater,      52, vendorId, seedTenantId);
+        var bus7 = Bus.Create("MH12-MN-6789", "IntrCity SmartBus", BusType.SemiSleeper, 48, vendorId, seedTenantId);
+        var bus8 = Bus.Create("MH43-OP-0123", "ZingBus Express",   BusType.Sleeper,     42, vendorId, seedTenantId);
 
         await db.Buses.AddRangeAsync([bus1, bus2, bus3, bus4, bus5, bus6, bus7, bus8], ct);
 
@@ -150,7 +152,8 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
         DateOnly date, TimeOnly departure, TimeOnly arrival,
         int totalSeats, decimal windowPrice, decimal aislePrice)
     {
-        var schedule = Domain.Scheduling.Entities.Schedule.Create(busId, routeId, date, departure, arrival);
+        // TODO(Phase-2): pass real tenantId from seed tenant
+        var schedule = Domain.Scheduling.Entities.Schedule.Create(busId, routeId, date, departure, arrival, Guid.Empty);
 
         var seats = Enumerable.Range(1, totalSeats).Select(n =>
         {

@@ -28,7 +28,8 @@ public sealed class ProcessPaymentHandler(
         if (existingPayment is not null)
             throw new InvalidOperationException("A payment already exists for this booking.");
 
-        var payment = Payment.Create(command.BookingId, booking.TotalAmount, command.PaymentMethod);
+        // TODO(Phase-4): replace Guid.Empty with booking.TenantId once TenantId is populated on bookings
+        var payment = Payment.Create(command.BookingId, booking.TotalAmount, command.PaymentMethod, Guid.Empty);
 
         var gatewayId = command.GatewayTransactionId
             ?? "GW-" + Guid.NewGuid().ToString("N")[..16].ToUpperInvariant();
