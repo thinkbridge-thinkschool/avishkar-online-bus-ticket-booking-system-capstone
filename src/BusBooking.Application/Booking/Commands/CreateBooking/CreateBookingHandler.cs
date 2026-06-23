@@ -31,8 +31,8 @@ public sealed class CreateBookingHandler(
             s.PassengerEmail));
 
         // 4. Create booking aggregate and move to PaymentPending (payment processed separately)
-        // TODO(Phase-4): replace Guid.Empty with schedule.TenantId once ITenantContext is wired
-        var booking = BookingAggregate.Create(command.UserId, command.UserEmail, command.ScheduleId, bookedSeats, Guid.Empty);
+        // Booking inherits tenant from the schedule; query filter already ensures this schedule is in scope.
+        var booking = BookingAggregate.Create(command.UserId, command.UserEmail, command.ScheduleId, bookedSeats, schedule.TenantId);
         booking.AwaitPayment();
 
         // 5. Persist booking (seats remain Reserved until payment confirms them)

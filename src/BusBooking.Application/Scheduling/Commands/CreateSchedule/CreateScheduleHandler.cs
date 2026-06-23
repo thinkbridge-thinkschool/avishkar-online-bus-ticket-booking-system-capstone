@@ -25,8 +25,8 @@ public sealed class CreateScheduleHandler(IBusRepository busRepo, IScheduleRepos
         if (command.TravelDate < DateOnly.FromDateTime(DateTime.UtcNow))
             throw new InvalidOperationException("Travel date cannot be in the past.");
 
-        // TODO(Phase-4): replace Guid.Empty with tenantId from ITenantContext (must match bus.TenantId)
-        var schedule = Schedule.Create(command.BusId, command.RouteId, command.TravelDate, command.DepartureTime, command.ArrivalTime, Guid.Empty);
+        // Schedule inherits tenant from its bus; query filter already ensures this bus is in the caller's tenant.
+        var schedule = Schedule.Create(command.BusId, command.RouteId, command.TravelDate, command.DepartureTime, command.ArrivalTime, bus.TenantId);
 
         var seats = Enumerable.Range(1, bus.TotalSeats).Select(n =>
         {

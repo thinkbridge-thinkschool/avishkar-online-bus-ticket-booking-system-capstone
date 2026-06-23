@@ -18,9 +18,9 @@ public sealed class CreateFeedbackHandler(IFeedbackRepository feedbackRepo, IBoo
         if (existing is not null)
             throw new InvalidOperationException("Feedback has already been submitted for this booking.");
 
-        // TODO(Phase-4): replace Guid.Empty with booking.TenantId once TenantId is populated on bookings
+        // FeedbackEntry inherits tenant from the booking it reviews.
         var entry = FeedbackEntry.Create(command.UserId, command.BookingId, command.ScheduleId,
-                                         command.Rating, command.Comment, command.Category, Guid.Empty);
+                                         command.Rating, command.Comment, command.Category, booking.TenantId);
         await feedbackRepo.AddAsync(entry, ct);
         await feedbackRepo.SaveChangesAsync(ct);
         return entry.Id;
