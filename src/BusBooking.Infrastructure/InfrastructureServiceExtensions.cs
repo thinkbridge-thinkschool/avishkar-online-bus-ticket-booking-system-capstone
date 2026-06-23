@@ -1,6 +1,7 @@
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using BusBooking.Application.Booking.Repositories;
+using BusBooking.Application.Tenants;
 using BusBooking.Application.Buses;
 using BusBooking.Application.Cities;
 using BusBooking.Application.Common;
@@ -14,6 +15,7 @@ using BusBooking.Infrastructure.BackgroundServices;
 using BusBooking.Infrastructure.Messaging;
 using BusBooking.Infrastructure.Persistence;
 using BusBooking.Infrastructure.Repositories;
+using BusBooking.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +27,11 @@ public static class InfrastructureServiceExtensions
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services, IConfiguration config)
     {
+        // TenantContext is scoped: one instance per request, shared by the middleware
+        // (which calls Resolve()) and BusBookingDbContext (which reads it for query filters).
+        services.AddScoped<TenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+
         services.AddDbContext<BusBookingDbContext>(opts =>
             opts.UseSqlServer(config.GetConnectionString("DefaultConnection")));
 
@@ -35,6 +42,7 @@ public static class InfrastructureServiceExtensions
             services.AddScoped<IEventPublisher, ServiceBusEventPublisher>();
         }
 
+        services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IScheduleRepository, ScheduleRepository>();
         services.AddScoped<ICityRepository, CityRepository>();

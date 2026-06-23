@@ -15,6 +15,7 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.TransactionReference).HasMaxLength(30);
         builder.Property(p => p.GatewayTransactionId).HasMaxLength(50);
         builder.HasIndex(p => p.BookingId).IsUnique();
+        builder.HasIndex(p => p.TenantId);
         builder.Ignore(p => p.DomainEvents);
     }
 }

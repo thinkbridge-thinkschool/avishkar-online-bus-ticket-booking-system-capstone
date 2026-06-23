@@ -16,6 +16,7 @@ internal sealed class ScheduleConfiguration : IEntityTypeConfiguration<Schedule>
                .HasForeignKey(nameof(Seat.ScheduleId))
                .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasIndex(s => new { s.TenantId, s.TravelDate, s.IsActive });
         builder.Ignore(s => s.AvailableSeatsCount);
         builder.Navigation(s => s.Seats).AutoInclude();
     }

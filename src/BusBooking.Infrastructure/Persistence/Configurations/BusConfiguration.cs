@@ -15,6 +15,7 @@ internal sealed class BusConfiguration : IEntityTypeConfiguration<Bus>
         builder.Property(b => b.BusType).HasConversion<string>().HasMaxLength(20);
         builder.Property(b => b.IsActive).IsRequired();
         builder.HasIndex(b => b.VendorId);
+        builder.HasIndex(b => new { b.TenantId, b.IsActive });
         builder.Ignore(b => b.DomainEvents);
     }
 }

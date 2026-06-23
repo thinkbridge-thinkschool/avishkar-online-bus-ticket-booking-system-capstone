@@ -15,6 +15,7 @@ internal sealed class FeedbackEntryConfiguration : IEntityTypeConfiguration<Feed
         builder.HasIndex(f => f.BookingId).IsUnique();
         builder.HasIndex(f => f.UserId);
         builder.HasIndex(f => f.ScheduleId);
+        builder.HasIndex(f => new { f.TenantId, f.ScheduleId });
         builder.Ignore(f => f.DomainEvents);
     }
 }

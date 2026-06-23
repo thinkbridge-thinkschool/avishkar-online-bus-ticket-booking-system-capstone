@@ -31,5 +31,6 @@ internal sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
 
         builder.HasIndex(b => b.UserId);
         builder.HasIndex(b => b.ScheduleId);
+        builder.HasIndex(b => new { b.TenantId, b.UserId });
     }
 }

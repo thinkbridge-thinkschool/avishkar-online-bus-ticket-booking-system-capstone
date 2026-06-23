@@ -1,3 +1,4 @@
+using BusBooking.Application.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -15,6 +16,14 @@ internal sealed class DesignTimeBusBookingDbContextFactory : IDesignTimeDbContex
             .UseSqlServer(connectionString)
             .Options;
 
-        return new BusBookingDbContext(opts);
+        return new BusBookingDbContext(opts, new NullTenantContext());
+    }
+
+    // Stand-in for design-time tools (dotnet ef migrations) — no tenant filtering needed.
+    private sealed class NullTenantContext : ITenantContext
+    {
+        public Guid TenantId  => Guid.Empty;
+        public string Subdomain => string.Empty;
+        public bool IsResolved  => false;
     }
 }
