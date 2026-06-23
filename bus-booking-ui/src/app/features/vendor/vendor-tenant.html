@@ -1,0 +1,81 @@
+<h1>My Tenant</h1>
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (tenant(); as t) {
+  <div class="card" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h2 style="margin:0">{{ t.name }}</h2>
+      <app-status-badge [status]="t.status" />
+    </div>
+    <dl style="display:grid;grid-template-columns:max-content 1fr;gap:.5rem 1.5rem;margin:0">
+      <dt style="color:#6b7280;font-size:.875rem">Subdomain</dt>
+      <dd style="margin:0;font-family:monospace">{{ t.subdomain }}</dd>
+      <dt style="color:#6b7280;font-size:.875rem">Admin email</dt>
+      <dd style="margin:0">{{ t.adminEmail }}</dd>
+      @if (t.approvedAt) {
+        <dt style="color:#6b7280;font-size:.875rem">Approved</dt>
+        <dd style="margin:0">{{ t.approvedAt | date }}</dd>
+      }
+    </dl>
+    <div style="margin-top:1.25rem;padding:.75rem 1rem;border-radius:.5rem;font-size:.875rem"
+      [style.background]="t.status === 'Active' ? '#f0fdf4' : t.status === 'PendingApproval' ? '#fffbeb' : '#fef2f2'"
+      [style.color]="t.status === 'Active' ? '#15803d' : t.status === 'PendingApproval' ? '#92400e' : '#991b1b'">
+      @if (t.status === 'Active') {
+        Your tenant is active. You can now manage buses and schedules.
+      } @else if (t.status === 'PendingApproval') {
+        Your registration is pending review. An administrator will approve it shortly.
+      } @else if (t.status === 'Suspended') {
+        Your tenant has been suspended. Contact support to resolve this.
+      } @else if (t.status === 'Rejected') {
+        Your tenant registration was rejected. Please contact support for details.
+      } @else {
+        This tenant account has been deactivated.
+      }
+    </div>
+  </div>
+} @else {
+  <div class="card" style="max-width:520px">
+    <h2 style="margin-top:0">Register your company</h2>
+    <p style="color:#6b7280;margin-bottom:1.5rem;font-size:.875rem">
+      Register as an operator to list buses and sell tickets on this platform.
+      Your account will be reviewed before activation.
+    </p>
+    @if (formError()) {
+      <div class="error-alert" role="alert" style="margin-bottom:1rem">{{ formError() }}</div>
+    }
+    <form (ngSubmit)="register()" style="display:flex;flex-direction:column;gap:1rem">
+      <div>
+        <label for="tn-name" style="display:block;font-size:.875rem;font-weight:500;margin-bottom:.35rem">
+          Company name <span aria-hidden="true" style="color:#ef4444">*</span>
+        </label>
+        <input id="tn-name" type="text" class="form-input" required
+          placeholder="Acme Bus Lines"
+          [value]="name()" (input)="setName($any($event.target).value)" />
+      </div>
+      <div>
+        <label for="tn-subdomain" style="display:block;font-size:.875rem;font-weight:500;margin-bottom:.35rem">
+          Subdomain <span aria-hidden="true" style="color:#ef4444">*</span>
+        </label>
+        <div style="display:flex;align-items:center;gap:.25rem">
+          <input id="tn-subdomain" type="text" class="form-input" required
+            placeholder="acme"
+            style="max-width:180px"
+            [value]="subdomain()" (input)="setSubdomain($any($event.target).value)" />
+          <span style="color:#6b7280;font-size:.875rem">.busbooking.app</span>
+        </div>
+        <p style="margin:.25rem 0 0;font-size:.75rem;color:#9ca3af">
+          3–30 characters: lowercase letters, digits, and hyphens only.
+        </p>
+      </div>
+      <div>
+        <label style="display:block;font-size:.875rem;font-weight:500;margin-bottom:.35rem">Admin email</label>
+        <input type="email" class="form-input" disabled [value]="adminEmail() ?? ''" />
+      </div>
+      <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+        {{ submitting() ? 'Submitting…' : 'Register tenant' }}
+      </button>
+    </form>
+  </div>
+}

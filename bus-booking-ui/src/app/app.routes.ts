@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { vendorGuard } from './core/guards/vendor.guard';
 import { adminGuard } from './core/guards/admin.guard';
+import { superAdminGuard } from './core/guards/super-admin.guard';
 
 export const routes: Routes = [
   {
@@ -65,6 +66,12 @@ export const routes: Routes = [
       import('./features/profile/profile').then(m => m.ProfileComponent),
   },
   {
+    path: 'my-tenant',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/vendor/vendor-tenant').then(m => m.VendorTenantComponent),
+  },
+  {
     path: 'vendor/dashboard',
     canActivate: [vendorGuard],
     loadComponent: () =>
@@ -84,9 +91,15 @@ export const routes: Routes = [
   },
   {
     path: 'admin/dashboard',
-    canActivate: [adminGuard],
+    canActivate: [superAdminGuard],
     loadComponent: () =>
       import('./features/admin/admin-dashboard').then(m => m.AdminDashboardComponent),
+  },
+  {
+    path: 'admin/tenants',
+    canActivate: [superAdminGuard],
+    loadComponent: () =>
+      import('./features/admin/admin-tenants').then(m => m.AdminTenantsComponent),
   },
   {
     path: 'admin/cities',

@@ -1,0 +1,61 @@
+<h1>Tenant Management</h1>
+@if (actionError()) {
+  <div class="error-alert" role="alert">{{ actionError() }}</div>
+}
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (tenants().length === 0) {
+  <div class="empty-state"><h3>No tenants registered yet</h3></div>
+} @else {
+  <div class="card" style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="border-bottom:2px solid #e2e8f0">
+          <th style="text-align:left;padding:.75rem">Name</th>
+          <th style="text-align:left;padding:.75rem">Subdomain</th>
+          <th style="text-align:left;padding:.75rem">Admin Email</th>
+          <th style="text-align:left;padding:.75rem">Status</th>
+          <th style="text-align:left;padding:.75rem">Razorpay</th>
+          <th style="text-align:left;padding:.75rem">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (t of tenants(); track t.tenantId) {
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:.75rem;font-weight:600">{{ t.name }}</td>
+            <td style="padding:.75rem;font-family:monospace;font-size:.875rem">{{ t.subdomain }}</td>
+            <td style="padding:.75rem">{{ t.adminEmail }}</td>
+            <td style="padding:.75rem"><app-status-badge [status]="t.status" /></td>
+            <td style="padding:.75rem;text-align:center">
+              @if (t.hasRazorpayCredentials) {
+                <span title="Credentials set" style="color:#16a34a">✓</span>
+              } @else {
+                <span title="No credentials" style="color:#9ca3af">—</span>
+              }
+            </td>
+            <td style="padding:.75rem">
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                @if (t.status === 'PendingApproval') {
+                  <button class="btn btn-secondary" style="font-size:.8rem;padding:.3rem .75rem"
+                    (click)="approve(t.tenantId)" type="button">Approve</button>
+                  <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .75rem"
+                    (click)="reject(t.tenantId)" type="button">Reject</button>
+                }
+                @if (t.status === 'Active') {
+                  <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .75rem"
+                    (click)="suspend(t.tenantId)" type="button">Suspend</button>
+                }
+                @if (t.status === 'Suspended') {
+                  <button class="btn btn-secondary" style="font-size:.8rem;padding:.3rem .75rem"
+                    (click)="reactivate(t.tenantId)" type="button">Reactivate</button>
+                }
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

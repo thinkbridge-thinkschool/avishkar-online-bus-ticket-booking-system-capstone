@@ -28,8 +28,38 @@
       </div>
     }
   </div>
+
+  @if (auth.isSuperAdmin()) {
+    <h2 style="font-size:1.125rem;font-weight:600;margin:1.5rem 0 .75rem">Tenants</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:2rem">
+      <div class="card" style="text-align:center">
+        <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ d.totalTenants }}</div>
+        <div style="color:#6b7280;font-size:.875rem">Total Tenants</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:2rem;font-weight:700;color:#16a34a">{{ d.activeTenants }}</div>
+        <div style="color:#6b7280;font-size:.875rem">Active</div>
+      </div>
+      @if (d.pendingTenants > 0) {
+        <div class="card" style="text-align:center;border:2px solid #f5a623">
+          <div style="font-size:2rem;font-weight:700;color:#f5a623">{{ d.pendingTenants }}</div>
+          <div style="color:#6b7280;font-size:.875rem">Pending Approval</div>
+        </div>
+      }
+      @if (d.suspendedTenants > 0) {
+        <div class="card" style="text-align:center;border:2px solid #ef4444">
+          <div style="font-size:2rem;font-weight:700;color:#ef4444">{{ d.suspendedTenants }}</div>
+          <div style="color:#6b7280;font-size:.875rem">Suspended</div>
+        </div>
+      }
+    </div>
+  }
+
   <div style="display:flex;gap:1rem;flex-wrap:wrap">
-    <a routerLink="/admin/vendors" class="btn btn-primary">Manage Vendors</a>
+    @if (auth.isSuperAdmin()) {
+      <a routerLink="/admin/tenants" class="btn btn-primary">Manage Tenants</a>
+    }
+    <a routerLink="/admin/vendors" class="btn btn-secondary">Manage Vendors</a>
     <a routerLink="/admin/cities" class="btn btn-secondary">Manage Cities</a>
     <a routerLink="/admin/routes" class="btn btn-outline">Manage Routes</a>
   </div>

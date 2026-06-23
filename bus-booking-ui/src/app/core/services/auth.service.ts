@@ -18,6 +18,7 @@ export class AuthService {
   });
   readonly isVendor = computed(() => this.roles().includes('BusBooking.Vendor'));
   readonly isAdmin = computed(() => this.roles().includes('BusBooking.Admin'));
+  readonly isSuperAdmin = computed(() => this.roles().includes('BusBooking.SuperAdmin'));
 
   constructor(private readonly msal: MsalService) {}
 

@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AdminService, AdminDashboard } from '../../core/services/admin.service';
+import { AuthService } from '../../core/services/auth.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 
 @Component({
@@ -10,6 +11,7 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
 })
 export class AdminDashboardComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  readonly auth = inject(AuthService);
 
   readonly dashboard = signal<AdminDashboard | null>(null);
   readonly loading = signal(true);

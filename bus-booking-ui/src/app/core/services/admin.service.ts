@@ -9,6 +9,10 @@ export interface AdminDashboard {
   totalBookings: number;
   totalRevenue: number;
   pendingVendors: number;
+  totalTenants: number;
+  pendingTenants: number;
+  activeTenants: number;
+  suspendedTenants: number;
 }
 
 @Injectable({ providedIn: 'root' })
