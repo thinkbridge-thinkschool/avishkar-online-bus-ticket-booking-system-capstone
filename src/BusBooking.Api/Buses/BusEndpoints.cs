@@ -4,6 +4,7 @@ using BusBooking.Application.Buses.Commands.CreateBus;
 using BusBooking.Application.Buses.Commands.DeleteBus;
 using BusBooking.Application.Buses.Commands.UpdateBus;
 using BusBooking.Application.Buses.Queries.GetVendorBuses;
+using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 
 namespace BusBooking.Api.Buses;
@@ -25,9 +26,9 @@ public static class BusEndpoints
     }
 
     private static async Task<IResult> CreateBus(
-        CreateBusCommand command, IBusRepository busRepo, CancellationToken ct)
+        CreateBusCommand command, IBusRepository busRepo, ITenantContext tenantContext, CancellationToken ct)
     {
-        var handler = new CreateBusHandler(busRepo);
+        var handler = new CreateBusHandler(busRepo, tenantContext);
         try
         {
             var id = await handler.HandleAsync(command, ct);

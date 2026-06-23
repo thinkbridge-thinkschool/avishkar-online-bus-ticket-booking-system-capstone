@@ -12,7 +12,9 @@ using BusBooking.Api.Scheduling;
 using BusBooking.Api.Users;
 using BusBooking.Api.Vendors;
 using BusBooking.Application.Common;
+using BusBooking.Api.Tenants;
 using BusBooking.Infrastructure;
+using BusBooking.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -46,21 +48,11 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Razorpay — named HttpClient with Basic auth; service registered only when keys are present
-var rzpKeyId = builder.Configuration["Razorpay:KeyId"];
-var rzpKeySecret = builder.Configuration["Razorpay:KeySecret"];
-if (!string.IsNullOrEmpty(rzpKeyId) && rzpKeyId != "rzp_test_REPLACE_WITH_YOUR_KEY_ID")
-{
-    builder.Services.AddHttpClient("Razorpay", client =>
-    {
-        var creds = Convert.ToBase64String(
-            System.Text.Encoding.UTF8.GetBytes($"{rzpKeyId}:{rzpKeySecret}"));
-        client.BaseAddress = new Uri("https://api.razorpay.com/v1/");
-        client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", creds);
-    });
-    builder.Services.AddScoped<BusBooking.Api.Payments.RazorpayService>();
-}
+// RazorpayBase: base address only — TenantRazorpayService injects per-tenant or platform credentials
+// at request time, so credentials are never baked into the HTTP client at startup.
+builder.Services.AddHttpClient("RazorpayBase",
+    client => client.BaseAddress = new Uri("https://api.razorpay.com/v1/"));
+builder.Services.AddScoped<BusBooking.Api.Payments.TenantRazorpayService>();
 
 // ── Authentication + Authorization ───────────────────────────────────────────
 // When AzureAd:ClientId is configured (Azure / CI), enable full JWT Bearer validation.
@@ -96,6 +88,8 @@ builder.Services.AddAuthorization(o =>
     }
     // AdminOnly policy maps to the BusBooking.Admin Entra ID app role.
     o.AddPolicy("AdminOnly", p => p.RequireClaim("roles", "BusBooking.Admin"));
+    // SuperAdminOnly — platform-level tenant management (approve/reject/suspend tenants).
+    o.AddPolicy("SuperAdminOnly", p => p.RequireClaim("roles", "BusBooking.SuperAdmin"));
 });
 
 // ── Rate limiting: fixed window 60 req/min per policy ─────────────────────────
@@ -148,8 +142,10 @@ app.UseHttpsRedirection();
 app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit
 if (hasAzureAdConfig)
     app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>(); // after auth so JWT claims are available
 app.UseAuthorization();
 
+app.MapTenantEndpoints();
 app.MapScheduleEndpoints();
 app.MapBookingEndpoints();
 app.MapCityEndpoints();

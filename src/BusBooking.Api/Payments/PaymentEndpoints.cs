@@ -31,20 +31,24 @@ public static class PaymentEndpoints
         CreateOrderBody body,
         HttpContext httpContext,
         IBookingRepository bookingRepo,
-        RazorpayService? razorpay,
+        TenantRazorpayService razorpay,
         CancellationToken ct)
     {
-        if (razorpay is null)
-            return Results.Problem("Payment gateway not configured.", statusCode: StatusCodes.Status503ServiceUnavailable);
-
         if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
 
         var booking = await bookingRepo.GetByIdAsync(body.BookingId, ct);
         if (booking is null) return Results.NotFound("Booking not found.");
         if (booking.UserId != userId) return Results.Forbid();
 
-        var order = await razorpay.CreateOrderAsync(booking.TotalAmount, $"booking-{body.BookingId:N}", ct);
-        return Results.Ok(order);
+        try
+        {
+            var order = await razorpay.CreateOrderAsync(booking.TotalAmount, $"booking-{body.BookingId:N}", ct);
+            return Results.Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
     }
 
     private static async Task<IResult> ProcessPayment(
@@ -54,15 +58,23 @@ public static class PaymentEndpoints
         IBookingRepository bookingRepo,
         IScheduleRepository scheduleRepo,
         IEventPublisher publisher,
-        RazorpayService? razorpay,
+        TenantRazorpayService razorpay,
         CancellationToken ct)
     {
         if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
 
-        if (razorpay is null)
-            return Results.Problem("Payment gateway not configured.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        bool signatureValid;
+        try
+        {
+            signatureValid = await razorpay.VerifySignatureAsync(
+                body.RazorpayOrderId, body.RazorpayPaymentId, body.RazorpaySignature, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
 
-        if (!razorpay.VerifySignature(body.RazorpayOrderId, body.RazorpayPaymentId, body.RazorpaySignature))
+        if (!signatureValid)
             return Results.BadRequest("Payment signature verification failed.");
 
         var userName = httpContext.User.FindFirst("name")?.Value
@@ -79,9 +91,9 @@ public static class PaymentEndpoints
             var id = await handler.HandleAsync(command, ct);
             return Results.Created($"/api/v1/payments/{id}", new { paymentId = id });
         }
-        catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
-        catch (UnauthorizedAccessException) { return Results.Forbid(); }
-        catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
+        catch (NotFoundException ex)          { return Results.NotFound(ex.Message); }
+        catch (UnauthorizedAccessException)   { return Results.Forbid(); }
+        catch (InvalidOperationException ex)  { return Results.Conflict(ex.Message); }
     }
 
     private static async Task<IResult> GetPayment(
@@ -96,7 +108,7 @@ public static class PaymentEndpoints
             var dto = await handler.HandleAsync(new GetPaymentQuery(paymentId, userId), ct);
             return Results.Ok(dto);
         }
-        catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
+        catch (NotFoundException ex)        { return Results.NotFound(ex.Message); }
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
