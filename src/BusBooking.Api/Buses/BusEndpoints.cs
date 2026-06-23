@@ -1,11 +1,12 @@
-using System.Security.Claims;
 using BusBooking.Application.Buses;
+using BusBooking.Application.Vendors;
 using BusBooking.Application.Buses.Commands.CreateBus;
 using BusBooking.Application.Buses.Commands.DeleteBus;
 using BusBooking.Application.Buses.Commands.UpdateBus;
 using BusBooking.Application.Buses.Queries.GetVendorBuses;
 using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
+using BusBooking.Domain.Scheduling.Enums;
 
 namespace BusBooking.Api.Buses;
 
@@ -19,6 +20,7 @@ public static class BusEndpoints
             .RequireAuthorization()
             .RequireRateLimiting("api");
 
+        group.MapGet("/mine", GetMyBuses);
         group.MapPost("/", CreateBus);
         group.MapPut("/{busId:guid}", UpdateBus);
         group.MapDelete("/{busId:guid}", DeleteBus);
@@ -26,8 +28,16 @@ public static class BusEndpoints
     }
 
     private static async Task<IResult> CreateBus(
-        CreateBusCommand command, IBusRepository busRepo, ITenantContext tenantContext, CancellationToken ct)
+        CreateBusBody body, HttpContext httpContext,
+        IVendorRepository vendorRepo, IBusRepository busRepo, ITenantContext tenantContext, CancellationToken ct)
     {
+        var oid = GetEntraOid(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound("Vendor profile not found. Register as a vendor first.");
+
+        var command = new CreateBusCommand(vendor.Id, body.BusNumber, body.BusNumber, body.BusType, body.TotalSeats);
         var handler = new CreateBusHandler(busRepo, tenantContext);
         try
         {
@@ -38,11 +48,16 @@ public static class BusEndpoints
     }
 
     private static async Task<IResult> UpdateBus(
-        Guid busId, UpdateBusRequest body, HttpContext httpContext, IBusRepository busRepo, CancellationToken ct)
+        Guid busId, UpdateBusRequest body, HttpContext httpContext,
+        IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
     {
-        if (!GetUserId(httpContext, out var userId)) return Results.Unauthorized();
+        var oid = GetEntraOid(httpContext);
+        if (oid is null) return Results.Unauthorized();
 
-        var command = new UpdateBusCommand(busId, userId, body.BusName, body.TotalSeats);
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound("Vendor profile not found.");
+
+        var command = new UpdateBusCommand(busId, vendor.Id, body.BusName, body.TotalSeats);
         var handler = new UpdateBusHandler(busRepo);
         try
         {
@@ -54,14 +69,19 @@ public static class BusEndpoints
     }
 
     private static async Task<IResult> DeleteBus(
-        Guid busId, HttpContext httpContext, IBusRepository busRepo, CancellationToken ct)
+        Guid busId, HttpContext httpContext,
+        IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
     {
-        if (!GetUserId(httpContext, out var userId)) return Results.Unauthorized();
+        var oid = GetEntraOid(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound("Vendor profile not found.");
 
         var handler = new DeleteBusHandler(busRepo);
         try
         {
-            await handler.HandleAsync(new DeleteBusCommand(busId, userId), ct);
+            await handler.HandleAsync(new DeleteBusCommand(busId, vendor.Id), ct);
             return Results.NoContent();
         }
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
@@ -76,8 +96,24 @@ public static class BusEndpoints
         return Results.Ok(buses);
     }
 
-    private static bool GetUserId(HttpContext ctx, out Guid userId) =>
-        Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out userId);
+    private static async Task<IResult> GetMyBuses(
+        HttpContext httpContext, IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
+    {
+        var oid = GetEntraOid(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound("Vendor not found.");
+
+        var handler = new GetVendorBusesHandler(busRepo);
+        var buses = await handler.HandleAsync(new GetVendorBusesQuery(vendor.Id), ct);
+        return Results.Ok(buses);
+    }
+
+    private static string? GetEntraOid(HttpContext ctx) =>
+        ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+        ?? ctx.User.FindFirst("oid")?.Value;
 }
 
+public sealed record CreateBusBody(string BusNumber, BusType BusType, int TotalSeats);
 public sealed record UpdateBusRequest(string BusName, int TotalSeats);

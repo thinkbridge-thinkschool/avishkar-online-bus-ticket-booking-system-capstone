@@ -86,10 +86,10 @@ builder.Services.AddAuthorization(o =>
             .RequireAuthenticatedUser()
             .Build();
     }
-    // AdminOnly policy maps to the BusBooking.Admin Entra ID app role.
-    o.AddPolicy("AdminOnly", p => p.RequireClaim("roles", "BusBooking.Admin"));
+    // AdminOnly — cities, routes, vendor management. Merged into SuperAdmin (3-role model).
+    o.AddPolicy("AdminOnly", p => p.RequireRole("BusBooking.SuperAdmin"));
     // SuperAdminOnly — platform-level tenant management (approve/reject/suspend tenants).
-    o.AddPolicy("SuperAdminOnly", p => p.RequireClaim("roles", "BusBooking.SuperAdmin"));
+    o.AddPolicy("SuperAdminOnly", p => p.RequireRole("BusBooking.SuperAdmin"));
 });
 
 // ── Rate limiting: fixed window 60 req/min per policy ─────────────────────────
@@ -136,7 +136,17 @@ app.Use(async (ctx, next) =>
 });
 
 if (app.Environment.IsDevelopment())
-    app.MapOpenApi().AllowAnonymous(); // exempt from fallback auth policy in dev
+{
+    app.MapOpenApi().AllowAnonymous();
+    // Temporary claims inspector — shows what the API sees in the JWT after processing.
+    // Hit this URL while signed in to diagnose claim mapping issues.
+    app.MapGet("/api/debug/claims", (HttpContext ctx) => Results.Ok(new
+    {
+        isAuthenticated = ctx.User.Identity?.IsAuthenticated ?? false,
+        authType       = ctx.User.Identity?.AuthenticationType,
+        claims         = ctx.User.Claims.Select(c => new { c.Type, c.Value }).ToList(),
+    })).AllowAnonymous();
+}
 
 app.UseHttpsRedirection();
 app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit

@@ -2,13 +2,50 @@
   <app-loading-spinner />
 } @else if (error()) {
   <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (!vendor()) {
+  <h1>Register as Vendor</h1>
+  <p style="color:#6b7280;margin-bottom:1.5rem">Create your bus company profile to start managing buses and schedules.</p>
+  <div class="card" style="max-width:480px">
+    @if (registerError()) {
+      <div class="error-alert" role="alert">{{ registerError() }}</div>
+    }
+    <div class="form-group">
+      <label class="form-label">Company Name</label>
+      <input class="form-control" [value]="vendorName()"
+             (input)="vendorName.set($any($event.target).value)" placeholder="ABC Travels Pvt. Ltd." />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-control" type="email" [value]="regEmail()"
+             (input)="regEmail.set($any($event.target).value)" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Phone Number</label>
+      <input class="form-control" [value]="phoneNumber()"
+             (input)="phoneNumber.set($any($event.target).value)" placeholder="+91 98765 43210" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Address</label>
+      <input class="form-control" [value]="address()"
+             (input)="address.set($any($event.target).value)" placeholder="123 Main St, City, State" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">License Number</label>
+      <input class="form-control" [value]="licenseNumber()"
+             (input)="licenseNumber.set($any($event.target).value)" placeholder="LIC-2024-XXXXXX" />
+    </div>
+    <button class="btn btn-primary" style="margin-top:1rem;width:100%"
+            (click)="register()" [disabled]="registering()" type="button">
+      {{ registering() ? 'Registering...' : 'Register as Vendor' }}
+    </button>
+  </div>
 } @else {
   <h1>Vendor Dashboard</h1>
   @if (vendor(); as v) {
     <div class="card" style="margin-bottom:1.5rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
-          <h2 style="margin:0">{{ v.companyName }}</h2>
+          <h2 style="margin:0">{{ v.vendorName }}</h2>
           <p style="color:#6b7280;margin:.25rem 0 0">{{ v.email }}</p>
         </div>
         <app-status-badge [status]="v.status" />

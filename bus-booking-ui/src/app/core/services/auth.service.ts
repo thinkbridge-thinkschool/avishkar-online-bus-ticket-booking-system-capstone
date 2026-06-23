@@ -1,6 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { MsalService } from '@azure/msal-angular';
-import { AccountInfo, SilentRequest } from '@azure/msal-browser';
+import { AccountInfo, InteractionRequiredAuthError } from '@azure/msal-browser';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -61,7 +61,16 @@ export class AuthService {
       });
       this._token.set(result.accessToken);
       return result.accessToken;
-    } catch {
+    } catch (err) {
+      if (err instanceof InteractionRequiredAuthError) {
+        // Consent not yet granted or token expired — redirect to Entra ID.
+        // After the user grants consent they are redirected back and the
+        // next acquireTokenSilent call succeeds without interaction.
+        await this.msal.instance.acquireTokenRedirect({
+          scopes: environment.msal.scopes,
+          account,
+        });
+      }
       return null;
     }
   }

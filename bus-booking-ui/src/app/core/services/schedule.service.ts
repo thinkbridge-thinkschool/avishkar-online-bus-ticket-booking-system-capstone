@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { AppError } from '../models/app-error';
 import type { Schedule, SearchSchedulesRequest, CreateScheduleRequest, UpdateScheduleRequest } from '../../shared/models/schedule.model';
 
 @Injectable({ providedIn: 'root' })
@@ -24,7 +25,12 @@ export class ScheduleService {
   }
 
   async getVendorSchedules(): Promise<Schedule[]> {
-    return firstValueFrom(this.http.get<Schedule[]>('/api/v1/schedules/vendor'));
+    try {
+      return await firstValueFrom(this.http.get<Schedule[]>('/api/v1/schedules/mine'));
+    } catch (err: unknown) {
+      if (err instanceof AppError && err.status === 404) return [];
+      throw err;
+    }
   }
 
   async createSchedule(cmd: CreateScheduleRequest): Promise<string> {

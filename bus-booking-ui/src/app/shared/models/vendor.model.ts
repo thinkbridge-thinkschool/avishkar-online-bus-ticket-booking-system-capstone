@@ -2,23 +2,25 @@ export type VendorStatus = 'Pending' | 'Approved' | 'Rejected' | 'Inactive';
 
 export interface Vendor {
   vendorId: string;
+  vendorName: string;
   email: string;
-  companyName: string;
   phoneNumber: string;
   address?: string;
+  licenseNumber?: string;
   status: VendorStatus;
-  registeredAt: string;
+  isActive: boolean;
 }
 
 export interface RegisterVendorRequest {
+  vendorName: string;
   email: string;
-  companyName: string;
   phoneNumber: string;
-  address?: string;
+  address: string;
+  licenseNumber: string;
 }
 
 export interface UpdateVendorProfileRequest {
-  companyName?: string;
+  vendorName?: string;
   phoneNumber?: string;
   address?: string;
 }

@@ -1,5 +1,6 @@
 using BusBooking.Application.Buses;
 using BusBooking.Application.Cities;
+using BusBooking.Application.Vendors;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Commands.CreateSchedule;
 using BusBooking.Application.Scheduling.Commands.DeleteSchedule;
@@ -24,6 +25,7 @@ public static class ScheduleEndpoints
         group.MapGet("/search", SearchSchedules).AllowAnonymous();
         group.MapGet("/{scheduleId:guid}", GetScheduleById).AllowAnonymous();
         group.MapGet("/{scheduleId:guid}/seats", GetSeats).AllowAnonymous();
+        group.MapGet("/mine", GetMySchedules);
         group.MapGet("/vendor/{vendorId:guid}", GetVendorSchedules);
         group.MapPost("/", CreateSchedule);
         group.MapPut("/{scheduleId:guid}", UpdateSchedule);
@@ -126,6 +128,25 @@ public static class ScheduleEndpoints
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
+
+    private static async Task<IResult> GetMySchedules(
+        HttpContext httpContext, IVendorRepository vendorRepo,
+        IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+    {
+        var oid = GetEntraOid(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound("Vendor not found.");
+
+        var handler = new GetVendorSchedulesHandler(scheduleRepo, busRepo);
+        var results = await handler.HandleAsync(new GetVendorSchedulesQuery(vendor.Id), ct);
+        return Results.Ok(results);
+    }
+
+    private static string? GetEntraOid(HttpContext ctx) =>
+        ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+        ?? ctx.User.FindFirst("oid")?.Value;
 }
 
 public sealed record UpdateScheduleRequest(

@@ -32,6 +32,5 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         }),
       );
     }),
-    catchError(() => next(req))
   );
 };

@@ -23,7 +23,7 @@
       <tbody>
         @for (v of vendors(); track v.vendorId) {
           <tr style="border-bottom:1px solid #e2e8f0">
-            <td style="padding:.75rem;font-weight:600">{{ v.companyName }}</td>
+            <td style="padding:.75rem;font-weight:600">{{ v.vendorName }}</td>
             <td style="padding:.75rem">{{ v.email }}</td>
             <td style="padding:.75rem">{{ v.phoneNumber }}</td>
             <td style="padding:.75rem"><app-status-badge [status]="v.status" /></td>

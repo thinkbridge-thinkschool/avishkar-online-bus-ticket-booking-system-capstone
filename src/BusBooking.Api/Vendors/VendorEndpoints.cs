@@ -24,6 +24,7 @@ public static class VendorEndpoints
             .RequireRateLimiting("api");
 
         group.MapPost("/register", RegisterVendor);
+        group.MapGet("/me", GetMyVendorProfile);
         group.MapGet("/{vendorId:guid}", GetVendorProfile);
         group.MapGet("/", GetAllVendors).RequireAuthorization("AdminOnly");
         group.MapGet("/pending", GetPendingVendors).RequireAuthorization("AdminOnly");
@@ -34,8 +35,13 @@ public static class VendorEndpoints
     }
 
     private static async Task<IResult> RegisterVendor(
-        RegisterVendorCommand command, IVendorRepository vendorRepo, CancellationToken ct)
+        HttpContext httpContext, RegisterVendorBody body, IVendorRepository vendorRepo, CancellationToken ct)
     {
+        var oid = GetEntraOid(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var command = new RegisterVendorCommand(oid, body.VendorName, body.Email,
+            body.PhoneNumber, body.Address, body.LicenseNumber);
         var handler = new RegisterVendorHandler(vendorRepo);
         try
         {
@@ -43,6 +49,28 @@ public static class VendorEndpoints
             return Results.Created($"/api/v1/vendors/{id}", new { vendorId = id });
         }
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
+    }
+
+    private static async Task<IResult> GetMyVendorProfile(
+        HttpContext httpContext, IVendorRepository vendorRepo, CancellationToken ct)
+    {
+        var oid = GetEntraOid(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound();
+
+        return Results.Ok(new
+        {
+            vendorId    = vendor.Id,
+            vendorName  = vendor.VendorName,
+            email       = vendor.Email,
+            phoneNumber = vendor.PhoneNumber,
+            address     = vendor.Address,
+            licenseNumber = vendor.LicenseNumber,
+            status      = vendor.Status.ToString(),
+            isActive    = vendor.IsActive,
+        });
     }
 
     private static async Task<IResult> GetVendorProfile(
@@ -137,5 +165,7 @@ public static class VendorEndpoints
         ?? ctx.User.FindFirst("oid")?.Value;
 }
 
+public sealed record RegisterVendorBody(
+    string VendorName, string Email, string PhoneNumber, string Address, string LicenseNumber);
 public sealed record UpdateVendorProfileRequest(string VendorName, string PhoneNumber, string Address);
 public sealed record RejectVendorRequest(string Reason);

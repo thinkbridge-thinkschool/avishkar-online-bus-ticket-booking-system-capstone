@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { AppError } from '../models/app-error';
 import type { Tenant, TenantMetrics, RegisterTenantRequest } from '../../shared/models/tenant.model';
 
 @Injectable({ providedIn: 'root' })
@@ -11,7 +12,7 @@ export class TenantService {
     try {
       return await firstValueFrom(this.http.get<Tenant>('/api/v1/tenants/my'));
     } catch (err: unknown) {
-      if (err instanceof HttpErrorResponse && err.status === 404) return null;
+      if (err instanceof AppError && err.status === 404) return null;
       throw err;
     }
   }
