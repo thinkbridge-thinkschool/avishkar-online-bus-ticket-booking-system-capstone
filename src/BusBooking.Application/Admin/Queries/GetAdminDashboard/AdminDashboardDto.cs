@@ -5,4 +5,9 @@ public sealed record AdminDashboardDto(
     int PendingVendors,
     int ApprovedVendors,
     int TotalUsers,
-    int TotalBookings);
+    int TotalBookings,
+    int TotalTenants,
+    int PendingTenants,
+    int ActiveTenants,
+    int SuspendedTenants,
+    decimal TotalRevenue);
