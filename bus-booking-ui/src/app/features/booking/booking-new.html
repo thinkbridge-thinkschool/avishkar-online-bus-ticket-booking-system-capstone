@@ -7,6 +7,11 @@
   <!-- ── Gradient Header ─────────────────────────────────────────────── -->
   <div class="booking-header">
     <div class="bh-content">
+      <div style="width:100%">
+        <a [routerLink]="['/schedules', scheduleId()]" class="back-link back-link-on-gradient">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Schedule
+        </a>
+      </div>
       <div class="bh-title">
         <h1>Book Your Ticket</h1>
         @if (displayBusName()) {

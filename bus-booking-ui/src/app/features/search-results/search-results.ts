@@ -1,5 +1,5 @@
 ﻿import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ScheduleService } from '../../core/services/schedule.service';
 import { CityService } from '../../core/services/city.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -8,7 +8,7 @@ import type { Schedule } from '../../shared/models/schedule.model';
 
 @Component({
   selector: 'app-search-results',
-  imports: [LoadingSpinnerComponent],
+  imports: [RouterLink, LoadingSpinnerComponent],
   templateUrl: './search-results.html',
   styleUrl: './search-results.css',
 })

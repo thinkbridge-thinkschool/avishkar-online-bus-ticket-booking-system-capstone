@@ -1,5 +1,5 @@
 import { Component, NgZone, OnInit, inject, input, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BookingService } from '../../core/services/booking.service';
 import { PaymentService } from '../../core/services/payment.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
@@ -7,7 +7,7 @@ import type { Booking } from '../../shared/models/booking.model';
 
 @Component({
   selector: 'app-payment-process',
-  imports: [LoadingSpinnerComponent],
+  imports: [RouterLink, LoadingSpinnerComponent],
   templateUrl: './payment-process.html',
   styleUrl: './payment-process.css',
 })

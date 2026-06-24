@@ -1,6 +1,6 @@
 ﻿import { Component, OnInit, inject, input, signal, computed } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ScheduleService } from '../../core/services/schedule.service';
 import { BookingService } from '../../core/services/booking.service';
 import { SeatMapComponent } from '../../shared/components/seat-map/seat-map';
@@ -9,7 +9,7 @@ import type { Schedule } from '../../shared/models/schedule.model';
 
 @Component({
   selector: 'app-booking-new',
-  imports: [ReactiveFormsModule, SeatMapComponent, LoadingSpinnerComponent],
+  imports: [RouterLink, ReactiveFormsModule, SeatMapComponent, LoadingSpinnerComponent],
   templateUrl: './booking-new.html',
   styleUrl: './booking-new.css',
 })

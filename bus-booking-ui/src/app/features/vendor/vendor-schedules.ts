@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ScheduleService } from '../../core/services/schedule.service';
 import { VendorService } from '../../core/services/vendor.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
@@ -11,7 +12,7 @@ import { RouteService } from '../../core/services/route.service';
 
 @Component({
   selector: 'app-vendor-schedules',
-  imports: [ReactiveFormsModule, LoadingSpinnerComponent, StatusBadgeComponent],
+  imports: [RouterLink, ReactiveFormsModule, LoadingSpinnerComponent, StatusBadgeComponent],
   templateUrl: './vendor-schedules.html',
 })
 export class VendorSchedulesComponent implements OnInit {

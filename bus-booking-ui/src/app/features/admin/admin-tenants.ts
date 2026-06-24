@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { TenantService } from '../../core/services/tenant.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge';
@@ -6,7 +7,7 @@ import type { Tenant } from '../../shared/models/tenant.model';
 
 @Component({
   selector: 'app-admin-tenants',
-  imports: [LoadingSpinnerComponent, StatusBadgeComponent],
+  imports: [RouterLink, LoadingSpinnerComponent, StatusBadgeComponent],
   templateUrl: './admin-tenants.html',
 })
 export class AdminTenantsComponent implements OnInit {

@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { TenantService } from '../../core/services/tenant.service';
 import { AuthService } from '../../core/services/auth.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
@@ -8,7 +9,7 @@ import type { Tenant } from '../../shared/models/tenant.model';
 
 @Component({
   selector: 'app-vendor-tenant',
-  imports: [DatePipe, LoadingSpinnerComponent, StatusBadgeComponent],
+  imports: [RouterLink, DatePipe, LoadingSpinnerComponent, StatusBadgeComponent],
   templateUrl: './vendor-tenant.html',
 })
 export class VendorTenantComponent implements OnInit {

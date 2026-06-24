@@ -12,7 +12,7 @@ export class ScheduleService {
     return firstValueFrom(
       this.http.get<Schedule[]>('/api/v1/schedules/search', {
         params: params as unknown as Record<string, string>,
-      })
+      }) 
     );
   }
 

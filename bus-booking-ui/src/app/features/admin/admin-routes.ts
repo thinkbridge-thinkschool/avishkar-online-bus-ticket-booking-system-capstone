@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { RouteService } from '../../core/services/route.service';
 import { CityService } from '../../core/services/city.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
@@ -8,7 +9,7 @@ import type { City } from '../../shared/models/city.model';
 
 @Component({
   selector: 'app-admin-routes',
-  imports: [ReactiveFormsModule, LoadingSpinnerComponent],
+  imports: [RouterLink, ReactiveFormsModule, LoadingSpinnerComponent],
   templateUrl: './admin-routes.html',
 })
 export class AdminRoutesComponent implements OnInit {

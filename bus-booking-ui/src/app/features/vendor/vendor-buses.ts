@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 
 import { VendorService } from '../../core/services/vendor.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
@@ -9,7 +10,7 @@ const BUS_TYPES: BusType[] = ['Seater', 'SemiSleeper', 'Sleeper', 'AC', 'NonAC']
 
 @Component({
   selector: 'app-vendor-buses',
-  imports: [ReactiveFormsModule, LoadingSpinnerComponent],
+  imports: [RouterLink, ReactiveFormsModule, LoadingSpinnerComponent],
   templateUrl: './vendor-buses.html',
 })
 export class VendorBusesComponent implements OnInit {

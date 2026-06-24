@@ -1,6 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-
-
+import { RouterLink } from '@angular/router';
 import { AdminService } from '../../core/services/admin.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge';
@@ -8,7 +7,7 @@ import type { Vendor } from '../../shared/models/vendor.model';
 
 @Component({
   selector: 'app-admin-vendors',
-  imports: [LoadingSpinnerComponent, StatusBadgeComponent],
+  imports: [RouterLink, LoadingSpinnerComponent, StatusBadgeComponent],
   templateUrl: './admin-vendors.html',
 })
 export class AdminVendorsComponent implements OnInit {
