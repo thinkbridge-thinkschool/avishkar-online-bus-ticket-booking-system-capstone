@@ -15,29 +15,41 @@ using Microsoft.Extensions.Logging;
 namespace BusBooking.Benchmarks;
 
 [MemoryDiagnoser]
-[ShortRunJob]
+[SimpleJob(warmupCount: 5, iterationCount: 100)]
 public class SearchSchedulesBenchmark
 {
     private static readonly DateOnly BenchmarkDate = new(2026, 6, 25);
 
+    // 200 schedules match the query date (BenchmarkDate, Mumbai→Pune).
+    // ScheduleCount controls the number of date-noise rows layered on top.
+    // This fixes the materialization cost while scaling only the scan cost,
+    // making the index benefit measurable.
+    private const int MatchingRows = 200;
+
     private ServiceProvider _rootProvider = null!;
     private IServiceScope _scope = null!;
     private IScheduleRepository _repo = null!;
+    private string _dbPath = null!;
 
-    [Params(50, 500)]
-    public int ScheduleCount { get; set; }
+    [Params(9800)]
+    public int NoiseRowCount { get; set; }
+
+    [Params(false, true)]
+    public bool WithIndex { get; set; }
 
     [GlobalSetup]
     public async Task Setup()
     {
+        _dbPath = Path.Combine(Path.GetTempPath(), $"busbench_{NoiseRowCount}_{WithIndex}.db");
+        if (File.Exists(_dbPath)) File.Delete(_dbPath);
+
         var config = new ConfigurationBuilder().Build();
         var services = new ServiceCollection();
 
-        // Register all infrastructure services (ScheduleRepository wired up internally)
         services.AddInfrastructure(config);
         services.AddLogging(b => b.AddFilter(_ => false));
 
-        // Swap SQL Server for InMemory
+        // Replace SQL Server registration with SQLite so indexes are respected
         var toRemove = services
             .Where(d => d.ServiceType == typeof(DbContextOptions<BusBookingDbContext>)
                      || (d.ServiceType.FullName?.Contains("EntityFrameworkCore") == true
@@ -47,10 +59,9 @@ public class SearchSchedulesBenchmark
             services.Remove(d);
 
         services.AddDbContext<BusBookingDbContext>(opts =>
-            opts.UseInMemoryDatabase($"bench_{ScheduleCount}_{Guid.NewGuid()}")
+            opts.UseSqlite($"Data Source={_dbPath}")
                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
-        // Remove hosted background services (not needed for benchmarks)
         services.RemoveAll<IHostedService>();
 
         _rootProvider = services.BuildServiceProvider();
@@ -58,7 +69,13 @@ public class SearchSchedulesBenchmark
         _repo = _scope.ServiceProvider.GetRequiredService<IScheduleRepository>();
 
         var db = _scope.ServiceProvider.GetRequiredService<BusBookingDbContext>();
-        await SeedAsync(db, ScheduleCount);
+        await db.Database.EnsureCreatedAsync();
+
+        if (!WithIndex)
+            // Drop index to simulate pre-polish state (forces full table scan)
+            await db.Database.ExecuteSqlRawAsync("DROP INDEX IF EXISTS \"IX_Schedules_Search\"");
+
+        await SeedAsync(db, NoiseRowCount);
     }
 
     [Benchmark(Description = "SearchSchedules")]
@@ -70,43 +87,60 @@ public class SearchSchedulesBenchmark
     {
         _scope.Dispose();
         _rootProvider.Dispose();
+        if (File.Exists(_dbPath))
+            try { File.Delete(_dbPath); } catch { /* best-effort */ }
     }
 
-    private static async Task SeedAsync(BusBookingDbContext db, int count)
+    private static async Task SeedAsync(BusBookingDbContext db, int noiseCount)
     {
         var tenantId = Guid.NewGuid();
         var matchRoute = Route.Create("Mumbai", "Pune");
-        var noiseRoute = Route.Create("Delhi", "Agra");
-        db.Routes.AddRange(matchRoute, noiseRoute);
+        db.Routes.Add(matchRoute);
 
-        for (var i = 0; i < count; i++)
+        // One shared bus for all noise schedules — avoids inserting 9800 bus rows
+        var noiseBus = Bus.Create("NOISE-000", "Noise Bus", BusType.Sleeper, 50, Guid.NewGuid(), tenantId);
+        db.Buses.Add(noiseBus);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        const int batchSize = 500;
+        var batch = new List<object>(batchSize * 3);
+
+        // Matching rows — BenchmarkDate, correct route, with seats
+        for (var i = 0; i < MatchingRows; i++)
         {
             var bus = Bus.Create($"MH-{i:D4}", $"Express {i}", BusType.Seater, 10, Guid.NewGuid(), tenantId);
             db.Buses.Add(bus);
-
-            var schedule = Schedule.Create(
-                bus.Id, matchRoute.Id, BenchmarkDate,
+            var schedule = Schedule.Create(bus.Id, matchRoute.Id, BenchmarkDate,
                 new TimeOnly(8, 0), new TimeOnly(12, 0), tenantId);
-
             schedule.AddSeats(Enumerable.Range(1, 5)
                 .Select(n => Seat.Create(schedule.Id, n, SeatType.Window, 399m)));
-
             db.Schedules.Add(schedule);
+
+            if ((i + 1) % batchSize == 0)
+            {
+                await db.SaveChangesAsync();
+                db.ChangeTracker.Clear();
+            }
         }
-
-        // 20% noise — different route, same date (won't match the search)
-        for (var i = 0; i < count / 5; i++)
-        {
-            var bus = Bus.Create($"DL-{i:D4}", $"Delhi Express {i}", BusType.Sleeper, 10, Guid.NewGuid(), tenantId);
-            db.Buses.Add(bus);
-
-            var schedule = Schedule.Create(
-                bus.Id, noiseRoute.Id, BenchmarkDate,
-                new TimeOnly(9, 0), new TimeOnly(14, 0), tenantId);
-
-            db.Schedules.Add(schedule);
-        }
-
         await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        // Noise rows — wrong dates, shared bus, no seats
+        for (var i = 0; i < noiseCount; i++)
+        {
+            var date = BenchmarkDate.AddDays(i % 30 + 1);
+            var schedule = Schedule.Create(noiseBus.Id, matchRoute.Id, date,
+                new TimeOnly(9, 0), new TimeOnly(14, 0), tenantId);
+            db.Schedules.Add(schedule);
+
+            if ((i + 1) % batchSize == 0)
+            {
+                await db.SaveChangesAsync();
+                db.ChangeTracker.Clear();
+            }
+        }
+        if (noiseCount % batchSize != 0)
+            await db.SaveChangesAsync();
     }
 }
