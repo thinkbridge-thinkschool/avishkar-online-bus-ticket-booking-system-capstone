@@ -21,6 +21,7 @@ Four-layer Clean Architecture deployed as a Linux App Service on Azure:
 - [Day 25 — Identity End-to-End](#day-25--identity-end-to-end)
 - [Day 26 — App Insights + KQL](#day-26--app-insights--kql)
 - [Day 27 — Security pass](#day-27--security-pass)
+- [Day 31 — Polish: Tests, Performance, Security](#day-31--polish-tests-performance-security)
 
 ---
 
@@ -960,6 +961,178 @@ HSTS promoted from WARN to PASS. Remaining 3 warnings are Azure-platform-level (
 **Proves:** App Service `app-busbooking-dev-paqrwn` is connected to `snet-api` inside `vnet-busbooking-dev-paqrwn` with `vnetRouteAllEnabled: true`. All outbound traffic — including SQL connections — is now routed through the VNet, ensuring traffic reaches the private endpoint NIC rather than the SQL public endpoint.
 
 ![SS-30](Screenshots/SS-30_azure-appservice-vnet-integration.png)
+
+---
+
+---
+
+## Day 31 — Polish: Tests, Performance, Security
+
+**Goal:** Ship a production-quality finish on the existing codebase — add a test pyramid for every layer, measure the hot-path performance with real index vs. full-scan numbers, wire a GitHub Actions CI pipeline, and close the NG8113 compiler warning left over from Day 30.
+
+---
+
+### What Changed
+
+#### NG8113 fix — `RouterLink` unused warning
+
+`PaymentProcessComponent` imported `RouterLink` but the template had no `[routerLink]` binding. Added a back-navigation link to the `.pp-header-content` div:
+
+```html
+<a class="back-link-on-gradient" [routerLink]="['/bookings', bookingId()]">
+  <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Booking
+</a>
+```
+
+---
+
+#### Step 7 — Angular Unit Tests (Karma + Jasmine)
+
+Three root causes fixed to get coverage working in headless CI:
+
+| Problem | Root cause | Fix |
+|---------|-----------|-----|
+| Coverage showing Unknown% (0/0) | `'coverage'` missing from `reporters` array in `karma.conf.js` | Added `'coverage'` to reporters |
+| Chrome disconnecting in CI | `browsers: ['Chrome']` (GUI) + `singleRun: false` | Added `ChromeHeadlessCI` custom launcher; set `singleRun: true` |
+| `HttpClientTestingModule` error | Deprecated in Angular 21 | Replaced with `provideHttpClient()` + `provideHttpClientTesting()` |
+| Router not provided | `SearchResultsComponent` imports `RouterLink` standalone | Added `provideRouter([])` to test providers |
+
+**Files added / changed:**
+- `bus-booking-ui/karma.conf.js` — ChromeHeadlessCI launcher, coverage reporter, singleRun: true
+- `bus-booking-ui/src/app/core/services/schedule.service.spec.ts` — 8 tests: HTTP, caching, error handling
+- `bus-booking-ui/src/app/features/search-results/search-results.spec.ts` — 6 tests: rendering, loading state, routing
+- `bus-booking-ui/tsconfig.app.json` — added `"rootDir": "./src"` to silence TS rootDir error
+
+**Result:** 14/14 tests pass, 41.79% statement coverage.
+
+---
+
+#### Step 8 — BenchmarkDotNet Performance
+
+Added `IX_Schedules_Search` covering index (from `ScheduleConfiguration.cs`) and measured its impact with a real SQL engine.
+
+Index definition:
+```csharp
+builder.HasIndex(s => new { s.TravelDate, s.IsActive, s.TenantId })
+       .IncludeProperties(s => new { s.RouteId, s.BusId })
+       .HasDatabaseName("IX_Schedules_Search");
+```
+
+Benchmark design: SQLite database, 10,000 rows total — 200 schedules on `BenchmarkDate` (match the query) plus 9,800 schedules on other dates (date-noise, won't match). A `WithIndex` boolean parameter drops `IX_Schedules_Search` after schema creation to simulate the pre-polish state. This isolates the scan cost: both arms materialize the same 200 result DTOs; only the number of rows scanned differs.
+
+**Hot-path p99 — SearchSchedules (100 iterations, SQLite warm-cache):**
+
+| State | p99 | Mean | Median |
+|-------|-----|------|--------|
+| Before — no index, full table scan (10k rows) | **6.45 ms** | 5.90 ms | 5.82 ms |
+| After — IX_Schedules_Search, index seek (200 rows) | **2.94 ms** | 2.73 ms | 2.70 ms |
+
+2.2× faster. The ~2.7 ms floor in the "after" case is EF Core materializing 200 DTOs with 1,000 seat records — identical in both arms. The 3.5 ms difference is the SQL scan cost for the 9,800 noise rows the index lets the engine skip entirely.
+
+**Files added:**
+- `tests/BusBooking.Benchmarks/BusBooking.Benchmarks.csproj` — EF Core SQLite, BenchmarkDotNet 0.14.0
+- `tests/BusBooking.Benchmarks/SearchSchedulesBenchmark.cs` — `[Params]` on `WithIndex` and `NoiseRowCount`, batched seeding, index drop via raw SQL
+- `tests/BusBooking.Benchmarks/Program.cs` — `BenchmarkRunner.Run<SearchSchedulesBenchmark>(args)`
+- `BusBooking.slnx` — benchmark project added
+- `.gitignore` — `BenchmarkDotNet.Artifacts/` excluded
+
+---
+
+#### Step 9 — Playwright E2E Tests
+
+7 tests with `page.route()` mocking — no live backend required.
+
+| Test | What it checks |
+|------|---------------|
+| renders the hero section headline | `h1` contains brand text |
+| renders the search form with all fields | From, To, Date inputs present |
+| cities are loaded into the From and To dropdowns | `/api/v1/cities` mock returns 3 cities; options appear |
+| renders the Why Choose BusBooking section | Section visible |
+| renders the FAQ section | Accordion present |
+| renders the footer with brand name | Footer brand text visible |
+| submitting the search form navigates to /search | `/api/v1/schedules/search` mock; URL changes to `/search` |
+
+`ECONNREFUSED` proxy errors in the dev-server log are expected — `page.route()` intercepts requests before they hit the network proxy.
+
+**Files added:**
+- `bus-booking-ui/playwright.config.ts` — `webServer` auto-starts `ng serve`, chromium project
+- `bus-booking-ui/e2e/home.spec.ts` — 7 tests
+
+---
+
+#### Step 10 — GitHub Actions CI Pipeline
+
+Three-job pipeline on every push to `main` or `feature-product-evolution`:
+
+```
+dotnet-tests → (independent) angular-tests → e2e-tests
+```
+
+| Job | Steps |
+|-----|-------|
+| `dotnet-tests` | setup .NET 10, restore, build Release, run 3 test projects with XPlat coverage, upload artifact |
+| `angular-tests` | npm ci, ng build production, ng test ChromeHeadlessCI, upload coverage |
+| `e2e-tests` | depends on angular-tests; playwright install chromium, playwright test; `continue-on-error: true` |
+
+**File added:** `.github/workflows/ci.yml`
+
+---
+
+### CI Run
+
+Run `28153768071` — feature-product-evolution — **completed success** — 2m 19s
+Commit `113da7a` (feat(day31): polish — tests, performance, security, CI pipeline)
+
+---
+
+### Test Coverage by Layer
+
+| Layer | Tests | Line coverage | Branch coverage |
+|-------|-------|--------------|----------------|
+| Domain | 78 | 77.9% (332 / 426 lines) | 92% |
+| Application | 29 | 28.7% (354 / 1,232 lines) | 23% |
+| API Integration | 9 | 12.3% (754 / 6,120 lines) | 8.6% |
+| Angular (Karma) | 14 | — | — |
+| Angular statements | — | 41.79% | — |
+
+The Application layer reports 28.7% because the cobertura file covers the full Application assembly — handlers, validators, DTOs, and contracts — while the 29 unit tests exercise handler logic only. The API integration number is low for the same reason: 9 happy-path tests exercise a small slice of the full solution's 6,120 lines.
+
+---
+
+### Evidence Screenshots
+
+#### SS-31 — GitHub Actions CI Pipeline (Green)
+**Proves:** All three CI jobs — `dotnet-tests`, `angular-tests`, and `e2e-tests` — pass on a single push to `feature-product-evolution`. Run 28153768071 completed in 2m 19s with 0 failures across 116 .NET tests and 14 Angular tests.
+
+![SS-31](Screenshots/SS-31_github-actions-ci-green-3jobs.png)
+
+---
+
+#### SS-32 — Angular Unit Tests (14/14 Passed, 41.79% Coverage)
+**Proves:** Karma runs 14 tests headlessly in ChromeHeadlessCI with `singleRun: true`. The coverage reporter (fixed by adding `'coverage'` to the `reporters` array) emits a real statement coverage figure of 41.79% — not the `Unknown% (0/0)` that appeared before the fix.
+
+![SS-32](Screenshots/SS-32_angular-unit-tests-14passed-coverage.png)
+
+---
+
+#### SS-33 — Playwright E2E (7/7 Passed)
+**Proves:** All 7 E2E tests pass against the Angular dev server with `page.route()` mocking every API call. No live .NET backend is required. Total run time 24.5s including Angular dev server startup.
+
+![SS-33](Screenshots/SS-33_playwright-e2e-7passed.png)
+
+---
+
+#### SS-34 — BenchmarkDotNet p99 Before / After Index
+**Proves:** The composite index `IX_Schedules_Search(TravelDate, IsActive, TenantId)` reduces the `SearchSchedules` hot-path p99 from **6.45 ms** (full table scan, 10k rows) to **2.94 ms** (index seek) — a 2.2× improvement measured over 100 iterations on SQLite with a warm page cache.
+
+![SS-34](Screenshots/SS-34_benchmarkdotnet-p99-before-after.png)
+
+---
+
+#### SS-35 — .NET Test Suite (116 Tests, 0 Failures)
+**Proves:** All three .NET test projects pass cleanly — 78 Domain unit tests, 29 Application unit tests, and 9 API integration tests — covering the full Clean Architecture stack from domain rules through HTTP endpoints.
+
+![SS-35](Screenshots/SS-35_dotnet-tests-116passed.png)
 
 ---
 
