@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -47,6 +48,36 @@ builder.Services.AddOpenApi(o => o.AddDocumentTransformer<BearerSecuritySchemeTr
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddInfrastructure(builder.Configuration);
+
+var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+var allowedOrigins = configuredOrigins
+    .Prepend("http://localhost:4200")
+    .Where(o => !string.IsNullOrWhiteSpace(o))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("BusBookingUi", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+              .WithHeaders("Authorization", "Content-Type", "X-Tenant-Id");
+    });
+});
+
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.EnableForHttps = true;
+    opts.Providers.Add<BrotliCompressionProvider>();
+    opts.Providers.Add<GzipCompressionProvider>();
+});
+
+builder.Services.AddOutputCache(options =>
+{
+    options.AddBasePolicy(policy =>
+        policy.With(c => !c.HttpContext.Request.Headers.ContainsKey("Authorization")));
+});
 
 // RazorpayBase: base address only — TenantRazorpayService injects per-tenant or platform credentials
 // at request time, so credentials are never baked into the HTTP client at startup.
@@ -110,6 +141,8 @@ if (builder.Environment.IsDevelopment())
 
 var app = builder.Build();
 
+app.UseResponseCompression();
+
 // ── Exception handler — must be first so it wraps all subsequent middleware ───
 // Returns RFC 9110 problem-detail JSON; never exposes raw exception messages.
 app.UseExceptionHandler(b => b.Run(async ctx =>
@@ -131,6 +164,8 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["X-Content-Type-Options"]       = "nosniff";
     ctx.Response.Headers["X-Frame-Options"]              = "DENY";
     ctx.Response.Headers["Referrer-Policy"]              = "strict-origin-when-cross-origin";
+    ctx.Response.Headers["Content-Security-Policy"]      = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://api.razorpay.com";
+    ctx.Response.Headers["Permissions-Policy"]           = "geolocation=(), microphone=(), camera=()";
     ctx.Response.Headers.StrictTransportSecurity         = "max-age=31536000";
     await next();
 });
@@ -149,7 +184,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("BusBookingUi");
 app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit
+app.UseOutputCache();       // after rate limiter and before auth
 if (hasAzureAdConfig)
     app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // after auth so JWT claims are available

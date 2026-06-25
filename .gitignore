@@ -23,6 +23,10 @@ infra/main.json
 ## scratch / curl output
 200
 
+## Test outputs
+coverage.cobertura.xml
+BenchmarkDotNet.Artifacts/
+
 ## OS
 .DS_Store
 Thumbs.db

@@ -19,8 +19,19 @@ public sealed class Schedule : BaseEntity, ITenantEntity
 
     private Schedule() { }
 
-    public static Schedule Create(Guid busId, Guid routeId, DateOnly travelDate, TimeOnly departure, TimeOnly arrival, Guid tenantId) =>
-        new() { BusId = busId, RouteId = routeId, TravelDate = travelDate, DepartureTime = departure, ArrivalTime = arrival, TenantId = tenantId };
+    public static Schedule Create(Guid busId, Guid routeId, DateOnly travelDate, TimeOnly departure, TimeOnly arrival, Guid tenantId)
+    {
+        EnsureArrivalAfterDeparture(departure, arrival);
+        return new()
+        {
+            BusId = busId,
+            RouteId = routeId,
+            TravelDate = travelDate,
+            DepartureTime = departure,
+            ArrivalTime = arrival,
+            TenantId = tenantId,
+        };
+    }
 
     public void AddSeats(IEnumerable<Seat> seats) => _seats.AddRange(seats);
 
@@ -58,9 +69,16 @@ public sealed class Schedule : BaseEntity, ITenantEntity
 
     public void UpdateTimes(TimeOnly departure, TimeOnly arrival)
     {
+        EnsureArrivalAfterDeparture(departure, arrival);
         DepartureTime = departure;
         ArrivalTime = arrival;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static void EnsureArrivalAfterDeparture(TimeOnly departure, TimeOnly arrival)
+    {
+        if (arrival <= departure)
+            throw new InvalidOperationException("ArrivalTime must be later than DepartureTime.");
     }
 
     public void Deactivate()

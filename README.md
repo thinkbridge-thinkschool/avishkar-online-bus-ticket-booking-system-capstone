@@ -960,3 +960,16 @@ HSTS promoted from WARN to PASS. Remaining 3 warnings are Azure-platform-level (
 **Proves:** App Service `app-busbooking-dev-paqrwn` is connected to `snet-api` inside `vnet-busbooking-dev-paqrwn` with `vnetRouteAllEnabled: true`. All outbound traffic — including SQL connections — is now routed through the VNet, ensuring traffic reaches the private endpoint NIC rather than the SQL public endpoint.
 
 ![SS-30](Screenshots/SS-30_azure-appservice-vnet-integration.png)
+
+---
+
+## Local Secrets Policy
+
+Razorpay credentials must never be committed to source control. Keep
+`Razorpay:KeyId` and `Razorpay:KeySecret` empty in checked-in settings files and
+set real values via .NET User Secrets (local) or environment variables (CI/Azure).
+
+```powershell
+dotnet user-secrets set "Razorpay:KeyId" "<your-key-id>" --project src/BusBooking.Api
+dotnet user-secrets set "Razorpay:KeySecret" "<your-key-secret>" --project src/BusBooking.Api
+```

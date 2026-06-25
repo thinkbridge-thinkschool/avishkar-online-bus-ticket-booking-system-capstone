@@ -22,15 +22,15 @@ export class AuthService {
 
   constructor(private readonly msal: MsalService) {}
 
-  initialize(): void {
-    this.msal.instance.initialize().then(() => {
+  initialize(): Promise<void> {
+    return this.msal.instance.initialize().then(() =>
       this.msal.instance.handleRedirectPromise()
-        .catch(() => null)  // swallow redirect errors; account loaded below regardless
+        .catch(() => null)
         .finally(() => {
           const accounts = this.msal.instance.getAllAccounts();
           this._account.set(accounts[0] ?? null);
-        });
-    });
+        })
+    ).then(() => void 0);
   }
 
   login(): void {

@@ -22,7 +22,11 @@ public static class ScheduleEndpoints
             .RequireAuthorization()
             .RequireRateLimiting("api");
 
-        group.MapGet("/search", SearchSchedules).AllowAnonymous();
+        group.MapGet("/search", SearchSchedules)
+            .AllowAnonymous()
+            .CacheOutput(p => p
+                .Expire(TimeSpan.FromMinutes(2))
+                .SetVaryByQuery("fromCityId", "toCityId", "travelDate"));
         group.MapGet("/{scheduleId:guid}", GetScheduleById).AllowAnonymous();
         group.MapGet("/{scheduleId:guid}/seats", GetSeats).AllowAnonymous();
         group.MapGet("/mine", GetMySchedules);

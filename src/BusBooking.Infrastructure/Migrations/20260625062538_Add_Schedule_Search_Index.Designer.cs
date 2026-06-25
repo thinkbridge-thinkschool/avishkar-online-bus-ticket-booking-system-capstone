@@ -4,6 +4,7 @@ using BusBooking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BusBooking.Infrastructure.Migrations
 {
     [DbContext(typeof(BusBookingDbContext))]
-    partial class BusBookingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260625062538_Add_Schedule_Search_Index")]
+    partial class Add_Schedule_Search_Index
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
