@@ -226,6 +226,22 @@
 }
 .link-btn:hover { color: #c96a20; }
 
+.email-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--primary-gradient);
+  color: #fff;
+  border-radius: 8px;
+  font-size: .95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.email-btn:hover { opacity: 0.9; }
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .signup-wrapper { flex-direction: column; }

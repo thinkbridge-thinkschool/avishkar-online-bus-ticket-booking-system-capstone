@@ -58,25 +58,26 @@
         <p>Sign up free — no password to remember. We use your Microsoft account to keep things simple and secure.</p>
       </div>
 
-      <button type="button" class="ms-btn" (click)="signup()">
-        <svg class="ms-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
-          <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
-          <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
-          <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-        </svg>
-        Continue with Microsoft
-      </button>
+      @if (msalEnabled) {
+        <button type="button" class="ms-btn" (click)="signup()">
+          <svg class="ms-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
+            <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
+            <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+          </svg>
+          Continue with Microsoft
+        </button>
+      }
 
-      <div class="divider">
-        <span>What happens next</span>
-      </div>
-
-      <ol class="steps">
-        <li><span class="step-num">1</span> Microsoft verifies your identity</li>
-        <li><span class="step-num">2</span> You're redirected back here automatically</li>
-        <li><span class="step-num">3</span> Set up your profile and start booking</li>
-      </ol>
+      @if (localAuthEnabled) {
+        @if (msalEnabled) {
+          <div class="divider"><span>or</span></div>
+        }
+        <a routerLink="/register" class="email-btn">
+          Sign up with email
+        </a>
+      }
 
       <p class="terms">
         By creating an account you agree to our
@@ -86,7 +87,11 @@
 
       <div class="signin-row">
         Already have an account?
-        <button type="button" class="link-btn" (click)="signin()">Sign in</button>
+        @if (localAuthEnabled) {
+          <a routerLink="/login" class="link-btn">Sign in</a>
+        } @else {
+          <button type="button" class="link-btn" (click)="signin()">Sign in</button>
+        }
       </div>
     </div>
   </div>

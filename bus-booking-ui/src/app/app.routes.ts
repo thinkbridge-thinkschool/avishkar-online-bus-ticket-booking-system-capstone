@@ -14,6 +14,26 @@ export const routes: Routes = [
     loadComponent: () => import('./features/signup/signup').then(m => m.SignupComponent),
   },
   {
+    path: 'login',
+    loadComponent: () => import('./features/auth/local-login/local-login').then(m => m.LocalLoginComponent),
+  },
+  {
+    path: 'register',
+    loadComponent: () => import('./features/auth/local-register/local-register').then(m => m.LocalRegisterComponent),
+  },
+  {
+    path: 'verify-email',
+    loadComponent: () => import('./features/auth/verify-email/verify-email').then(m => m.VerifyEmailComponent),
+  },
+  {
+    path: 'forgot-password',
+    loadComponent: () => import('./features/auth/forgot-password/forgot-password').then(m => m.ForgotPasswordComponent),
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./features/auth/reset-password/reset-password').then(m => m.ResetPasswordComponent),
+  },
+  {
     path: 'search',
     loadComponent: () =>
       import('./features/search-results/search-results').then(m => m.SearchResultsComponent),
