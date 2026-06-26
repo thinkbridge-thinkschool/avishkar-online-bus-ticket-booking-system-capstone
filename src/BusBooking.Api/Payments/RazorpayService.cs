@@ -41,11 +41,17 @@ public sealed class TenantRazorpayService(
         return _credentials.Value;
     }
 
+    private bool IsMock => configuration.GetValue<bool>("Razorpay:MockPayment");
+
     public async Task<RazorpayOrderResult> CreateOrderAsync(
         decimal amount, string receipt, CancellationToken ct = default)
     {
-        var (keyId, keySecret) = await ResolveAsync(ct);
         var amountPaise = (long)(amount * 100);
+
+        if (IsMock)
+            return new RazorpayOrderResult($"mock_order_{Guid.NewGuid():N}", amountPaise, "INR", "mock");
+
+        var (keyId, keySecret) = await ResolveAsync(ct);
 
         var client     = httpClientFactory.CreateClient("RazorpayBase");
         var authHeader = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{keyId}:{keySecret}"));
@@ -66,6 +72,9 @@ public sealed class TenantRazorpayService(
         string razorpayOrderId, string razorpayPaymentId, string razorpaySignature,
         CancellationToken ct = default)
     {
+        if (IsMock)
+            return razorpayOrderId.StartsWith("mock_order_") && razorpayPaymentId.StartsWith("mock_pay_");
+
         var (_, keySecret) = await ResolveAsync(ct);
         var payload  = $"{razorpayOrderId}|{razorpayPaymentId}";
         var keyBytes = Encoding.UTF8.GetBytes(keySecret);

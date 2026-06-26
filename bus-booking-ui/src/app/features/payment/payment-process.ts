@@ -4,6 +4,7 @@ import { BookingService } from '../../core/services/booking.service';
 import { PaymentService } from '../../core/services/payment.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 import type { Booking } from '../../shared/models/booking.model';
+import type { CreateOrderResponse } from '../../shared/models/payment.model';
 
 @Component({
   selector: 'app-payment-process',
@@ -22,6 +23,9 @@ export class PaymentProcessComponent implements OnInit {
   readonly loading = signal(true);
   readonly paying = signal(false);
   readonly error = signal<string | null>(null);
+  readonly showMockModal = signal(false);
+  readonly mockConfirming = signal(false);
+  private mockOrder: CreateOrderResponse | null = null;
 
   readonly displaySource = signal('');
   readonly displayDestination = signal('');
@@ -58,15 +62,61 @@ export class PaymentProcessComponent implements OnInit {
     this.paying.set(true);
     this.error.set(null);
     try {
+      const order = await this.paymentService.createOrder({ bookingId: this.bookingId() });
+
+      if (order.keyId === 'mock') {
+        this.mockOrder = order;
+        this.paying.set(false);
+        this.showMockModal.set(true);
+        return;
+      }
+
       if (typeof window.Razorpay === 'undefined') {
         throw new Error('Razorpay checkout could not be loaded. Please refresh the page.');
       }
-      const order = await this.paymentService.createOrder({ bookingId: this.bookingId() });
       this.openRazorpay(order.orderId, order.amountPaise, order.currency, order.keyId);
     } catch (err: unknown) {
       this.error.set((err as Error).message);
       this.paying.set(false);
     }
+  }
+
+  closeMockModal(): void {
+    this.showMockModal.set(false);
+    this.mockOrder = null;
+  }
+
+  async confirmMockPayment(): Promise<void> {
+    if (!this.mockOrder) return;
+    this.mockConfirming.set(true);
+    this.error.set(null);
+    try {
+      await this.paymentService.processPayment({
+        bookingId:          this.bookingId(),
+        razorpayOrderId:    this.mockOrder.orderId,
+        razorpayPaymentId:  `mock_pay_${this.mockOrder.orderId.slice(-12)}`,
+        razorpaySignature:  'mock_sig',
+      });
+      window.location.href = `/payment/confirm?${this.buildConfirmParams()}`;
+    } catch (err: unknown) {
+      const httpErr = err as { error?: { message?: string }; message?: string };
+      this.error.set(httpErr?.error?.message ?? httpErr?.message ?? 'Payment failed.');
+      this.mockConfirming.set(false);
+    }
+  }
+
+  private buildConfirmParams(): string {
+    return new URLSearchParams({
+      bookingId:     this.bookingId(),
+      source:        this.displaySource(),
+      destination:   this.displayDestination(),
+      busName:       this.displayBusName(),
+      busNumber:     this.displayBusNumber(),
+      departureTime: this.displayDepartureTime(),
+      arrivalTime:   this.displayArrivalTime(),
+      travelDate:    this.displayTravelDate(),
+      minSeatPrice:  this.displayMinPrice() !== null ? String(this.displayMinPrice()) : '',
+    }).toString();
   }
 
   private openRazorpay(
@@ -76,17 +126,7 @@ export class PaymentProcessComponent implements OnInit {
     keyId: string,
   ): void {
     const bookingId = this.bookingId();
-    const params = new URLSearchParams({
-      bookingId,
-      source: this.displaySource(),
-      destination: this.displayDestination(),
-      busName: this.displayBusName(),
-      busNumber: this.displayBusNumber(),
-      departureTime: this.displayDepartureTime(),
-      arrivalTime: this.displayArrivalTime(),
-      travelDate: this.displayTravelDate(),
-      minSeatPrice: this.displayMinPrice() !== null ? String(this.displayMinPrice()) : '',
-    });
+    const params = this.buildConfirmParams();
 
     const rzp = new window.Razorpay({
       key: keyId,

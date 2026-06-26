@@ -74,8 +74,11 @@ public static class InfrastructureServiceExtensions
         // Audit log — Phase 9
         services.AddScoped<IAuthAuditLogRepository, AuthAuditLogRepository>();
 
-        // Email service — Phase 4; dev sends to log, prod impl added later
-        services.AddScoped<IEmailService, LogEmailService>();
+        // Email: SmtpEmailService when Smtp:Host is configured; LogEmailService otherwise (dev)
+        if (!string.IsNullOrEmpty(config["Smtp:Host"]))
+            services.AddScoped<IEmailService, SmtpEmailService>();
+        else
+            services.AddScoped<IEmailService, LogEmailService>();
 
         services.AddHostedService<SeatExpiryService>();
         services.AddHostedService<BookingCleanupService>();

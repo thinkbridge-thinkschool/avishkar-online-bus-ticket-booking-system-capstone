@@ -1,3 +1,83 @@
+<!-- ── Demo Payment Modal ─────────────────────────────────────────────────── -->
+@if (showMockModal()) {
+  <div class="mock-overlay" (click)="closeMockModal()" role="dialog" aria-modal="true" aria-label="Demo Payment">
+    <div class="mock-modal" (click)="$event.stopPropagation()">
+
+      <div class="mock-header">
+        <div class="mock-logo">
+          <i class="fas fa-credit-card"></i>
+          <span>Razorpay</span>
+        </div>
+        <div class="mock-header-amount">₹{{ booking()?.totalAmount }}</div>
+        <button class="mock-close" (click)="closeMockModal()" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="mock-tabs">
+        <button class="mock-tab mock-tab--active" type="button">
+          <i class="far fa-credit-card"></i> Card
+        </button>
+        <button class="mock-tab" type="button">
+          <i class="fas fa-mobile-alt"></i> UPI
+        </button>
+        <button class="mock-tab" type="button">
+          <i class="fas fa-university"></i> Net Banking
+        </button>
+      </div>
+
+      <div class="mock-body">
+        <div class="mock-demo-badge">
+          <i class="fas fa-flask"></i> Demo Mode — no real payment will occur
+        </div>
+
+        <div class="mock-field">
+          <label class="mock-label">Card Number</label>
+          <div class="mock-input-wrap">
+            <input class="mock-input" type="text" value="4111 1111 1111 1111" readonly />
+            <i class="fab fa-cc-visa mock-card-icon"></i>
+          </div>
+        </div>
+
+        <div class="mock-row">
+          <div class="mock-field">
+            <label class="mock-label">Expiry</label>
+            <input class="mock-input" type="text" value="12/26" readonly />
+          </div>
+          <div class="mock-field">
+            <label class="mock-label">CVV</label>
+            <input class="mock-input" type="text" value="•••" readonly />
+          </div>
+        </div>
+
+        <div class="mock-field">
+          <label class="mock-label">Cardholder Name</label>
+          <input class="mock-input" type="text" value="Test User" readonly />
+        </div>
+
+        @if (error()) {
+          <div class="mock-error" role="alert">{{ error() }}</div>
+        }
+
+        <button class="mock-pay-btn" type="button"
+          (click)="confirmMockPayment()" [disabled]="mockConfirming()">
+          @if (mockConfirming()) {
+            <i class="fas fa-spinner fa-spin"></i> Processing…
+          } @else {
+            <i class="fas fa-lock"></i> Pay ₹{{ booking()?.totalAmount }}
+          }
+        </button>
+
+        <p class="mock-footer">
+          <i class="fas fa-shield-alt"></i>
+          Secured by <strong>Razorpay</strong>
+        </p>
+      </div>
+
+    </div>
+  </div>
+}
+
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error() && !booking()) {
