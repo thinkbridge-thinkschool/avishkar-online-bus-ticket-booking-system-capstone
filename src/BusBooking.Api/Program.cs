@@ -1,6 +1,7 @@
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BusBooking.Api;
 using BusBooking.Api.Admin;
+using BusBooking.Api.Auth;
 using BusBooking.Api.Booking;
 using BusBooking.Api.Buses;
 using BusBooking.Api.Cities;
@@ -15,12 +16,16 @@ using BusBooking.Application.Common;
 using BusBooking.Api.Tenants;
 using BusBooking.Infrastructure;
 using BusBooking.Infrastructure.Tenancy;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Identity.Web;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,7 +67,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(allowedOrigins)
               .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-              .WithHeaders("Authorization", "Content-Type", "X-Tenant-Id");
+              .WithHeaders("Authorization", "Content-Type", "X-Tenant-Id")
+              .AllowCredentials(); // required for HttpOnly refresh-token cookie
     });
 });
 
@@ -86,16 +92,19 @@ builder.Services.AddHttpClient("RazorpayBase",
 builder.Services.AddScoped<BusBooking.Api.Payments.TenantRazorpayService>();
 
 // ── Authentication + Authorization ───────────────────────────────────────────
-// When AzureAd:ClientId is configured (Azure / CI), enable full JWT Bearer validation.
-// When it is absent (local dev without an Entra app registration), skip JWT auth so
-// anonymous endpoints still work. Protected endpoints return 401 as expected.
-var hasAzureAdConfig = !string.IsNullOrEmpty(builder.Configuration["AzureAd:ClientId"]);
+// Supports two auth paths:
+//   1. Entra (MSAL) — when AzureAd:ClientId is configured.
+//   2. Local JWT    — when LocalJwt:SigningKey is configured.
+// A PolicyScheme ("MultiScheme") inspects the token issuer before validation and
+// forwards to the correct handler, so UseAuthentication() always picks the right one.
+var hasAzureAdConfig  = !string.IsNullOrEmpty(builder.Configuration["AzureAd:ClientId"]);
+var hasLocalJwtConfig = !string.IsNullOrEmpty(builder.Configuration["LocalJwt:SigningKey"]);
+
 if (hasAzureAdConfig)
 {
     builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration);
 
     // Accept both v1 tokens (aud = clientId) and v2 tokens (aud = api://clientId)
-    // so the app works regardless of whether requestedAccessTokenVersion is 1 or 2.
     var clientId = builder.Configuration["AzureAd:ClientId"]!;
     builder.Services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, opts =>
     {
@@ -105,15 +114,82 @@ if (hasAzureAdConfig)
             $"api://{clientId}",
         ];
     });
+
+    if (hasLocalJwtConfig)
+    {
+        // PolicyScheme forwards to the right handler based on the JWT issuer claim.
+        builder.Services.AddAuthentication()
+            .AddPolicyScheme("MultiScheme", "MultiScheme", opts =>
+            {
+                opts.ForwardDefaultSelector = ctx =>
+                {
+                    var authHeader = ctx.Request.Headers.Authorization.FirstOrDefault() ?? "";
+                    if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var raw = authHeader["Bearer ".Length..].Trim();
+                        try
+                        {
+                            var decoded = new JwtSecurityToken(raw);
+                            if (!decoded.Issuer.Contains("microsoftonline.com",
+                                    StringComparison.OrdinalIgnoreCase))
+                                return "Local";
+                        }
+                        catch { /* malformed — let the default handler produce 401 */ }
+                    }
+                    return JwtBearerDefaults.AuthenticationScheme;
+                };
+            });
+
+        builder.Services.PostConfigure<AuthenticationOptions>(opts =>
+        {
+            opts.DefaultAuthenticateScheme = "MultiScheme";
+            opts.DefaultChallengeScheme    = "MultiScheme";
+        });
+    }
 }
+
+if (hasLocalJwtConfig)
+{
+    var localSection = builder.Configuration.GetSection("LocalJwt");
+    builder.Services.AddAuthentication()
+        .AddJwtBearer("Local", opts =>
+        {
+            opts.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(localSection["SigningKey"]!)),
+                ValidateIssuer   = true,
+                ValidIssuer      = localSection["Issuer"],
+                ValidateAudience = true,
+                ValidAudience    = localSection["Audience"],
+                ValidateLifetime = true,
+                ClockSkew        = TimeSpan.FromSeconds(30),
+                NameClaimType    = "app:userId",
+            };
+        });
+
+    if (!hasAzureAdConfig)
+    {
+        builder.Services.PostConfigure<AuthenticationOptions>(opts =>
+        {
+            opts.DefaultAuthenticateScheme = "Local";
+            opts.DefaultChallengeScheme    = "Local";
+        });
+    }
+}
+
+var fallbackSchemes = new List<string>();
+if (hasAzureAdConfig && hasLocalJwtConfig) fallbackSchemes.Add("MultiScheme");
+else if (hasAzureAdConfig)                  fallbackSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+else if (hasLocalJwtConfig)                 fallbackSchemes.Add("Local");
 
 builder.Services.AddAuthorization(o =>
 {
-    if (hasAzureAdConfig)
+    if (fallbackSchemes.Count > 0)
     {
-        // Fallback policy: any endpoint without explicit [AllowAnonymous] requires a
-        // valid Bearer token. This closes the "forgotten RequireAuthorization" gap.
-        o.FallbackPolicy = new AuthorizationPolicyBuilder()
+        // Closes the "forgotten RequireAuthorization" gap for whichever schemes are active.
+        o.FallbackPolicy = new AuthorizationPolicyBuilder(fallbackSchemes.ToArray())
             .RequireAuthenticatedUser()
             .Build();
     }
@@ -188,8 +264,7 @@ app.UseHttpsRedirection();
 app.UseCors("BusBookingUi");
 app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit
 app.UseOutputCache();       // after rate limiter and before auth
-if (hasAzureAdConfig)
-    app.UseAuthentication();
+app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // after auth so JWT claims are available
 app.UseAuthorization();
 
@@ -204,6 +279,7 @@ app.MapUserEndpoints();
 app.MapAdminEndpoints();
 app.MapPaymentEndpoints();
 app.MapFeedbackEndpoints();
+app.MapLocalAuthEndpoints();
 
 // Apply any pending EF migrations and seed in Development
 if (app.Environment.IsDevelopment())

@@ -1,6 +1,7 @@
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using BusBooking.Application.Booking.Repositories;
+using BusBooking.Application.Common.Interfaces;
 using BusBooking.Application.Identity;
 using BusBooking.Application.Tenants;
 using BusBooking.Application.Buses;
@@ -13,6 +14,7 @@ using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Application.Users;
 using BusBooking.Application.Vendors;
 using BusBooking.Infrastructure.BackgroundServices;
+using BusBooking.Infrastructure.Email;
 using BusBooking.Infrastructure.Identity;
 using BusBooking.Infrastructure.Messaging;
 using BusBooking.Infrastructure.Persistence;
@@ -63,6 +65,14 @@ public static class InfrastructureServiceExtensions
         // Claims transformer — Phase 2; adds app:userId to every authenticated request
         services.AddMemoryCache();
         services.AddScoped<IClaimsTransformation, AppClaimsTransformer>();
+
+        // Local auth services — Phase 3
+        services.AddScoped<ILocalCredentialRepository, LocalCredentialRepository>();
+        services.AddScoped<IPasswordService, PasswordService>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+        // Email service — Phase 4; dev sends to log, prod impl added later
+        services.AddScoped<IEmailService, LogEmailService>();
 
         services.AddHostedService<SeatExpiryService>();
         services.AddHostedService<BookingCleanupService>();
