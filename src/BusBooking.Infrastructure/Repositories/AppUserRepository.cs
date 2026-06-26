@@ -29,11 +29,32 @@ internal sealed class AppUserRepository(BusBookingDbContext db) : IAppUserReposi
             .Include(u => u.Roles)
             .FirstOrDefaultAsync(u => u.Email == email, ct);
 
+    public Task<IReadOnlyList<AppUser>> GetAllAsync(int skip, int take, CancellationToken ct = default) =>
+        db.AppUsers
+            .Include(u => u.ExternalLogins)
+            .Include(u => u.Roles)
+            .OrderBy(u => u.Email)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(ct)
+            .ContinueWith(t => (IReadOnlyList<AppUser>)t.Result, ct);
+
     public async Task AddAsync(AppUser user, CancellationToken ct = default) =>
         await db.AppUsers.AddAsync(user, ct);
 
     public async Task AddExternalLoginAsync(ExternalLogin login, CancellationToken ct = default) =>
         await db.ExternalLogins.AddAsync(login, ct);
+
+    public async Task AddRoleAsync(AppUserRole role, CancellationToken ct = default) =>
+        await db.AppUserRoles.AddAsync(role, ct);
+
+    public async Task RemoveRoleAsync(Guid appUserId, string roleName, CancellationToken ct = default)
+    {
+        var role = await db.AppUserRoles
+            .FirstOrDefaultAsync(r => r.AppUserId == appUserId && r.RoleName == roleName, ct);
+        if (role is not null)
+            db.AppUserRoles.Remove(role);
+    }
 
     public Task SaveChangesAsync(CancellationToken ct = default) =>
         db.SaveChangesAsync(ct);

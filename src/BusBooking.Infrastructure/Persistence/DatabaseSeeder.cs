@@ -1,3 +1,5 @@
+using BusBooking.Domain.Identity.Entities;
+using BusBooking.Domain.Identity.Enums;
 using BusBooking.Domain.Scheduling.Entities;
 using BusBooking.Domain.Scheduling.Enums;
 using BusBooking.Domain.Tenants.Aggregates;
@@ -173,9 +175,28 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
         await db.Schedules.AddRangeAsync(schedules, ct);
         await db.SaveChangesAsync(ct);
 
+        // ── Dev SuperAdmin (local auth) ────────────────────────────────────
+        // Fixed ID so the seed is idempotent. Password: Admin@123456
+        // NEVER use this account in production — it exists only for local dev testing.
+        var superAdminId    = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var superAdminEmail = "admin@busbooking.local";
+        var superAdmin      = AppUser.Create(superAdminId, superAdminEmail, "Dev SuperAdmin", emailVerified: true);
+        var superAdminLogin = ExternalLogin.Create(superAdminId, LoginProvider.Local, superAdminEmail);
+        var superAdminCred  = LocalCredential.Create(superAdminId,
+            BCrypt.Net.BCrypt.HashPassword("Admin@123456", 12));
+        var superAdminRole  = AppUserRole.Create(superAdminId, "BusBooking.SuperAdmin");
+        await db.AppUsers.AddAsync(superAdmin, ct);
+        await db.ExternalLogins.AddAsync(superAdminLogin, ct);
+        await db.LocalCredentials.AddAsync(superAdminCred, ct);
+        await db.AppUserRoles.AddAsync(superAdminRole, ct);
+        await db.SaveChangesAsync(ct);
+
         logger.LogInformation(
             "Seeded {Cities} cities, {Routes} routes, {Buses} buses, {Schedules} schedules for 2026-06-24 through 2026-06-26.",
             4, 8, 8, schedules.Count);
+        logger.LogInformation(
+            "Dev SuperAdmin seeded — email: {Email} / password: Admin@123456 (local dev only).",
+            superAdminEmail);
     }
 
     private static TimeOnly T(int h, int m) => new(h, m);
