@@ -1,10 +1,13 @@
 using System.Security.Claims;
 using BusBooking.Application.Common.Exceptions;
+using BusBooking.Application.Identity;
 using BusBooking.Application.Users;
 using BusBooking.Application.Users.Commands.CreateUserProfile;
 using BusBooking.Application.Users.Commands.DeactivateUser;
 using BusBooking.Application.Users.Commands.UpdateUserProfile;
 using BusBooking.Application.Users.Queries.GetUserProfile;
+using BusBooking.Domain.Identity.Entities;
+using BusBooking.Domain.Identity.Enums;
 
 namespace BusBooking.Api.Users;
 
@@ -24,6 +27,11 @@ public static class UserEndpoints
         group.MapGet("/{userId:guid}/profile", GetUserProfile);
         group.MapPut("/{userId:guid}/profile", UpdateUserProfile);
         group.MapPost("/{userId:guid}/deactivate", DeactivateUser);
+
+        // Account linking
+        group.MapGet("/me/linked-accounts",             GetLinkedAccounts);
+        group.MapPost("/me/link-local",                 LinkLocal);
+        group.MapDelete("/me/linked-accounts/{provider}", UnlinkProvider);
     }
 
     // ── GET /profile ──────────────────────────────────────────────────────────
@@ -140,6 +148,106 @@ public static class UserEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
+    // ── GET /me/linked-accounts ───────────────────────────────────────────────
+    private static async Task<IResult> GetLinkedAccounts(
+        HttpContext ctx,
+        IAppUserRepository userRepo,
+        CancellationToken ct)
+    {
+        var oidStr = GetAppUserId(ctx);
+        if (oidStr is null) return Results.Unauthorized();
+        if (!Guid.TryParse(oidStr, out var userId)) return Results.Unauthorized();
+
+        var user = await userRepo.GetByIdAsync(userId, ct);
+        if (user is null) return Results.NotFound();
+
+        return Results.Ok(user.ExternalLogins.Select(l => new
+        {
+            provider   = l.LoginProvider.ToString(),
+            linkedAt   = l.CreatedAt
+        }));
+    }
+
+    // ── POST /me/link-local ───────────────────────────────────────────────────
+    // Allows an MSAL-only account to add a local email/password credential.
+    private static async Task<IResult> LinkLocal(
+        LinkLocalRequest body,
+        HttpContext ctx,
+        IAppUserRepository userRepo,
+        ILocalCredentialRepository credRepo,
+        IPasswordService passwords,
+        CancellationToken ct)
+    {
+        if (body.Password.Length < 8)
+            return Results.BadRequest("Password must be at least 8 characters.");
+
+        var oidStr = GetAppUserId(ctx);
+        if (oidStr is null) return Results.Unauthorized();
+        if (!Guid.TryParse(oidStr, out var userId)) return Results.Unauthorized();
+
+        var user = await userRepo.GetByIdAsync(userId, ct);
+        if (user is null) return Results.NotFound();
+
+        var existing = await credRepo.GetByAppUserIdAsync(userId, ct);
+        if (existing is not null)
+            return Results.Conflict("Local credentials already linked to this account.");
+
+        // Trust the email from AppUser (populated by MSAL / AppClaimsTransformer)
+        var hasLocalLogin = user.ExternalLogins.Any(l => l.LoginProvider == LoginProvider.Local);
+        if (!hasLocalLogin)
+        {
+            var login = ExternalLogin.Create(userId, LoginProvider.Local, user.Email);
+            await userRepo.AddExternalLoginAsync(login, ct);
+        }
+
+        var credential = LocalCredential.Create(userId, passwords.Hash(body.Password));
+        await credRepo.AddAsync(credential, ct);
+
+        // Mark email as verified — identity already confirmed via MSAL
+        if (!user.EmailVerified) user.VerifyEmail();
+
+        await credRepo.SaveChangesAsync(ct);
+        return Results.NoContent();
+    }
+
+    // ── DELETE /me/linked-accounts/{provider} ─────────────────────────────────
+    private static async Task<IResult> UnlinkProvider(
+        string provider,
+        HttpContext ctx,
+        IAppUserRepository userRepo,
+        ILocalCredentialRepository credRepo,
+        IRefreshTokenRepository refreshRepo,
+        CancellationToken ct)
+    {
+        if (!Enum.TryParse<LoginProvider>(provider, ignoreCase: true, out var loginProvider))
+            return Results.BadRequest($"Unknown provider '{provider}'. Valid values: Entra, Local.");
+
+        var oidStr = GetAppUserId(ctx);
+        if (oidStr is null) return Results.Unauthorized();
+        if (!Guid.TryParse(oidStr, out var userId)) return Results.Unauthorized();
+
+        var user = await userRepo.GetByIdAsync(userId, ct);
+        if (user is null) return Results.NotFound();
+
+        if (user.ExternalLogins.Count <= 1)
+            return Results.BadRequest("Cannot unlink the only sign-in method on this account.");
+
+        var login = user.ExternalLogins.FirstOrDefault(l => l.LoginProvider == loginProvider);
+        if (login is null)
+            return Results.NotFound($"Provider '{provider}' is not linked to this account.");
+
+        // Removing local: also remove the local credential and all active sessions
+        if (loginProvider == LoginProvider.Local)
+        {
+            await credRepo.RemoveAsync(userId, ct);
+            await refreshRepo.RevokeAllForUserAsync(userId, ct);
+        }
+
+        await userRepo.RemoveExternalLoginAsync(userId, loginProvider, ct);
+        await userRepo.SaveChangesAsync(ct);
+        return Results.NoContent();
+    }
+
     private static string? GetAppUserId(HttpContext ctx) =>
         ctx.User.FindFirst("app:userId")?.Value;
 
@@ -160,3 +268,5 @@ public sealed record UpdateMyProfileRequest(
 
 public sealed record UpdateUserProfileRequest(
     string FirstName, string LastName, string? Phone, string? Address);
+
+public sealed record LinkLocalRequest(string Password);

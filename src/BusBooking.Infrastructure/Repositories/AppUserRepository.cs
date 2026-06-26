@@ -45,6 +45,15 @@ internal sealed class AppUserRepository(BusBookingDbContext db) : IAppUserReposi
     public async Task AddExternalLoginAsync(ExternalLogin login, CancellationToken ct = default) =>
         await db.ExternalLogins.AddAsync(login, ct);
 
+    public async Task RemoveExternalLoginAsync(
+        Guid appUserId, LoginProvider provider, CancellationToken ct = default)
+    {
+        var login = await db.ExternalLogins
+            .FirstOrDefaultAsync(l => l.AppUserId == appUserId && l.LoginProvider == provider, ct);
+        if (login is not null)
+            db.ExternalLogins.Remove(login);
+    }
+
     public async Task AddRoleAsync(AppUserRole role, CancellationToken ct = default) =>
         await db.AppUserRoles.AddAsync(role, ct);
 

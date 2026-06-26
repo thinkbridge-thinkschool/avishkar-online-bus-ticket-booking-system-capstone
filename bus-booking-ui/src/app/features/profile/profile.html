@@ -114,16 +114,6 @@
           </div>
 
           <div class="pr-account-row">
-            <div class="pr-acc-icon pr-acc-icon-microsoft">
-              <i class="fab fa-microsoft" aria-hidden="true"></i>
-            </div>
-            <div class="pr-acc-detail">
-              <span class="pr-acc-label">Authentication</span>
-              <span class="pr-acc-value">Microsoft Account</span>
-            </div>
-          </div>
-
-          <div class="pr-account-row">
             <div class="pr-acc-icon pr-acc-icon-status">
               <i class="fas fa-check-circle" aria-hidden="true"></i>
             </div>
@@ -135,6 +125,109 @@
         </div>
       </div>
 
+      <!-- Connected accounts (local auth enabled) -->
+      @if (localAuthEnabled) {
+        <div class="card pr-account-card">
+          <h2 class="pr-section-title">
+            <i class="fas fa-link" aria-hidden="true"></i> Connected Accounts
+          </h2>
+
+          @if (unlinkError()) {
+            <div class="error-alert" role="alert" aria-live="polite">{{ unlinkError() }}</div>
+          }
+          @if (linkSuccess()) {
+            <div class="pr-success-banner" role="status" aria-live="polite">
+              <i class="fas fa-check-circle" aria-hidden="true"></i>
+              Local sign-in added successfully!
+            </div>
+          }
+
+          <div class="pr-account-rows">
+            @for (account of linkedAccounts(); track account.provider) {
+              <div class="pr-account-row">
+                <div class="pr-acc-icon"
+                  [class.pr-acc-icon-microsoft]="account.provider.toLowerCase() === 'entra'"
+                  [class.pr-acc-icon-local]="account.provider.toLowerCase() === 'local'">
+                  @if (account.provider.toLowerCase() === 'entra') {
+                    <i class="fab fa-microsoft" aria-hidden="true"></i>
+                  } @else {
+                    <i class="fas fa-key" aria-hidden="true"></i>
+                  }
+                </div>
+                <div class="pr-acc-detail">
+                  <span class="pr-acc-label">
+                    {{ account.provider.toLowerCase() === 'entra' ? 'Microsoft (Entra)' : 'Email & Password' }}
+                  </span>
+                  <span class="pr-acc-value pr-acc-value-small">
+                    Linked {{ account.linkedAt | date:'mediumDate' }}
+                  </span>
+                </div>
+                @if (linkedAccounts().length > 1) {
+                  <button class="btn btn-sm btn-outline-danger pr-unlink-btn"
+                    [disabled]="unlinkLoading() === account.provider"
+                    (click)="unlinkProvider(account.provider)"
+                    [attr.aria-label]="'Unlink ' + account.provider">
+                    @if (unlinkLoading() === account.provider) {
+                      <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                    } @else {
+                      <i class="fas fa-unlink" aria-hidden="true"></i>
+                    }
+                  </button>
+                }
+              </div>
+            }
+
+            @if (linkedAccounts().length === 0) {
+              <p class="pr-acc-empty">Loading sign-in methods…</p>
+            }
+          </div>
+
+          <!-- Add local auth if not already linked -->
+          @if (!hasLocalAuth()) {
+            <div class="pr-link-local-section">
+              @if (!linkingLocal()) {
+                <button class="btn btn-outline-primary pr-link-btn"
+                  (click)="linkingLocal.set(true)">
+                  <i class="fas fa-plus" aria-hidden="true"></i> Add Email &amp; Password
+                </button>
+              } @else {
+                <div class="pr-link-form">
+                  <p class="pr-link-hint">Set a password so you can sign in without Microsoft:</p>
+                  @if (linkError()) {
+                    <div class="error-alert" role="alert">{{ linkError() }}</div>
+                  }
+                  <div class="form-group">
+                    <label for="linkPassword">
+                      <i class="fas fa-lock" aria-hidden="true"></i> New Password
+                    </label>
+                    <input id="linkPassword" type="password" class="form-control"
+                      placeholder="Min 8 characters"
+                      [value]="linkPassword()"
+                      (input)="updateLinkPassword($event)" />
+                  </div>
+                  <div class="pr-link-actions">
+                    <button class="btn btn-primary"
+                      [disabled]="linkLoading()"
+                      (click)="linkLocal()">
+                      @if (linkLoading()) {
+                        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Saving…
+                      } @else {
+                        <i class="fas fa-save" aria-hidden="true"></i> Save Password
+                      }
+                    </button>
+                    <button class="btn btn-secondary"
+                      [disabled]="linkLoading()"
+                      (click)="linkingLocal.set(false); linkError.set(null)">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
       <div class="card pr-tips-card">
         <h3 class="pr-tips-title">
           <i class="fas fa-lightbulb" aria-hidden="true"></i> Tips
@@ -142,7 +235,11 @@
         <ul class="pr-tips-list">
           <li>Add your phone number for booking SMS alerts</li>
           <li>Your name appears on all tickets and receipts</li>
-          <li>Password is managed via your Microsoft account</li>
+          @if (localAuthEnabled) {
+            <li>Add Email &amp; Password to sign in without Microsoft</li>
+          } @else {
+            <li>Password is managed via your Microsoft account</li>
+          }
         </ul>
       </div>
 

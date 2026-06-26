@@ -29,6 +29,14 @@ internal sealed class LocalCredentialRepository(BusBookingDbContext db) : ILocal
     public async Task AddAsync(LocalCredential credential, CancellationToken ct = default) =>
         await db.LocalCredentials.AddAsync(credential, ct);
 
+    public async Task RemoveAsync(Guid appUserId, CancellationToken ct = default)
+    {
+        var cred = await db.LocalCredentials
+            .FirstOrDefaultAsync(l => l.AppUserId == appUserId, ct);
+        if (cred is not null)
+            db.LocalCredentials.Remove(cred);
+    }
+
     public Task SaveChangesAsync(CancellationToken ct = default) =>
         db.SaveChangesAsync(ct);
 }

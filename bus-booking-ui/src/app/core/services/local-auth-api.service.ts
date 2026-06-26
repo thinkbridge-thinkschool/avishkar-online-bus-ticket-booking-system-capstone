@@ -58,4 +58,24 @@ export class LocalAuthApiService {
       this.http.post<{ message: string }>('/api/v1/auth/reset-password', { token, newPassword }),
     );
   }
+
+  // ── Account linking ─────────────────────────────────────────────────────────
+
+  getLinkedAccounts() {
+    return firstValueFrom(
+      this.http.get<{ provider: string; linkedAt: string }[]>('/api/v1/users/me/linked-accounts'),
+    );
+  }
+
+  linkLocal(password: string) {
+    return firstValueFrom(
+      this.http.post<void>('/api/v1/users/me/link-local', { password }),
+    );
+  }
+
+  unlinkProvider(provider: string) {
+    return firstValueFrom(
+      this.http.delete<void>(`/api/v1/users/me/linked-accounts/${provider}`),
+    );
+  }
 }
