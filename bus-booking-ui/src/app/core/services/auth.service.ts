@@ -1,71 +1,123 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { MsalService } from '@azure/msal-angular';
 import { AccountInfo, InteractionRequiredAuthError } from '@azure/msal-browser';
 import { environment } from '../../../environments/environment';
+import { LocalAuthStrategy } from './local-auth-strategy';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly _account = signal<AccountInfo | null>(null);
-  private readonly _token = signal<string | null>(null);
+  // Optional: null when MsalModule is not in the DI tree (e.g. test env without MSAL, or local-only).
+  private readonly msal = inject(MsalService, { optional: true });
+  // Optional: null when LocalAuthStrategy is not registered in app.config.ts.
+  private readonly local = inject(LocalAuthStrategy, { optional: true });
 
-  readonly isAuthenticated = computed(() => this._account() !== null);
-  readonly email = computed(() => this._account()?.username ?? null);
-  readonly displayName = computed(() => this._account()?.name ?? null);
+  // ── MSAL state ─────────────────────────────────────────────────────────────
+  private readonly _account = signal<AccountInfo | null>(null);
+
+  // ── Computed signals ────────────────────────────────────────────────────────
+  readonly isAuthenticated = computed(() =>
+    this._account() !== null || (this.local?.isAuthenticated() ?? false),
+  );
+
+  readonly email = computed(() =>
+    this._account()?.username ?? this.local?.email() ?? null,
+  );
+
+  readonly displayName = computed(() =>
+    this._account()?.name ?? this.local?.displayName() ?? null,
+  );
+
   readonly roles = computed<string[]>(() => {
-    const claims = this._account()?.idTokenClaims as Record<string, unknown> | undefined;
-    const raw = claims?.['roles'];
-    return Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
+    const msalRoles = (() => {
+      const claims = this._account()?.idTokenClaims as Record<string, unknown> | undefined;
+      const raw = claims?.['roles'];
+      return Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
+    })();
+    const localRoles = this.local?.roles() ?? [];
+    // Merge without duplicates (MSAL user might also have local roles in future)
+    return [...new Set([...msalRoles, ...localRoles])];
   });
-  readonly isVendor = computed(() => this.roles().includes('BusBooking.Vendor'));
-  readonly isAdmin = computed(() => this.roles().includes('BusBooking.Admin'));
+
+  readonly isVendor     = computed(() => this.roles().includes('BusBooking.Vendor'));
+  readonly isAdmin      = computed(() => this.roles().includes('BusBooking.Admin'));
   readonly isSuperAdmin = computed(() => this.roles().includes('BusBooking.SuperAdmin'));
 
-  constructor(private readonly msal: MsalService) {}
+  // ── Initialization ──────────────────────────────────────────────────────────
 
-  initialize(): Promise<void> {
-    return this.msal.instance.initialize().then(() =>
-      this.msal.instance.handleRedirectPromise()
-        .catch(() => null)
-        .finally(() => {
-          const accounts = this.msal.instance.getAllAccounts();
-          this._account.set(accounts[0] ?? null);
-        })
-    ).then(() => void 0);
+  async initialize(): Promise<void> {
+    if (this.msal) {
+      await this.msal.instance.initialize();
+      await this.msal.instance.handleRedirectPromise().catch(() => null);
+      const accounts = this.msal.instance.getAllAccounts();
+      this._account.set(accounts[0] ?? null);
+    }
+    if (this.local) {
+      await this.local.initialize();
+    }
   }
 
+  // ── Auth actions ─────────────────────────────────────────────────────────────
+
+  // Default login: MSAL if configured, otherwise local login page.
   login(): void {
-    this.msal.loginRedirect({ scopes: environment.msal.scopes });
+    if (this.msal) {
+      this.msal.loginRedirect({ scopes: environment.msal.scopes });
+    } else {
+      this.local?.login();
+    }
+  }
+
+  // Explicit local login — navigates to /login regardless of MSAL state.
+  loginLocal(): void {
+    this.local?.login();
   }
 
   logout(): void {
-    this.msal.logoutRedirect();
+    if (this.local?.isAuthenticated()) {
+      this.local.logout();
+      return;
+    }
+    if (this.msal) {
+      this.msal.logoutRedirect();
+    }
   }
 
+  // ── Token acquisition ─────────────────────────────────────────────────────────
+  // Local JWT takes priority when the user authenticated via local auth.
+
   async getAccessToken(): Promise<string | null> {
-    return this.acquireToken(false);
+    if (this.local?.isAuthenticated()) {
+      return this.local.getAccessToken();
+    }
+    return this._acquireMsalToken(false);
   }
 
   async getAccessTokenForced(): Promise<string | null> {
-    return this.acquireToken(true);
+    if (this.local?.isAuthenticated()) {
+      return this.local.getAccessTokenForced();
+    }
+    return this._acquireMsalToken(true);
   }
 
-  private async acquireToken(forceRefresh: boolean): Promise<string | null> {
-    const account = this._account();
-    if (!account) return null;
+  // Called by LocalLoginComponent after a successful /api/v1/auth/login response.
+  setLocalAccessToken(token: string): void {
+    this.local?.setAccessToken(token);
+  }
 
+  // ── Private helpers ───────────────────────────────────────────────────────────
+
+  private async _acquireMsalToken(forceRefresh: boolean): Promise<string | null> {
+    const account = this._account();
+    if (!account || !this.msal) return null;
     try {
       const result = await this.msal.instance.acquireTokenSilent({
         scopes: environment.msal.scopes,
         account,
         forceRefresh,
       });
-      this._token.set(result.accessToken);
       return result.accessToken;
     } catch (err) {
       if (err instanceof InteractionRequiredAuthError) {
-        // Consent not yet granted or token expired — redirect to Entra ID.
-        // After the user grants consent they are redirected back and the
-        // next acquireTokenSilent call succeeds without interaction.
         await this.msal.instance.acquireTokenRedirect({
           scopes: environment.msal.scopes,
           account,

@@ -27,20 +27,45 @@ import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { apiBaseInterceptor } from './core/interceptors/api-base.interceptor';
 import { retryInterceptor } from './core/interceptors/retry.interceptor';
 import { timeoutInterceptor } from './core/interceptors/timeout.interceptor';
+import { LocalAuthStrategy } from './core/services/local-auth-strategy';
 
-const msalInstance = new PublicClientApplication({
-  auth: {
-    clientId: environment.msal.clientId,
-    authority: `https://login.microsoftonline.com/${environment.msal.tenantId}`,
-    redirectUri: environment.msal.redirectUri,
-  },
-  cache: { cacheLocation: 'sessionStorage' },
-  system: {
-    loggerOptions: {
-      logLevel: environment.production ? LogLevel.Error : LogLevel.Warning,
-    },
-  },
-});
+// MSAL is only enabled when a real clientId (not a placeholder) is configured.
+const msalEnabled =
+  !!environment.msal.clientId &&
+  !environment.msal.clientId.startsWith('REPLACE_');
+
+const msalProviders = msalEnabled
+  ? (() => {
+      const msalInstance = new PublicClientApplication({
+        auth: {
+          clientId: environment.msal.clientId,
+          authority: `https://login.microsoftonline.com/${environment.msal.tenantId}`,
+          redirectUri: environment.msal.redirectUri,
+        },
+        cache: { cacheLocation: 'sessionStorage' },
+        system: {
+          loggerOptions: {
+            logLevel: environment.production ? LogLevel.Error : LogLevel.Warning,
+          },
+        },
+      });
+      return [
+        importProvidersFrom(
+          MsalModule.forRoot(
+            msalInstance,
+            {
+              interactionType: InteractionType.Redirect,
+              authRequest: { scopes: environment.msal.scopes },
+            },
+            {
+              interactionType: InteractionType.Redirect,
+              protectedResourceMap: new Map(),
+            },
+          ),
+        ),
+      ];
+    })()
+  : [];
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -50,7 +75,7 @@ export const appConfig: ApplicationConfig = {
       routes,
       withComponentInputBinding(),
       withViewTransitions(),
-      withPreloading(PreloadAllModules)
+      withPreloading(PreloadAllModules),
     ),
     { provide: API_BASE_URL, useValue: environment.apiBaseUrl },
     provideHttpClient(
@@ -60,20 +85,11 @@ export const appConfig: ApplicationConfig = {
         apiBaseInterceptor,
         retryInterceptor,
         timeoutInterceptor,
-      ])
+      ]),
     ),
-    importProvidersFrom(
-      MsalModule.forRoot(
-        msalInstance,
-        {
-          interactionType: InteractionType.Redirect,
-          authRequest: { scopes: environment.msal.scopes },
-        },
-        {
-          interactionType: InteractionType.Redirect,
-          protectedResourceMap: new Map(),
-        }
-      )
-    ),
+    ...msalProviders,
+    // LocalAuthStrategy is provided here (not providedIn: 'root') so it is absent
+    // in test environments that don't include it, keeping the MSAL-only tests intact.
+    ...(environment.localAuthEnabled ? [LocalAuthStrategy] : []),
   ],
 };

@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { MsalService } from '@azure/msal-angular';
 import { AuthService } from './core/services/auth.service';
 import { NavBarComponent } from './shared/components/nav-bar/nav-bar';
 
@@ -11,10 +10,7 @@ import { NavBarComponent } from './shared/components/nav-bar/nav-bar';
   styleUrl: './app.css',
 })
 export class App implements OnInit {
-  constructor(
-    private readonly msal: MsalService,
-    readonly auth: AuthService
-  ) {}
+  constructor(readonly auth: AuthService) {}
 
   ngOnInit(): void {
     this.auth.initialize();
