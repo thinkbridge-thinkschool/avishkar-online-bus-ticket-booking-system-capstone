@@ -31,7 +31,7 @@ public static class BusEndpoints
         CreateBusBody body, HttpContext httpContext,
         IVendorRepository vendorRepo, IBusRepository busRepo, ITenantContext tenantContext, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
@@ -51,7 +51,7 @@ public static class BusEndpoints
         Guid busId, UpdateBusRequest body, HttpContext httpContext,
         IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
@@ -72,7 +72,7 @@ public static class BusEndpoints
         Guid busId, HttpContext httpContext,
         IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
@@ -99,7 +99,7 @@ public static class BusEndpoints
     private static async Task<IResult> GetMyBuses(
         HttpContext httpContext, IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
@@ -110,9 +110,8 @@ public static class BusEndpoints
         return Results.Ok(buses);
     }
 
-    private static string? GetEntraOid(HttpContext ctx) =>
-        ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-        ?? ctx.User.FindFirst("oid")?.Value;
+    private static string? GetAppUserId(HttpContext ctx) =>
+        ctx.User.FindFirst("app:userId")?.Value;
 }
 
 public sealed record CreateBusBody(string BusNumber, BusType BusType, int TotalSeats);

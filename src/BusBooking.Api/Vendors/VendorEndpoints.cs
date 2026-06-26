@@ -37,7 +37,7 @@ public static class VendorEndpoints
     private static async Task<IResult> RegisterVendor(
         HttpContext httpContext, RegisterVendorBody body, IVendorRepository vendorRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var command = new RegisterVendorCommand(oid, body.VendorName, body.Email,
@@ -54,7 +54,7 @@ public static class VendorEndpoints
     private static async Task<IResult> GetMyVendorProfile(
         HttpContext httpContext, IVendorRepository vendorRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
@@ -103,7 +103,7 @@ public static class VendorEndpoints
         Guid vendorId, UpdateVendorProfileRequest body, HttpContext httpContext,
         IVendorRepository vendorRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var command = new UpdateVendorProfileCommand(vendorId, oid, body.VendorName, body.PhoneNumber, body.Address);
@@ -120,7 +120,7 @@ public static class VendorEndpoints
     private static async Task<IResult> DeactivateVendor(
         Guid vendorId, HttpContext httpContext, IVendorRepository vendorRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var handler = new DeactivateVendorHandler(vendorRepo);
@@ -160,9 +160,8 @@ public static class VendorEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static string? GetEntraOid(HttpContext ctx) =>
-        ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-        ?? ctx.User.FindFirst("oid")?.Value;
+    private static string? GetAppUserId(HttpContext ctx) =>
+        ctx.User.FindFirst("app:userId")?.Value;
 }
 
 public sealed record RegisterVendorBody(

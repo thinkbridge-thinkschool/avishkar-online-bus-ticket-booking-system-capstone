@@ -34,7 +34,7 @@ public static class PaymentEndpoints
         TenantRazorpayService razorpay,
         CancellationToken ct)
     {
-        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetAppUserId(httpContext, out var userId)) return Results.Unauthorized();
 
         var booking = await bookingRepo.GetByIdAsync(body.BookingId, ct);
         if (booking is null) return Results.NotFound("Booking not found.");
@@ -61,7 +61,7 @@ public static class PaymentEndpoints
         TenantRazorpayService razorpay,
         CancellationToken ct)
     {
-        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetAppUserId(httpContext, out var userId)) return Results.Unauthorized();
 
         bool signatureValid;
         try
@@ -100,7 +100,7 @@ public static class PaymentEndpoints
         Guid paymentId, HttpContext httpContext,
         IPaymentRepository paymentRepo, IBookingRepository bookingRepo, CancellationToken ct)
     {
-        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetAppUserId(httpContext, out var userId)) return Results.Unauthorized();
 
         var handler = new GetPaymentHandler(paymentRepo, bookingRepo);
         try
@@ -120,11 +120,10 @@ public static class PaymentEndpoints
         return Results.Ok(payments);
     }
 
-    private static bool GetUserOid(HttpContext ctx, out Guid userId)
+    private static bool GetAppUserId(HttpContext ctx, out Guid userId)
     {
-        var oidValue = ctx.User.FindFirst("oid")?.Value
-                    ?? ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
-        return Guid.TryParse(oidValue, out userId);
+        var claim = ctx.User.FindFirst("app:userId")?.Value;
+        return Guid.TryParse(claim, out userId);
     }
 }
 

@@ -33,9 +33,7 @@ public static class BookingEndpoints
         IBookingRepository bookingRepo,
         CancellationToken ct)
     {
-        var oidValue = principal.FindFirst("oid")?.Value
-                    ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-                    ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var oidValue = principal.FindFirst("app:userId")?.Value;
 
         if (oidValue is null || !Guid.TryParse(oidValue, out var userId))
             return Results.Unauthorized();
@@ -65,8 +63,7 @@ public static class BookingEndpoints
         IBookingRepository bookingRepo,
         CancellationToken ct)
     {
-        var oidValue = principal.FindFirst("oid")?.Value
-                    ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+        var oidValue = principal.FindFirst("app:userId")?.Value;
         if (!Guid.TryParse(oidValue, out var userId))
             return Results.Unauthorized();
 
@@ -81,8 +78,7 @@ public static class BookingEndpoints
         IBookingRepository bookingRepo,
         CancellationToken ct)
     {
-        var oidValue = principal.FindFirst("oid")?.Value
-                    ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+        var oidValue = principal.FindFirst("app:userId")?.Value;
         if (!Guid.TryParse(oidValue, out var userId))
             return Results.Unauthorized();
 
@@ -121,9 +117,7 @@ public static class BookingEndpoints
         IEventPublisher publisher,
         CancellationToken ct)
     {
-        var userIdClaim = httpContext.User.FindFirst("oid")?.Value
-                       ?? httpContext.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-                       ?? httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userIdClaim = httpContext.User.FindFirst("app:userId")?.Value;
         if (!Guid.TryParse(userIdClaim, out var userId))
             return Results.Unauthorized();
 

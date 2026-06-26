@@ -34,7 +34,7 @@ public static class FeedbackEndpoints
         CreateFeedbackBody body, HttpContext httpContext,
         IFeedbackRepository feedbackRepo, IBookingRepository bookingRepo, CancellationToken ct)
     {
-        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetAppUserId(httpContext, out var userId)) return Results.Unauthorized();
 
         var command = new CreateFeedbackCommand(
             userId, body.BookingId, body.ScheduleId, body.Rating,
@@ -55,7 +55,7 @@ public static class FeedbackEndpoints
         Guid feedbackId, UpdateFeedbackRequest body, HttpContext httpContext,
         IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
-        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetAppUserId(httpContext, out var userId)) return Results.Unauthorized();
 
         var command = new UpdateFeedbackCommand(feedbackId, userId, body.Rating, body.Comment, body.Category);
         var handler = new UpdateFeedbackHandler(feedbackRepo);
@@ -71,7 +71,7 @@ public static class FeedbackEndpoints
     private static async Task<IResult> DeleteFeedback(
         Guid feedbackId, HttpContext httpContext, IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
-        if (!GetUserOid(httpContext, out var userId)) return Results.Unauthorized();
+        if (!GetAppUserId(httpContext, out var userId)) return Results.Unauthorized();
 
         var handler = new DeleteFeedbackHandler(feedbackRepo);
         try
@@ -107,11 +107,10 @@ public static class FeedbackEndpoints
         return Results.Ok(stats);
     }
 
-    private static bool GetUserOid(HttpContext ctx, out Guid userId)
+    private static bool GetAppUserId(HttpContext ctx, out Guid userId)
     {
-        var oidValue = ctx.User.FindFirst("oid")?.Value
-                    ?? ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
-        return Guid.TryParse(oidValue, out userId);
+        var claim = ctx.User.FindFirst("app:userId")?.Value;
+        return Guid.TryParse(claim, out userId);
     }
 }
 

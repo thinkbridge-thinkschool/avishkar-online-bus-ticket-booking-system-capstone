@@ -137,7 +137,7 @@ public static class ScheduleEndpoints
         HttpContext httpContext, IVendorRepository vendorRepo,
         IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
@@ -148,9 +148,8 @@ public static class ScheduleEndpoints
         return Results.Ok(results);
     }
 
-    private static string? GetEntraOid(HttpContext ctx) =>
-        ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-        ?? ctx.User.FindFirst("oid")?.Value;
+    private static string? GetAppUserId(HttpContext ctx) =>
+        ctx.User.FindFirst("app:userId")?.Value;
 }
 
 public sealed record UpdateScheduleRequest(

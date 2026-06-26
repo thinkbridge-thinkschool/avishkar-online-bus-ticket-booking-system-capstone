@@ -30,7 +30,7 @@ public static class UserEndpoints
     private static async Task<IResult> GetMyProfile(
         HttpContext httpContext, IUserProfileRepository userRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var profile = await userRepo.GetByEntraObjectIdAsync(oid, ct);
@@ -46,7 +46,7 @@ public static class UserEndpoints
         UpdateMyProfileRequest body, HttpContext httpContext,
         IUserProfileRepository userRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         if (string.IsNullOrWhiteSpace(body.FullName))
@@ -109,7 +109,7 @@ public static class UserEndpoints
         Guid userId, UpdateUserProfileRequest body, HttpContext httpContext,
         IUserProfileRepository userRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var command = new UpdateUserProfileCommand(userId, oid, body.FirstName, body.LastName, body.Phone, body.Address);
@@ -127,7 +127,7 @@ public static class UserEndpoints
     private static async Task<IResult> DeactivateUser(
         Guid userId, HttpContext httpContext, IUserProfileRepository userRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var handler = new DeactivateUserHandler(userRepo);
@@ -140,9 +140,8 @@ public static class UserEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static string? GetEntraOid(HttpContext ctx) =>
-        ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-        ?? ctx.User.FindFirst("oid")?.Value;
+    private static string? GetAppUserId(HttpContext ctx) =>
+        ctx.User.FindFirst("app:userId")?.Value;
 
     private static void SplitFullName(string fullName, out string firstName, out string lastName)
     {

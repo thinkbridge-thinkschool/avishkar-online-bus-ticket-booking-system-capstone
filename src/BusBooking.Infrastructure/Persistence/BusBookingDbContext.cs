@@ -2,6 +2,7 @@ using BusBooking.Application.Common;
 using BusBooking.Domain.Booking.Aggregates;
 using BusBooking.Domain.Booking.Entities;
 using BusBooking.Domain.Feedback.Entities;
+using BusBooking.Domain.Identity.Entities;
 using BusBooking.Domain.Scheduling.Entities;
 using BusBooking.Domain.Tenants.Aggregates;
 using BusBooking.Domain.Users.Entities;
@@ -25,6 +26,13 @@ public sealed class BusBookingDbContext(
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<FeedbackEntry> FeedbackEntries => Set<FeedbackEntry>();
+
+    // Unified identity tables — Phase 1 dual-auth foundation
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
+    public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
+    public DbSet<LocalCredential> LocalCredentials => Set<LocalCredential>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AppUserRole> AppUserRoles => Set<AppUserRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

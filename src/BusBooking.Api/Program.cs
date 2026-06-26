@@ -178,8 +178,9 @@ if (app.Environment.IsDevelopment())
     app.MapGet("/api/debug/claims", (HttpContext ctx) => Results.Ok(new
     {
         isAuthenticated = ctx.User.Identity?.IsAuthenticated ?? false,
-        authType       = ctx.User.Identity?.AuthenticationType,
-        claims         = ctx.User.Claims.Select(c => new { c.Type, c.Value }).ToList(),
+        authType        = ctx.User.Identity?.AuthenticationType,
+        appUserId       = ctx.User.FindFirst("app:userId")?.Value,
+        claims          = ctx.User.Claims.Select(c => new { c.Type, c.Value }).ToList(),
     })).AllowAnonymous();
 }
 

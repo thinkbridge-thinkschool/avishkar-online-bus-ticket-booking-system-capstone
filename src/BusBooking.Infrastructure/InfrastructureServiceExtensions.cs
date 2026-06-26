@@ -1,6 +1,7 @@
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using BusBooking.Application.Booking.Repositories;
+using BusBooking.Application.Identity;
 using BusBooking.Application.Tenants;
 using BusBooking.Application.Buses;
 using BusBooking.Application.Cities;
@@ -12,10 +13,12 @@ using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Application.Users;
 using BusBooking.Application.Vendors;
 using BusBooking.Infrastructure.BackgroundServices;
+using BusBooking.Infrastructure.Identity;
 using BusBooking.Infrastructure.Messaging;
 using BusBooking.Infrastructure.Persistence;
 using BusBooking.Infrastructure.Repositories;
 using BusBooking.Infrastructure.Tenancy;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,6 +55,14 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IFeedbackRepository, FeedbackRepository>();
+
+        // Identity repositories — Phase 1
+        services.AddScoped<IAppUserRepository, AppUserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
+        // Claims transformer — Phase 2; adds app:userId to every authenticated request
+        services.AddMemoryCache();
+        services.AddScoped<IClaimsTransformation, AppClaimsTransformer>();
 
         services.AddHostedService<SeatExpiryService>();
         services.AddHostedService<BookingCleanupService>();

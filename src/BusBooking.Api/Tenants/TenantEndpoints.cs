@@ -50,7 +50,7 @@ public static class TenantEndpoints
         RegisterTenantRequest body, HttpContext httpContext,
         ITenantRepository tenantRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var email = httpContext.User.FindFirst("preferred_username")?.Value
@@ -71,7 +71,7 @@ public static class TenantEndpoints
     private static async Task<IResult> GetMyTenant(
         HttpContext httpContext, ITenantRepository tenantRepo, CancellationToken ct)
     {
-        var oid = GetEntraOid(httpContext);
+        var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
         var handler = new GetMyTenantHandler(tenantRepo);
@@ -184,9 +184,8 @@ public static class TenantEndpoints
         catch (ArgumentException ex)    { return Results.BadRequest(ex.Message); }
     }
 
-    private static string? GetEntraOid(HttpContext ctx) =>
-        ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-        ?? ctx.User.FindFirst("oid")?.Value;
+    private static string? GetAppUserId(HttpContext ctx) =>
+        ctx.User.FindFirst("app:userId")?.Value;
 }
 
 public sealed record RegisterTenantRequest(string Name, string Subdomain, string AdminEmail);

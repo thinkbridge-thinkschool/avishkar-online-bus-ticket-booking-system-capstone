@@ -63,14 +63,14 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
             }
         }
 
-        // 4. DB lookup by Entra oid — identifies the Vendor Admin who registered the tenant
-        var oid = httpContext.User.FindFirst("oid")?.Value
-               ?? httpContext.User.FindFirst(
-                      "http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
-        if (oid != null)
+        // 4. DB lookup by app:userId — set by AppClaimsTransformer after UseAuthentication.
+        // For MSAL users, app:userId == Entra OID, so AdminEntraObjectId lookup still works.
+        // For local-auth users (Phase 3+), app:userId is their internal GUID stored in same column.
+        var appUserId = httpContext.User.FindFirst("app:userId")?.Value;
+        if (appUserId != null)
         {
             var tenant = await db.Tenants.AsNoTracking()
-                .FirstOrDefaultAsync(t => t.AdminEntraObjectId == oid && t.Status == TenantStatus.Active);
+                .FirstOrDefaultAsync(t => t.AdminEntraObjectId == appUserId && t.Status == TenantStatus.Active);
             if (tenant != null)
             {
                 tenantContext.Resolve(tenant.Id, tenant.Subdomain);
