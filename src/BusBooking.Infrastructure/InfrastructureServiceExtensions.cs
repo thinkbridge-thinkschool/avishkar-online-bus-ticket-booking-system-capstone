@@ -71,6 +71,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
+        // Audit log — Phase 9
+        services.AddScoped<IAuthAuditLogRepository, AuthAuditLogRepository>();
+
         // Email service — Phase 4; dev sends to log, prod impl added later
         services.AddScoped<IEmailService, LogEmailService>();
 

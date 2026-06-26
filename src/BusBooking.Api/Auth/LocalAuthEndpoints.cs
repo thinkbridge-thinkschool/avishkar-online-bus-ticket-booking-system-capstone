@@ -22,15 +22,16 @@ public static class LocalAuthEndpoints
             .MapGroup("/api/v1/auth")
             .WithTags("LocalAuth")
             .AllowAnonymous()
-            .RequireRateLimiting("api");
+            .RequireRateLimiting("auth"); // 10/min per IP for most auth endpoints
 
-        group.MapPost("/register",             Register);
-        group.MapPost("/login",                Login);
-        group.MapPost("/refresh",              Refresh);
-        group.MapPost("/logout",               Logout);
-        group.MapGet( "/verify-email",         VerifyEmail);
-        group.MapPost("/forgot-password",      ForgotPassword);
-        group.MapPost("/reset-password",       ResetPassword);
+        // Sensitive endpoints get a stricter 5/min per IP limit
+        group.MapPost("/register",        Register);
+        group.MapPost("/login",           Login)         .RequireRateLimiting("auth-strict");
+        group.MapPost("/refresh",         Refresh);
+        group.MapPost("/logout",          Logout);
+        group.MapGet( "/verify-email",    VerifyEmail);
+        group.MapPost("/forgot-password", ForgotPassword).RequireRateLimiting("auth-strict");
+        group.MapPost("/reset-password",  ResetPassword) .RequireRateLimiting("auth-strict");
     }
 
     // ── POST /api/v1/auth/register ─────────────────────────────────────────
@@ -40,6 +41,7 @@ public static class LocalAuthEndpoints
         ILocalCredentialRepository credRepo,
         IPasswordService passwords,
         IEmailService email,
+        IAuthAuditLogRepository audit,
         HttpContext ctx,
         CancellationToken ct)
     {
@@ -72,6 +74,12 @@ public static class LocalAuthEndpoints
         var verifyUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}/api/v1/auth/verify-email?token={rawToken}";
         await email.SendEmailVerificationAsync(user.Email, user.DisplayName, verifyUrl, ct);
 
+        await audit.AddAsync(AuthAuditLog.Create(
+            AuthAuditLog.Events.Register, success: true,
+            email: user.Email, appUserId: appUserId,
+            ipAddress: GetClientIp(ctx), userAgent: GetUserAgent(ctx)), ct);
+        await audit.SaveChangesAsync(ct);
+
         return Results.Created($"/api/v1/users/{appUserId}", new
         {
             message = "Registration successful. Check your email to verify your account.",
@@ -87,23 +95,39 @@ public static class LocalAuthEndpoints
         IRefreshTokenRepository refreshRepo,
         IPasswordService passwords,
         IJwtTokenService jwt,
+        IAuthAuditLogRepository audit,
         HttpContext ctx,
         CancellationToken ct)
     {
+        var ip        = GetClientIp(ctx);
+        var userAgent = GetUserAgent(ctx);
+
         var user = await userRepo.GetByEmailAsync(body.Email.ToLowerInvariant(), ct);
-        if (user is null) return Results.Unauthorized();
+        if (user is null)
+        {
+            await RecordAudit(audit, AuthAuditLog.Events.LoginFailure, false, body.Email, null, ip, userAgent, ct);
+            return Results.Unauthorized();
+        }
 
         var credential = await credRepo.GetByAppUserIdAsync(user.Id, ct);
-        if (credential is null) return Results.Unauthorized(); // MSAL-only account
+        if (credential is null)
+        {
+            await RecordAudit(audit, AuthAuditLog.Events.LoginFailure, false, body.Email, user.Id, ip, userAgent, ct);
+            return Results.Unauthorized(); // MSAL-only account
+        }
 
         if (credential.IsLocked())
+        {
+            await RecordAudit(audit, AuthAuditLog.Events.LoginLocked, false, body.Email, user.Id, ip, userAgent, ct);
             return Results.Problem("Account is temporarily locked due to too many failed attempts.",
                 statusCode: StatusCodes.Status423Locked);
+        }
 
         if (!passwords.Verify(body.Password, credential.PasswordHash))
         {
             credential.RecordFailedLogin(MaxFailedAttempts, TimeSpan.FromMinutes(LockDurationMinutes));
             await credRepo.SaveChangesAsync(ct);
+            await RecordAudit(audit, AuthAuditLog.Events.LoginFailure, false, body.Email, user.Id, ip, userAgent, ct);
             return Results.Unauthorized();
         }
 
@@ -125,6 +149,8 @@ public static class LocalAuthEndpoints
 
         SetRefreshCookie(ctx, rawRefresh, expiresAt);
 
+        await RecordAudit(audit, AuthAuditLog.Events.LoginSuccess, true, body.Email, user.Id, ip, userAgent, ct);
+
         return Results.Ok(new
         {
             accessToken,
@@ -139,6 +165,8 @@ public static class LocalAuthEndpoints
         ILocalCredentialRepository credRepo,
         IRefreshTokenRepository refreshRepo,
         IJwtTokenService jwt,
+        IAuthAuditLogRepository audit,
+        ILoggerFactory loggerFactory,
         HttpContext ctx,
         CancellationToken ct)
     {
@@ -151,10 +179,19 @@ public static class LocalAuthEndpoints
 
         if (!stored.IsActive)
         {
-            // Token reuse detected — revoke the entire user's token family
+            // Token reuse detected — revoke entire family and alert via log
             await refreshRepo.RevokeAllForUserAsync(stored.AppUserId, ct);
             await refreshRepo.SaveChangesAsync(ct);
             ClearRefreshCookie(ctx);
+
+            loggerFactory.CreateLogger("BusBooking.Auth").LogWarning(
+                "Refresh token reuse detected for user {UserId} from IP {Ip} — all sessions revoked.",
+                stored.AppUserId, GetClientIp(ctx));
+
+            await RecordAudit(audit, AuthAuditLog.Events.TokenReuse, false,
+                email: "", appUserId: stored.AppUserId,
+                ip: GetClientIp(ctx), userAgent: GetUserAgent(ctx), ct);
+
             return Results.Unauthorized();
         }
 
@@ -184,20 +221,28 @@ public static class LocalAuthEndpoints
     // ── POST /api/v1/auth/logout ───────────────────────────────────────────
     private static async Task<IResult> Logout(
         IRefreshTokenRepository refreshRepo,
+        IAuthAuditLogRepository audit,
         HttpContext ctx,
         CancellationToken ct)
     {
         var rawToken = ctx.Request.Cookies[RefreshTokenCookie];
+        Guid? userId = null;
         if (!string.IsNullOrEmpty(rawToken))
         {
             var stored = await refreshRepo.GetByTokenHashAsync(HashToken(rawToken), ct);
             if (stored is not null && stored.IsActive)
             {
+                userId = stored.AppUserId;
                 stored.Revoke();
                 await refreshRepo.SaveChangesAsync(ct);
             }
         }
         ClearRefreshCookie(ctx);
+
+        await RecordAudit(audit, AuthAuditLog.Events.Logout, true,
+            email: "", appUserId: userId,
+            ip: GetClientIp(ctx), userAgent: GetUserAgent(ctx), ct);
+
         return Results.NoContent();
     }
 
@@ -205,6 +250,8 @@ public static class LocalAuthEndpoints
     private static async Task<IResult> VerifyEmail(
         [FromQuery] string token,
         ILocalCredentialRepository credRepo,
+        IAuthAuditLogRepository audit,
+        HttpContext ctx,
         CancellationToken ct)
     {
         var tokenHash  = HashToken(token);
@@ -216,6 +263,10 @@ public static class LocalAuthEndpoints
         credential.ClearEmailVerificationToken();
         await credRepo.SaveChangesAsync(ct);
 
+        await RecordAudit(audit, AuthAuditLog.Events.EmailVerified, true,
+            email: credential.AppUser.Email, appUserId: credential.AppUserId,
+            ip: GetClientIp(ctx), userAgent: GetUserAgent(ctx), ct);
+
         return Results.Ok(new { message = "Email verified successfully. You can now log in." });
     }
 
@@ -225,6 +276,7 @@ public static class LocalAuthEndpoints
         IAppUserRepository userRepo,
         ILocalCredentialRepository credRepo,
         IEmailService email,
+        IAuthAuditLogRepository audit,
         HttpContext ctx,
         CancellationToken ct)
     {
@@ -243,6 +295,10 @@ public static class LocalAuthEndpoints
                 var resetUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}" +
                                $"/reset-password?token={rawToken}";
                 await email.SendPasswordResetAsync(user.Email, user.DisplayName, resetUrl, ct);
+
+                await RecordAudit(audit, AuthAuditLog.Events.ForgotPassword, true,
+                    email: user.Email, appUserId: user.Id,
+                    ip: GetClientIp(ctx), userAgent: GetUserAgent(ctx), ct);
             }
         }
 
@@ -258,6 +314,8 @@ public static class LocalAuthEndpoints
         ILocalCredentialRepository credRepo,
         IRefreshTokenRepository refreshRepo,
         IPasswordService passwords,
+        IAuthAuditLogRepository audit,
+        HttpContext ctx,
         CancellationToken ct)
     {
         if (body.NewPassword.Length < 8)
@@ -274,6 +332,10 @@ public static class LocalAuthEndpoints
         // Invalidate all active sessions after a password change
         await refreshRepo.RevokeAllForUserAsync(credential.AppUserId, ct);
         await refreshRepo.SaveChangesAsync(ct);
+
+        await RecordAudit(audit, AuthAuditLog.Events.PasswordReset, true,
+            email: "", appUserId: credential.AppUserId,
+            ip: GetClientIp(ctx), userAgent: GetUserAgent(ctx), ct);
 
         return Results.Ok(new { message = "Password reset successfully. You can now log in." });
     }
@@ -323,6 +385,30 @@ public static class LocalAuthEndpoints
         email.Contains('@') &&
         email.IndexOf('@') > 0 &&
         email.IndexOf('@') < email.Length - 2;
+
+    private static string? GetClientIp(HttpContext ctx) =>
+        ctx.Connection.RemoteIpAddress?.ToString();
+
+    private static string? GetUserAgent(HttpContext ctx) =>
+        ctx.Request.Headers.UserAgent.FirstOrDefault();
+
+    private static async Task RecordAudit(
+        IAuthAuditLogRepository audit,
+        string eventType, bool success,
+        string email, Guid? appUserId,
+        string? ip, string? userAgent,
+        CancellationToken ct)
+    {
+        try
+        {
+            await audit.AddAsync(AuthAuditLog.Create(eventType, success, email, appUserId, ip, userAgent), ct);
+            await audit.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            // Audit failures must never surface as 5xx to the caller
+        }
+    }
 }
 
 // ── Request/response records ───────────────────────────────────────────────

@@ -4,16 +4,19 @@ using BusBooking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace BusBooking.Infrastructure.Migrations
+namespace BusBooking.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(BusBookingDbContext))]
-    partial class BusBookingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260626062037_Phase9_AuthAuditLog")]
+    partial class Phase9_AuthAuditLog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

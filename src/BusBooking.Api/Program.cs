@@ -26,6 +26,7 @@ using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -199,7 +200,10 @@ builder.Services.AddAuthorization(o =>
     o.AddPolicy("SuperAdminOnly", p => p.RequireRole("BusBooking.SuperAdmin"));
 });
 
-// ── Rate limiting: fixed window 60 req/min per policy ─────────────────────────
+// ── Rate limiting ──────────────────────────────────────────────────────────────
+// "api"         — 60 req/min, shared across all API endpoints (no per-IP partition)
+// "auth-strict" — 5 req/min per client IP, applied to login/forgot-password/reset-password
+// "auth"        — 10 req/min per client IP, applied to all other auth endpoints
 builder.Services.AddRateLimiter(o =>
 {
     o.AddFixedWindowLimiter("api", l =>
@@ -208,6 +212,27 @@ builder.Services.AddRateLimiter(o =>
         l.PermitLimit = 60;
         l.QueueLimit  = 0;
     });
+
+    o.AddPolicy("auth-strict", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window      = TimeSpan.FromMinutes(1),
+                PermitLimit = 5,
+                QueueLimit  = 0,
+            }));
+
+    o.AddPolicy("auth", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window      = TimeSpan.FromMinutes(1),
+                PermitLimit = 10,
+                QueueLimit  = 0,
+            }));
+
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 

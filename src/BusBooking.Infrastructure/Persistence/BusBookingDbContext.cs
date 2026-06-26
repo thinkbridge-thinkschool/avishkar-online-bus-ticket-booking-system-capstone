@@ -33,6 +33,7 @@ public sealed class BusBookingDbContext(
     public DbSet<LocalCredential> LocalCredentials => Set<LocalCredential>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AppUserRole> AppUserRoles => Set<AppUserRole>();
+    public DbSet<AuthAuditLog> AuthAuditLogs => Set<AuthAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
