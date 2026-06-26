@@ -269,7 +269,7 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["X-Content-Type-Options"]       = "nosniff";
     ctx.Response.Headers["X-Frame-Options"]              = "DENY";
     ctx.Response.Headers["Referrer-Policy"]              = "strict-origin-when-cross-origin";
-    ctx.Response.Headers["Content-Security-Policy"]      = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://api.razorpay.com";
+    ctx.Response.Headers["Content-Security-Policy"]      = "default-src 'self'; script-src 'self' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://api.razorpay.com https://lumberjack.razorpay.com;";
     ctx.Response.Headers["Permissions-Policy"]           = "geolocation=(), microphone=(), camera=()";
     ctx.Response.Headers.StrictTransportSecurity         = "max-age=31536000";
     await next();
@@ -310,14 +310,30 @@ app.MapPaymentEndpoints();
 app.MapFeedbackEndpoints();
 app.MapLocalAuthEndpoints();
 
-// Apply any pending EF migrations and seed in Development
-if (app.Environment.IsDevelopment())
+// Migrations — always run; EF skips already-applied ones (idempotent, ~50ms on warm DB)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<BusBooking.Infrastructure.Persistence.BusBookingDbContext>();
     await db.Database.MigrateAsync();
+}
+
+// Seeding — Development always; Production only when SeedDemoData=true
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
     var seeder = scope.ServiceProvider.GetRequiredService<BusBooking.Infrastructure.Persistence.DatabaseSeeder>();
     await seeder.SeedAsync();
 }
+else if (app.Configuration.GetValue<bool>("SeedDemoData"))
+{
+    using var scope = app.Services.CreateScope();
+    var seeder = scope.ServiceProvider.GetRequiredService<BusBooking.Infrastructure.Persistence.DatabaseSeeder>();
+    await seeder.SeedAsync();
+}
+
+// Angular SPA — serve static files from wwwroot; unmapped routes fall back to index.html
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.MapFallbackToFile("index.html").WithMetadata(new AllowAnonymousAttribute());
 
 app.Run();

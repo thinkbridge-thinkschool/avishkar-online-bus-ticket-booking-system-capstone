@@ -8,6 +8,9 @@ obj/
 
 ## publish artifacts
 publish/
+
+## Angular SPA build output (built into API wwwroot before deploy, not committed)
+src/BusBooking.Api/wwwroot/
 publish.zip
 app-logs/
 app-logs2/

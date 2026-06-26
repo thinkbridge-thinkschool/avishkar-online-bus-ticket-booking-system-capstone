@@ -52,7 +52,11 @@
             ],
             "styles": [
               "src/styles.css"
-            ]
+            ],
+            "outputPath": {
+              "base": "../src/BusBooking.Api/wwwroot",
+              "browser": ""
+            }
           },
           "configurations": {
             "production": {
