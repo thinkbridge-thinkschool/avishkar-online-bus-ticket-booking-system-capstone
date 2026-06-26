@@ -270,7 +270,7 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["X-Content-Type-Options"]       = "nosniff";
     ctx.Response.Headers["X-Frame-Options"]              = "DENY";
     ctx.Response.Headers["Referrer-Policy"]              = "strict-origin-when-cross-origin";
-    ctx.Response.Headers["Content-Security-Policy"]      = "default-src 'self'; script-src 'self' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://api.razorpay.com https://lumberjack.razorpay.com;";
+    ctx.Response.Headers["Content-Security-Policy"]      = "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://cdn.razorpay.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://api.razorpay.com https://lumberjack.razorpay.com; frame-src https://api.razorpay.com;";
     ctx.Response.Headers["Permissions-Policy"]           = "geolocation=(), microphone=(), camera=()";
     ctx.Response.Headers.StrictTransportSecurity         = "max-age=31536000";
     await next();
@@ -291,6 +291,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Static files must come BEFORE auth middleware — FallbackPolicy (RequireAuthenticatedUser)
+// would otherwise 401 every .js/.css request that has no matched API endpoint.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseCors("BusBookingUi");
 app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit
 app.UseOutputCache();       // after rate limiter and before auth
@@ -332,9 +338,7 @@ else if (app.Configuration.GetValue<bool>("SeedDemoData"))
     await seeder.SeedAsync();
 }
 
-// Angular SPA — serve static files from wwwroot; unmapped routes fall back to index.html
-app.UseDefaultFiles();
-app.UseStaticFiles();
+// Angular SPA — unmapped routes (client-side router paths) fall back to index.html
 app.MapFallbackToFile("index.html").WithMetadata(new AllowAnonymousAttribute());
 
 app.Run();
