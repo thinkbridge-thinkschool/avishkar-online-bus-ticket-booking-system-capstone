@@ -22,21 +22,24 @@ internal sealed class ServiceBusEventPublisher(
 
     public async Task PublishAsync<T>(T domainEvent, CancellationToken ct = default) where T : IDomainEvent
     {
-        var topic = TopicFor(typeof(T));
+        // Use the runtime concrete type, not typeof(T) — T resolves to IDomainEvent when the
+        // caller iterates IReadOnlyCollection<IDomainEvent>, which would produce topic "i-domain".
+        var eventType = domainEvent.GetType();
+        var topic = TopicFor(eventType);
 
         using var activity = _source.StartActivity($"ServiceBus.Publish {topic}");
         activity?.SetTag("messaging.system", "servicebus");
         activity?.SetTag("messaging.destination", topic);
         activity?.SetTag("messaging.operation", "publish");
-        activity?.SetTag("messaging.event_type", typeof(T).Name);
+        activity?.SetTag("messaging.event_type", eventType.Name);
 
         await using var sender = client.CreateSender(topic);
 
-        var body = JsonSerializer.Serialize(domainEvent, domainEvent.GetType());
+        var body = JsonSerializer.Serialize(domainEvent, eventType);
         var message = new ServiceBusMessage(body)
         {
             ContentType = "application/json",
-            Subject = typeof(T).Name,
+            Subject = eventType.Name,
         };
 
         // Propagate W3C trace context so a downstream consumer can stitch the trace.
@@ -46,9 +49,20 @@ internal sealed class ServiceBusEventPublisher(
             message.ApplicationProperties["tracestate"] = current.TraceStateString ?? string.Empty;
         }
 
-        await sender.SendMessageAsync(message, ct);
-        logger.LogInformation(
-            "Published {EventType} to topic {Topic} | TraceId={TraceId}",
-            typeof(T).Name, topic, Activity.Current?.TraceId.ToString() ?? "none");
+        try
+        {
+            await sender.SendMessageAsync(message, ct);
+            logger.LogInformation(
+                "Published {EventType} to topic {Topic} | TraceId={TraceId}",
+                eventType.Name, topic, Activity.Current?.TraceId.ToString() ?? "none");
+        }
+        catch (ServiceBusException ex)
+        {
+            // Payment is already committed to the database — a Service Bus failure must not
+            // surface as a payment error to the user. Log for Application Insights alerting.
+            logger.LogError(ex,
+                "Failed to publish {EventType} to Service Bus topic {Topic} — event lost, payment was committed",
+                eventType.Name, topic);
+        }
     }
 }
