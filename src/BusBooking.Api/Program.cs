@@ -45,7 +45,8 @@ var otelBuilder = builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddSource("BusBooking.Worker")      // SeatExpiryService custom spans
         .AddSource("BusBooking.Messaging")); // ServiceBusEventPublisher custom spans
-if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+var aiConnStr = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+if (!string.IsNullOrEmpty(aiConnStr) && aiConnStr.StartsWith("InstrumentationKey="))
     otelBuilder.UseAzureMonitor();
 
 // ── OpenAPI with Bearer security scheme ───────────────────────────────────────

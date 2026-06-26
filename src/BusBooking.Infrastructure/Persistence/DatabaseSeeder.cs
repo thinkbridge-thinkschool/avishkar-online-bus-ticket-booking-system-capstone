@@ -107,10 +107,8 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
 
     private async Task FullSeedAsync(List<DateOnly> dates, CancellationToken ct)
     {
-        logger.LogInformation("Resetting database for full seed...");
-        await db.Database.EnsureDeletedAsync(ct);
+        logger.LogInformation("Performing full seed (fresh database)...");
         await db.Database.MigrateAsync(ct);
-        logger.LogInformation("Schema recreated.");
 
         // Cities
         var pune   = City.Create("Pune");
