@@ -69,7 +69,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   location: location
   properties: {
     sku: { name: 'PerGB2018' }
-    retentionInDays: environment == 'prod' ? 31 : 30
+    retentionInDays: environment == 'prod' ? 90 : 30
     features: {
       enableLogAccessUsingOnlyResourcePermissions: true
     }
@@ -86,7 +86,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   properties: {
     Application_Type: 'web'
     WorkspaceResourceId: logAnalytics.id
-    RetentionInDays: environment == 'prod' ? 31 : 30
+    RetentionInDays: environment == 'prod' ? 90 : 30
     IngestionMode: 'LogAnalytics'
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'

@@ -67,11 +67,12 @@ resource sqlServer 'Microsoft.Sql/servers@2022-11-01-preview' = {
     administratorLogin: adminLogin
     administratorLoginPassword: adminPassword
     minimalTlsVersion: '1.2'
-    // Keep public access enabled in dev so the post-provision hook (go-sqlcmd)
-    // can run EF migrations. In prod the private endpoint handles all traffic
-    // and this can be toggled to Disabled once the hook is migrated to run
-    // from within the VNet (e.g., a Container App Job).
-    publicNetworkAccess: environment == 'prod' ? 'Disabled' : 'Enabled'
+    // Public access enabled in all environments so the post-provision hook can
+    // connect from the local machine to create the SQL contained user for
+    // Managed Identity. The private endpoint still routes all App Service
+    // traffic through the VNet. Restrict further after go-live via:
+    //   az sql server update --public-network-access Disabled
+    publicNetworkAccess: 'Enabled'
   }
   tags: {
     environment: environment
@@ -103,7 +104,7 @@ resource sqlAadAdmin 'Microsoft.Sql/servers/administrators@2022-11-01-preview' =
 
 resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2022-11-01-preview' = {
   parent: sqlServer
-  name: 'AllowAllWindowsAzureIps'
+  name: 'AllowAzureServices'
   properties: {
     startIpAddress: '0.0.0.0'
     endIpAddress: '0.0.0.0'

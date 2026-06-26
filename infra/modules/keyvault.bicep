@@ -37,7 +37,7 @@ param epSubnetId string
 param vnetId string
 
 // ── Derived names ─────────────────────────────────────────────────────────────
-var suffix  = take(uniqueString(resourceGroup().id), 6)
+var suffix  = take(uniqueString(resourceGroup().id), 5)
 var kvName  = 'kv-${appName}-${environment}-${suffix}'
 
 // Key Vault Secrets User — allows reading secret values; no write or manage.
