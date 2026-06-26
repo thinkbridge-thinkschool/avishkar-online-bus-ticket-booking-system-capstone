@@ -16,6 +16,21 @@ internal sealed class BookingRepository(BusBookingDbContext db) : IBookingReposi
                 .OrderByDescending(b => b.BookedAt)
                 .ToListAsync(ct);
 
+    public Task<int> GetTotalCountAsync(CancellationToken ct = default) =>
+        db.Bookings.CountAsync(ct);
+
+    public Task<decimal> GetTotalRevenueAsync(CancellationToken ct = default) =>
+        db.Bookings.SumAsync(b => b.TotalAmount, ct);
+
+    public async Task<IReadOnlyList<TenantBookingStats>> GetStatsByTenantAsync(CancellationToken ct = default)
+    {
+        var raw = await db.Bookings
+            .GroupBy(b => b.TenantId)
+            .Select(g => new { TenantId = g.Key, Count = g.Count(), Revenue = g.Sum(b => b.TotalAmount) })
+            .ToListAsync(ct);
+        return raw.Select(r => new TenantBookingStats(r.TenantId, r.Count, r.Revenue)).ToList();
+    }
+
     public async Task AddAsync(BookingAggregate booking, CancellationToken ct = default) =>
         await db.Bookings.AddAsync(booking, ct);
 

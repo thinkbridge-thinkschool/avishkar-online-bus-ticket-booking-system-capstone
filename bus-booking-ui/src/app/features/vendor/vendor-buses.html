@@ -1,0 +1,76 @@
+<a routerLink="/vendor/dashboard" class="back-link">
+  <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Dashboard
+</a>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+  <h1>My Buses</h1>
+  <button class="btn btn-primary" (click)="showForm.set(!showForm())" type="button">
+    {{ showForm() ? 'Cancel' : '+ Add Bus' }}
+  </button>
+</div>
+
+@if (showForm()) {
+  <div class="card" style="margin-bottom:1.5rem">
+    <h2>Add New Bus</h2>
+    @if (error()) {
+      <div class="error-alert" role="alert">{{ error() }}</div>
+    }
+    <form [formGroup]="form" (ngSubmit)="addBus()">
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+        <div class="form-group">
+          <label for="busNum">Bus Number *</label>
+          <input id="busNum" class="form-control" formControlName="busNumber" placeholder="MH12AB1234" />
+        </div>
+        <div class="form-group">
+          <label for="busType">Type *</label>
+          <select id="busType" class="form-control" formControlName="busType">
+            @for (t of busTypes; track t) {
+              <option [value]="t">{{ t }}</option>
+            }
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="seats">Total Seats *</label>
+          <input id="seats" type="number" class="form-control" formControlName="totalSeats" min="10" max="60" />
+        </div>
+      </div>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Adding…' : 'Add Bus' }}
+      </button>
+    </form>
+  </div>
+}
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (buses().length === 0) {
+  <div class="empty-state">
+    <h3>No buses registered</h3>
+    <p>Add your first bus to start managing schedules.</p>
+  </div>
+} @else {
+  <div class="card" style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="border-bottom:2px solid #e2e8f0">
+          <th style="text-align:left;padding:.75rem">Bus Number</th>
+          <th style="text-align:left;padding:.75rem">Type</th>
+          <th style="text-align:left;padding:.75rem">Total Seats</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (b of buses(); track b.busId) {
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:.75rem;font-weight:600">{{ b.busNumber }}</td>
+            <td style="padding:.75rem">{{ b.busType }}</td>
+            <td style="padding:.75rem">{{ b.totalSeats }}</td>
+            <td style="padding:.75rem">
+              <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .75rem"
+                (click)="deleteBus(b.busId)" type="button">Delete</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

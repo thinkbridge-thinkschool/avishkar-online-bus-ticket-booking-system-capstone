@@ -1,0 +1,54 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (schedule(); as s) {
+  <div class="detail-layout">
+    <div class="card main-card">
+      <div class="route-header">
+        <h1>{{ s.source ?? '—' }} → {{ s.destination ?? '—' }}</h1>
+        <app-status-badge [status]="s.isActive !== false ? 'Active' : 'Inactive'" />
+      </div>
+
+      <div class="times-row">
+        <div class="time-block">
+          <span class="time">{{ formatTime(s.departureTime) }}</span>
+          <span class="label">Departure</span>
+        </div>
+        <div class="separator">→</div>
+        <div class="time-block">
+          <span class="time">{{ formatTime(s.arrivalTime) }}</span>
+          <span class="label">Arrival</span>
+        </div>
+      </div>
+
+      <dl class="details-grid">
+        @if (s.busName) {
+          <dt>Bus</dt><dd>{{ s.busName }} {{ s.busNumber ? '(' + s.busNumber + ')' : '' }}</dd>
+        }
+        <dt>Total Seats</dt><dd>{{ s.totalSeats ?? '—' }}</dd>
+        <dt>Available</dt><dd>{{ s.availableSeats }}</dd>
+        @if (s.minSeatPrice !== null && s.minSeatPrice !== undefined) {
+          <dt>Price/Seat</dt><dd class="price">₹{{ s.minSeatPrice }}</dd>
+        }
+      </dl>
+
+      @if (stats(); as st) {
+        <div class="ratings-section">
+          <h3>Passenger Ratings</h3>
+          <div class="stars" aria-label="{{ st.averageRating.toFixed(1) }} out of 5 stars">
+            {{ stars(st.averageRating) }}
+            <span class="rating-num">{{ st.averageRating.toFixed(1) }} ({{ st.totalCount }} reviews)</span>
+          </div>
+        </div>
+      }
+
+      <div class="actions">
+        <a routerLink="/" class="btn btn-outline">Back to Search</a>
+        @if (s.isActive !== false && s.availableSeats > 0) {
+          <button class="btn btn-primary" (click)="book()" type="button">Book This Bus</button>
+        }
+      </div>
+    </div>
+  </div>
+}

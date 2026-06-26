@@ -1,0 +1,96 @@
+<div class="auth-wrapper">
+
+  <div class="auth-left">
+    <div class="auth-left-inner">
+      <a routerLink="/" class="brand">
+        <span class="brand-icon">🚌</span>
+        <span class="brand-name">BusBooking</span>
+      </a>
+      <div class="hero-text">
+        <h1>Start your journey</h1>
+        <p>Create a free account to book tickets, track your trips, and travel smarter across India.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-card">
+      <h2>Create account</h2>
+
+      @if (success()) {
+        <div class="alert-success" role="status">
+          <strong>Almost there!</strong> We've sent a verification link to <strong>{{ email }}</strong>.
+          Click the link in the email to activate your account, then
+          <a routerLink="/login">sign in</a>.
+        </div>
+      } @else {
+
+        @if (error()) {
+          <div class="alert-error" role="alert">{{ error() }}</div>
+        }
+
+        <form (ngSubmit)="submit()" #registerForm="ngForm" novalidate>
+          <div class="field">
+            <label for="displayName">Full name</label>
+            <input
+              id="displayName"
+              type="text"
+              name="displayName"
+              [(ngModel)]="displayName"
+              required
+              autocomplete="name"
+              placeholder="Your name"
+              [disabled]="loading()"
+            />
+          </div>
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              [(ngModel)]="email"
+              required
+              email
+              autocomplete="email"
+              placeholder="you@example.com"
+              [disabled]="loading()"
+            />
+          </div>
+
+          <div class="field">
+            <label for="password">Password <span class="hint">(min. 8 characters)</span></label>
+            <input
+              id="password"
+              type="password"
+              name="password"
+              [(ngModel)]="password"
+              required
+              minlength="8"
+              autocomplete="new-password"
+              placeholder="••••••••"
+              [disabled]="loading()"
+            />
+          </div>
+
+          <button type="submit" class="submit-btn" [disabled]="loading()">
+            @if (loading()) {
+              <span class="spinner" aria-hidden="true"></span>
+              Creating account…
+            } @else {
+              Create account
+            }
+          </button>
+        </form>
+
+        <p class="alt-link">
+          Already have an account?
+          <a routerLink="/login">Sign in</a>
+        </p>
+
+      }
+    </div>
+  </div>
+
+</div>

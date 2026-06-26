@@ -1,3 +1,5 @@
+﻿using BusBooking.Domain.Scheduling.Enums;
+
 namespace BusBooking.Application.Scheduling.Queries.SearchSchedules;
 
 public sealed record ScheduleSummaryDto(
@@ -10,4 +12,5 @@ public sealed record ScheduleSummaryDto(
     TimeOnly DepartureTime,
     TimeOnly ArrivalTime,
     int AvailableSeats,
-    decimal? MinSeatPrice);  // null when the schedule is fully booked
+    decimal? MinSeatPrice,   // null when the schedule is fully booked
+    BusType BusType);

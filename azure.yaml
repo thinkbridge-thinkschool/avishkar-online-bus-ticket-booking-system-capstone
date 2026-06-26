@@ -20,6 +20,16 @@ services:
     language: dotnet
     host: appservice                 # binds to the Web App provisioned by api.bicep
 
+hooks:
+  postprovision:
+    # Creates the SQL contained database user for the App Service managed identity.
+    # Must run after provision (so the MI exists) and before deploy (so the app
+    # can connect on first start).
+    shell: pwsh
+    run: ./infra/hooks/postprovision.ps1
+    interactive: false
+    continueOnError: true   # hook path has spaces; script runs manually post-deploy
+
 infra:
   provider: bicep
   path: ./infra

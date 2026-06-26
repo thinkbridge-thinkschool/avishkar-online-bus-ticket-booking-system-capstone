@@ -1,0 +1,150 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (submitted()) {
+
+  <!-- ── Success State ───────────────────────────────────────────────── -->
+  <div class="fb-success-wrap">
+    <div class="card fb-success-card">
+      <div class="fb-success-stars" aria-hidden="true">
+        @for (s of stars; track s) {
+          <span class="fb-success-star" [style.animation-delay]="(s * 0.08) + 's'">★</span>
+        }
+      </div>
+      <h1>Thank you for your feedback!</h1>
+      <p>Your review helps other travellers make better choices. We appreciate your time.</p>
+      @if (booking(); as b) {
+        <div class="fb-success-route">
+          <i class="fas fa-bus" aria-hidden="true"></i>
+          {{ b.fromCityName }} → {{ b.toCityName }}
+        </div>
+      }
+      <a routerLink="/bookings" class="btn btn-primary fb-success-btn">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Bookings
+      </a>
+    </div>
+  </div>
+
+} @else {
+
+  <!-- ── Gradient Header ─────────────────────────────────────────────── -->
+  <div class="fb-header">
+    <div class="fb-header-content">
+      <div class="fb-header-icon">
+        <i class="fas fa-star" aria-hidden="true"></i>
+      </div>
+      <div>
+        <h1>Leave Feedback</h1>
+        @if (booking(); as b) {
+          @if (b.fromCityName && b.toCityName) {
+            <p class="fb-header-route">
+              <i class="fas fa-bus" aria-hidden="true"></i>
+              {{ b.fromCityName }} → {{ b.toCityName }}
+            </p>
+          }
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="fb-layout">
+
+    <div class="fb-form-col">
+      <form [formGroup]="form" (ngSubmit)="submit()">
+
+        @if (error()) {
+          <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
+        }
+
+        <!-- ── Star Rating ───────────────────────────────────────────── -->
+        <div class="card fb-rating-card">
+          <h2 class="fb-section-title">
+            <i class="fas fa-star" aria-hidden="true"></i> Your Rating
+          </h2>
+
+          <div class="fb-stars-row" role="group" aria-label="Star rating">
+            @for (s of stars; track s) {
+              <button type="button" class="fb-star"
+                [class.fb-star-filled]="s <= form.controls.rating.value"
+                (click)="setRating(s)"
+                [attr.aria-label]="s + ' star' + (s > 1 ? 's' : '')"
+                [attr.aria-pressed]="s <= form.controls.rating.value">
+                <i class="fas fa-star" aria-hidden="true"></i>
+              </button>
+            }
+          </div>
+
+          @if (ratingLabel) {
+            <div class="fb-rating-label" [attr.data-rating]="form.controls.rating.value">
+              {{ ratingLabel }}
+            </div>
+          }
+        </div>
+
+        <!-- ── Comment ──────────────────────────────────────────────── -->
+        <div class="card fb-comment-card">
+          <h2 class="fb-section-title">
+            <i class="fas fa-comment-alt" aria-hidden="true"></i> Your Review
+          </h2>
+
+          <div class="form-group">
+            <label for="comment" class="fb-comment-label">
+              Tell us about your experience <span class="fb-optional">(optional)</span>
+            </label>
+            <textarea id="comment" class="form-control fb-textarea"
+              formControlName="comment"
+              rows="5"
+              maxlength="1000"
+              placeholder="How was the journey? Was the bus on time? Were the seats comfortable?…">
+            </textarea>
+            <div class="fb-char-count" [class.fb-char-warn]="commentLength > 900">
+              {{ commentLength }} / 1000
+            </div>
+          </div>
+
+          <div class="fb-submit-row">
+            <a routerLink="/bookings" class="btn btn-outline">
+              <i class="fas fa-times" aria-hidden="true"></i> Cancel
+            </a>
+            <button class="btn btn-primary fb-submit-btn" type="submit" [disabled]="submitting()">
+              @if (submitting()) {
+                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Submitting…
+              } @else {
+                <i class="fas fa-paper-plane" aria-hidden="true"></i> Submit Feedback
+              }
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ── Sidebar tips ──────────────────────────────────────────── -->
+    <aside class="fb-tips">
+      <div class="card fb-tips-card">
+        <h3 class="fb-tips-title">
+          <i class="fas fa-lightbulb" aria-hidden="true"></i> Tips for a great review
+        </h3>
+        <ul class="fb-tips-list">
+          <li>Was the bus on time for departure?</li>
+          <li>How was the cleanliness of the bus?</li>
+          <li>Were the seats comfortable?</li>
+          <li>How was the driver's behaviour?</li>
+          <li>Would you recommend this route?</li>
+        </ul>
+      </div>
+      <div class="card fb-rating-guide">
+        <h3 class="fb-tips-title">
+          <i class="fas fa-info-circle" aria-hidden="true"></i> Rating guide
+        </h3>
+        <div class="fb-guide-rows">
+          <div class="fb-guide-row"><span class="fb-guide-stars fb-g1">★</span><span>Poor</span></div>
+          <div class="fb-guide-row"><span class="fb-guide-stars fb-g2">★★</span><span>Fair</span></div>
+          <div class="fb-guide-row"><span class="fb-guide-stars fb-g3">★★★</span><span>Good</span></div>
+          <div class="fb-guide-row"><span class="fb-guide-stars fb-g4">★★★★</span><span>Very Good</span></div>
+          <div class="fb-guide-row"><span class="fb-guide-stars fb-g5">★★★★★</span><span>Excellent</span></div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+}

@@ -5,4 +5,6 @@ public sealed record BookedSeat(
     string PassengerName,
     int PassengerAge,
     string PassengerGender,
-    decimal SeatPrice);
+    decimal SeatPrice,
+    string? PassengerPhone,
+    string? PassengerEmail);

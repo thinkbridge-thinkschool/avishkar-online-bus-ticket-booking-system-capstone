@@ -1,0 +1,28 @@
+<div class="verify-wrapper">
+  <div class="verify-card">
+    <a routerLink="/" class="brand">
+      <span>🚌</span>
+      <span>BusBooking</span>
+    </a>
+
+    @if (status() === 'loading') {
+      <div class="status-icon loading-icon" aria-hidden="true">⌛</div>
+      <h2>Verifying your email…</h2>
+      <p class="muted">Please wait a moment.</p>
+    }
+
+    @if (status() === 'success') {
+      <div class="status-icon" aria-hidden="true">✅</div>
+      <h2>Email verified!</h2>
+      <p>{{ message() }}</p>
+      <a routerLink="/login" class="cta-btn">Sign in now</a>
+    }
+
+    @if (status() === 'error') {
+      <div class="status-icon" aria-hidden="true">❌</div>
+      <h2>Verification failed</h2>
+      <p>{{ message() }}</p>
+      <a routerLink="/register" class="cta-btn outline">Try registering again</a>
+    }
+  </div>
+</div>

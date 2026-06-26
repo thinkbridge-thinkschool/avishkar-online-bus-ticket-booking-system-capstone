@@ -1,0 +1,214 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (booking(); as b) {
+
+  <!-- ── Success Banner ─────────────────────────────────────────────── -->
+  <div class="pc-banner" [class.pc-banner-warn]="!isConfirmed()">
+    <div class="pc-banner-content">
+      <div class="pc-check-wrap">
+        <div class="pc-check-circle">
+          <i [class]="isConfirmed() ? 'fas fa-check' : 'fas fa-exclamation'" aria-hidden="true"></i>
+        </div>
+      </div>
+      <div class="pc-banner-text">
+        <h1>{{ isConfirmed() ? 'Booking Confirmed!' : 'Payment Processed' }}</h1>
+        <p>{{ isConfirmed() ? 'Your ticket has been booked successfully. Have a safe journey!' : 'Your booking status will be updated shortly.' }}</p>
+      </div>
+      <div class="pc-booking-id-box">
+        <span class="pc-bid-label">Booking ID</span>
+        <div class="pc-bid-row">
+          <code class="pc-bid">{{ b.bookingId }}</code>
+          <button class="pc-copy-btn" (click)="copyBookingId()" title="Copy booking ID" type="button">
+            <i class="fas fa-copy" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Receipt wrapper ────────────────────────────────────────────── -->
+  <div class="pc-receipt-wrapper">
+
+    <!-- Action bar (hidden on print) -->
+    <div class="pc-actions no-print">
+      <span class="pc-actions-label">
+        <i class="fas fa-ticket-alt" aria-hidden="true"></i> Your Ticket Receipt
+      </span>
+      <div class="pc-actions-btns">
+        <button class="btn btn-outline pc-btn-print" (click)="printReceipt()" type="button">
+          <i class="fas fa-print" aria-hidden="true"></i> Print / Save PDF
+        </button>
+        <a [routerLink]="['/bookings', b.bookingId]" class="btn btn-secondary">
+          <i class="fas fa-eye" aria-hidden="true"></i> View Booking
+        </a>
+        <a routerLink="/" class="btn btn-outline">
+          <i class="fas fa-home" aria-hidden="true"></i> Home
+        </a>
+      </div>
+    </div>
+
+    <!-- ── Payslip ──────────────────────────────────────────────────── -->
+    <div class="pc-receipt card">
+
+      <!-- Receipt header -->
+      <div class="pc-receipt-header">
+        <div class="pc-receipt-brand">
+          <span class="pc-brand-icon">🚌</span>
+          <span class="pc-brand-name">BusBooking</span>
+        </div>
+        <div class="pc-receipt-meta">
+          <div class="pc-meta-row">
+            <span>Booking ID:</span>
+            <strong>{{ b.bookingId }}</strong>
+          </div>
+          <div class="pc-meta-row">
+            <span>Booked On:</span>
+            <strong>{{ formatDateTime(b.bookedAt) }}</strong>
+          </div>
+          <div class="pc-meta-row">
+            <span>Status:</span>
+            <span class="pc-status-pill" [class.pc-status-confirmed]="isConfirmed()">
+              {{ b.status }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pc-divider-band"><span>E-TICKET</span></div>
+
+      <!-- ── Journey ────────────────────────────────────────────────── -->
+      <section class="pc-section">
+        <h3 class="pc-section-title">
+          <i class="fas fa-route" aria-hidden="true"></i> Journey Details
+        </h3>
+
+        <div class="pc-journey">
+          <div class="pcj-stop">
+            @if (departureTime()) {
+              <span class="pcj-time">{{ formatTime(departureTime()) }}</span>
+            }
+            <span class="pcj-city">{{ source() || b.fromCityName || '—' }}</span>
+          </div>
+          <div class="pcj-middle">
+            @if (departureTime() && arrivalTime()) {
+              <span class="pcj-dur">{{ duration(departureTime(), arrivalTime()) }}</span>
+            }
+            <div class="pcj-track">
+              <span class="pcj-bus-icon"><i class="fas fa-bus" aria-hidden="true"></i></span>
+            </div>
+          </div>
+          <div class="pcj-stop pcj-end">
+            @if (arrivalTime()) {
+              <span class="pcj-time">{{ formatTime(arrivalTime()) }}</span>
+            }
+            <span class="pcj-city">{{ destination() || b.toCityName || '—' }}</span>
+          </div>
+        </div>
+
+        <div class="pc-journey-chips">
+          @if (busName()) {
+            <div class="pcjc-item">
+              <i class="fas fa-bus" aria-hidden="true"></i>
+              <span>{{ busName() }}</span>
+              @if (busNumber()) {
+                <span class="pcjc-num">{{ busNumber() }}</span>
+              }
+            </div>
+          }
+          @if (travelDate()) {
+            <div class="pcjc-item">
+              <i class="far fa-calendar-alt" aria-hidden="true"></i>
+              <span>{{ formatDate(travelDate()) }}</span>
+            </div>
+          }
+          @if (departureTime() && arrivalTime()) {
+            <div class="pcjc-item">
+              <i class="far fa-clock" aria-hidden="true"></i>
+              <span>{{ formatTime(departureTime()) }} → {{ formatTime(arrivalTime()) }}</span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <div class="pc-sep"></div>
+
+      <!-- ── Passengers ──────────────────────────────────────────────── -->
+      <section class="pc-section">
+        <h3 class="pc-section-title">
+          <i class="fas fa-users" aria-hidden="true"></i> Passenger Details
+        </h3>
+        <div class="pc-table-wrap">
+          <table class="pc-table">
+            <thead>
+              <tr>
+                <th>Seat</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th class="pc-th-right">Fare</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (seat of b.seats; track seat.seatNumber) {
+                <tr>
+                  <td>
+                    <span class="pc-seat-chip">
+                      <i class="fas fa-chair" aria-hidden="true"></i> {{ seat.seatNumber }}
+                    </span>
+                  </td>
+                  <td class="pc-td-name">{{ seat.passengerName }}</td>
+                  <td>{{ seat.passengerAge }} yrs</td>
+                  <td>{{ seat.passengerGender ?? '—' }}</td>
+                  <td class="pc-td-price">₹{{ seat.seatPrice }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="pc-sep"></div>
+
+      <!-- ── Payment Summary ─────────────────────────────────────────── -->
+      <section class="pc-section">
+        <h3 class="pc-section-title">
+          <i class="fas fa-receipt" aria-hidden="true"></i> Payment Summary
+        </h3>
+        <div class="pc-pay-rows">
+          <div class="pc-pay-row">
+            <span>Seat Fare ({{ b.seats.length }} seat{{ b.seats.length !== 1 ? 's' : '' }} × ₹{{ b.seats[0]?.seatPrice ?? 0 }})</span>
+            <span>₹{{ b.totalAmount }}</span>
+          </div>
+          <div class="pc-pay-row">
+            <span>Convenience Fee</span>
+            <span class="pc-free">FREE</span>
+          </div>
+        </div>
+        <div class="pc-pay-total">
+          <span class="pc-pay-total-label">
+            <i class="fas fa-check-circle" aria-hidden="true"></i> Amount Paid
+          </span>
+          <span class="pc-pay-total-value">₹{{ b.totalAmount }}</span>
+        </div>
+        <p class="pc-razorpay-note">
+          <i class="fas fa-shield-alt" aria-hidden="true"></i>
+          Payment secured &amp; verified via <strong>Razorpay</strong>
+        </p>
+      </section>
+
+      <!-- Receipt footer -->
+      <div class="pc-receipt-footer">
+        <span>Thank you for choosing BusBooking! Have a safe journey 🚌</span>
+        <span class="pc-footer-id">{{ b.bookingId }}</span>
+      </div>
+    </div>
+  </div>
+
+} @else {
+  <div class="pc-fallback">
+    <div class="pc-fallback-icon">✅</div>
+    <h2>Payment Complete</h2>
+    <p>Your payment has been processed successfully.</p>
+    <a routerLink="/bookings" class="btn btn-primary" style="margin-top:1rem">View My Bookings</a>
+  </div>
+}

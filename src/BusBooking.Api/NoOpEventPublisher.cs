@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BusBooking.Api;
 
-internal sealed class NoOpEventPublisher(ILogger<NoOpEventPublisher> logger) : IEventPublisher
+public sealed class NoOpEventPublisher(ILogger<NoOpEventPublisher> logger) : IEventPublisher
 {
     public Task PublishAsync<T>(T domainEvent, CancellationToken ct = default) where T : IDomainEvent
     {

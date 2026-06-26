@@ -14,4 +14,5 @@ public sealed record BookedSeatDto(
     int SeatNumber,
     string PassengerName,
     int PassengerAge,
-    decimal SeatPrice);
+    decimal SeatPrice,
+    string? PassengerGender = null);

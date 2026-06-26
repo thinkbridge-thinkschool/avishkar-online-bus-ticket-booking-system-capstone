@@ -1,5 +1,4 @@
 using BusBooking.Application.Booking.Repositories;
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Domain.Booking.ValueObjects;
@@ -9,8 +8,7 @@ namespace BusBooking.Application.Booking.Commands.CreateBooking;
 
 public sealed class CreateBookingHandler(
     IScheduleRepository scheduleRepo,
-    IBookingRepository bookingRepo,
-    IEventPublisher publisher)
+    IBookingRepository bookingRepo)
 {
     public async Task<Guid> HandleAsync(CreateBookingCommand command, CancellationToken ct = default)
     {
@@ -28,22 +26,20 @@ public sealed class CreateBookingHandler(
             s.PassengerName,
             s.PassengerAge,
             s.PassengerGender,
-            priceMap[s.SeatNumber]));
+            priceMap[s.SeatNumber],
+            s.PassengerPhone,
+            s.PassengerEmail));
 
-        // 4. Create booking aggregate and confirm (payment stubbed as always-success)
-        var booking = BookingAggregate.Create(command.UserId, command.UserEmail, command.ScheduleId, bookedSeats);
-        booking.Confirm(command.UserName);
+        // 4. Create booking aggregate and move to PaymentPending (payment processed separately)
+        // Booking inherits tenant from the schedule; query filter already ensures this schedule is in scope.
+        var booking = BookingAggregate.Create(command.UserId, command.UserEmail, command.ScheduleId, bookedSeats, schedule.TenantId);
+        booking.AwaitPayment();
 
-        // 5. Transition seats from Reserved → Booked now that payment is confirmed
-        schedule.BookSeats(seatNumbers);
-
-        // 6. Persist both schedule (seat status changed) and new booking
+        // 5. Persist booking (seats remain Reserved until payment confirms them)
         await bookingRepo.AddAsync(booking, ct);
         await bookingRepo.SaveChangesAsync(ct);
 
-        // 7. Dispatch domain events to Service Bus
-        foreach (var evt in booking.DomainEvents)
-            await publisher.PublishAsync(evt, ct);
+        // No domain events to publish — booking awaits payment
         booking.ClearDomainEvents();
 
         return booking.Id;

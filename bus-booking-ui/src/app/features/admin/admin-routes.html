@@ -1,0 +1,65 @@
+<a routerLink="/admin/dashboard" class="back-link">
+  <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Dashboard
+</a>
+<h1>Route Management</h1>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start">
+  <div class="card">
+    <h2>Add Route</h2>
+    @if (error()) {
+      <div class="error-alert" role="alert">{{ error() }}</div>
+    }
+    <form [formGroup]="form" (ngSubmit)="addRoute()">
+      <div class="form-group">
+        <label for="from">From City *</label>
+        <select id="from" class="form-control" formControlName="fromCityId">
+          <option value="">Select city</option>
+          @for (c of cities(); track c.cityId) {
+            <option [value]="c.cityId">{{ c.cityName }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="to">To City *</label>
+        <select id="to" class="form-control" formControlName="toCityId">
+          <option value="">Select city</option>
+          @for (c of cities(); track c.cityId) {
+            <option [value]="c.cityId">{{ c.cityName }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="duration">Est. Duration (minutes) *</label>
+        <input id="duration" type="number" class="form-control" formControlName="estimatedMinutes" min="1" />
+      </div>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Adding…' : 'Add Route' }}
+      </button>
+    </form>
+  </div>
+
+  <div>
+    @if (loading()) {
+      <app-loading-spinner />
+    } @else {
+      <div class="card">
+        <h2>Routes ({{ routes().length }})</h2>
+        @if (routes().length === 0) {
+          <p style="color:#6b7280">No routes added yet.</p>
+        } @else {
+          <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.5rem">
+            @for (r of routes(); track r.routeId) {
+              <li style="display:flex;justify-content:space-between;align-items:center;padding:.5rem;border:1px solid #e2e8f0;border-radius:6px">
+                <span>{{ r.fromCityName ?? cityName(r.fromCityId) }} → {{ r.toCityName ?? cityName(r.toCityId) }}</span>
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <span style="font-size:.8rem;color:#6b7280">{{ formatDuration(r.estimatedMinutes) }}</span>
+                  <button class="btn btn-danger" style="font-size:.8rem;padding:.25rem .6rem"
+                    (click)="deleteRoute(r.routeId)" type="button">✕</button>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </div>
+</div>

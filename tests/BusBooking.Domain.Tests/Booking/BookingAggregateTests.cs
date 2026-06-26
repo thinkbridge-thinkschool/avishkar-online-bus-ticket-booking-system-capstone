@@ -11,17 +11,18 @@ public sealed class BookingAggregateTests
         userId: Guid.NewGuid(),
         userEmail: "user@example.com",
         scheduleId: Guid.NewGuid(),
-        seats: [new BookedSeat(1, "Avishkar", 25, "Male", 450m)]);
+        seats: [new BookedSeat(1, "Avishkar", 25, "Male", 450m, null, null)],
+        tenantId: Guid.NewGuid());
 
     [Fact]
     public void Create_ShouldCalculateTotalAmount()
     {
         var seats = new[]
         {
-            new BookedSeat(1, "Alice", 28, "Female", 400m),
-            new BookedSeat(2, "Bob", 30, "Male", 500m),
+            new BookedSeat(1, "Alice", 28, "Female", 400m, null, null),
+            new BookedSeat(2, "Bob", 30, "Male", 500m, null, null),
         };
-        var booking = BookingAggregate.Create(Guid.NewGuid(), "alice@x.com", Guid.NewGuid(), seats);
+        var booking = BookingAggregate.Create(Guid.NewGuid(), "alice@x.com", Guid.NewGuid(), seats, Guid.NewGuid());
 
         Assert.Equal(900m, booking.TotalAmount);
         Assert.Equal(BookingStatus.Pending, booking.Status);
@@ -73,6 +74,6 @@ public sealed class BookingAggregateTests
     public void Create_WithNoSeats_ShouldThrow()
     {
         Assert.Throws<InvalidOperationException>(() =>
-            BookingAggregate.Create(Guid.NewGuid(), "x@x.com", Guid.NewGuid(), []));
+            BookingAggregate.Create(Guid.NewGuid(), "x@x.com", Guid.NewGuid(), [], Guid.NewGuid()));
     }
 }

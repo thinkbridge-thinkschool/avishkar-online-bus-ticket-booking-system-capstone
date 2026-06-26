@@ -6,6 +6,9 @@
     <Project Path="src/BusBooking.Infrastructure/BusBooking.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/BusBooking.Api.IntegrationTests/BusBooking.Api.IntegrationTests.csproj" />
+    <Project Path="tests/BusBooking.Application.Tests/BusBooking.Application.Tests.csproj" />
+    <Project Path="tests/BusBooking.Benchmarks/BusBooking.Benchmarks.csproj" />
     <Project Path="tests/BusBooking.Domain.Tests/BusBooking.Domain.Tests.csproj" />
   </Folder>
 </Solution>

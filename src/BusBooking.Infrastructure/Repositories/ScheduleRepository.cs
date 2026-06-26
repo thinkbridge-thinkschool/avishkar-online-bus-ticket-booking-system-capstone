@@ -1,4 +1,4 @@
-using BusBooking.Application.Scheduling.Queries.SearchSchedules;
+﻿using BusBooking.Application.Scheduling.Queries.SearchSchedules;
 using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Domain.Scheduling.Entities;
 using BusBooking.Domain.Scheduling.Enums;
@@ -43,9 +43,16 @@ internal sealed class ScheduleRepository(BusBookingDbContext db) : IScheduleRepo
                 x.Schedule.Seats
                     .Where(seat => seat.Status == SeatStatus.Available)
                     .Select(seat => (decimal?)seat.Price)
-                    .Min()))
+                    .Min(),
+                x.Bus.BusType))
             .ToListAsync(ct);
     }
+
+    public async Task<IReadOnlyList<Schedule>> GetByVendorIdAsync(Guid vendorId, CancellationToken ct = default) =>
+        await db.Schedules
+                .Include(s => s.Seats)
+                .Where(s => db.Buses.Any(b => b.Id == s.BusId && b.VendorId == vendorId))
+                .ToListAsync(ct);
 
     public async Task AddAsync(Schedule schedule, CancellationToken ct = default) =>
         await db.Schedules.AddAsync(schedule, ct);

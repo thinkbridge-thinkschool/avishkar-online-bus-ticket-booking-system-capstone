@@ -1,0 +1,167 @@
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (booking(); as b) {
+
+  <!-- ── Gradient Header ─────────────────────────────────────────────── -->
+  <div class="bd-header" [attr.data-status]="b.status">
+    <div class="bd-header-content">
+      <div class="bd-header-left">
+        <div class="bd-status-icon">
+          @if (b.status === 'Confirmed') {
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+          } @else if (b.status === 'Cancelled') {
+            <i class="fas fa-times-circle" aria-hidden="true"></i>
+          } @else {
+            <i class="fas fa-clock" aria-hidden="true"></i>
+          }
+        </div>
+        <div>
+          <h1>Booking Details</h1>
+          <div class="bd-bid-row">
+            <code class="bd-bid">{{ b.bookingId }}</code>
+            <button class="bd-copy-btn" (click)="copyBookingId()" type="button" title="Copy ID">
+              <i class="fas fa-copy" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="bd-status-wrap">
+        <app-status-badge [status]="b.status" />
+        <div class="bd-booked-on">
+          <i class="far fa-clock" aria-hidden="true"></i>
+          {{ formatDateTime(b.bookedAt) }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Two-column layout ──────────────────────────────────────────── -->
+  <div class="bd-layout">
+
+    <!-- LEFT: Route + Passengers ─────────────────────────────────── -->
+    <div class="bd-main">
+
+      @if (b.fromCityName && b.toCityName) {
+        <div class="card bd-route-card">
+          <h2 class="bd-section-title">
+            <i class="fas fa-route" aria-hidden="true"></i> Journey
+          </h2>
+          <div class="bd-route">
+            <div class="bd-city">
+              <span class="bd-city-dot bd-city-from"></span>
+              <span class="bd-city-name">{{ b.fromCityName }}</span>
+              @if (b.departureTime) {
+                <span class="bd-city-time">{{ formatTime(b.departureTime) }}</span>
+              }
+            </div>
+            <div class="bd-route-line">
+              <div class="bd-route-track"></div>
+              <span class="bd-route-bus-wrap">
+                <i class="fas fa-bus" aria-hidden="true"></i>
+              </span>
+            </div>
+            <div class="bd-city">
+              <span class="bd-city-dot bd-city-to"></span>
+              <span class="bd-city-name">{{ b.toCityName }}</span>
+            </div>
+          </div>
+        </div>
+      }
+
+      <div class="card">
+        <h2 class="bd-section-title">
+          <i class="fas fa-users" aria-hidden="true"></i> Passengers
+        </h2>
+        <div class="bd-table-wrap">
+          <table class="bd-table">
+            <thead>
+              <tr>
+                <th>Seat</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th class="bd-th-right">Fare</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (seat of b.seats; track seat.seatNumber) {
+                <tr>
+                  <td>
+                    <span class="bd-seat-chip">
+                      <i class="fas fa-chair" aria-hidden="true"></i> {{ seat.seatNumber }}
+                    </span>
+                  </td>
+                  <td class="bd-td-name">{{ seat.passengerName }}</td>
+                  <td>{{ seat.passengerAge }} yrs</td>
+                  <td>{{ seat.passengerGender ?? '—' }}</td>
+                  <td class="bd-td-price">₹{{ seat.seatPrice }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Summary + Actions ─────────────────────────────────── -->
+    <aside class="bd-sidebar">
+
+      <div class="card bd-summary">
+        <h2 class="bd-section-title">
+          <i class="fas fa-receipt" aria-hidden="true"></i> Summary
+        </h2>
+        <div class="bd-sum-rows">
+          <div class="bd-sum-row">
+            <span class="bd-sum-key"><i class="fas fa-chair" aria-hidden="true"></i> Seats</span>
+            <span class="bd-sum-val">{{ b.seats.length }}</span>
+          </div>
+          @if (b.seats.length > 0) {
+            <div class="bd-sum-row">
+              <span class="bd-sum-key"><i class="fas fa-tag" aria-hidden="true"></i> Per Seat</span>
+              <span class="bd-sum-val">₹{{ b.seats[0].seatPrice }}</span>
+            </div>
+          }
+          <div class="bd-sum-row">
+            <span class="bd-sum-key"><i class="far fa-calendar-alt" aria-hidden="true"></i> Booked</span>
+            <span class="bd-sum-val">{{ formatDate(b.bookedAt) }}</span>
+          </div>
+        </div>
+        <div class="bd-total">
+          <span class="bd-total-label">Total Paid</span>
+          <span class="bd-total-value">₹{{ b.totalAmount }}</span>
+        </div>
+      </div>
+
+      <div class="card bd-actions">
+        <a routerLink="/bookings" class="btn btn-outline bd-action-btn">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Bookings
+        </a>
+        @if (b.status === 'Confirmed') {
+          <a [routerLink]="['/feedback', b.bookingId]" class="btn btn-primary bd-action-btn">
+            <i class="fas fa-star" aria-hidden="true"></i> Leave Feedback
+          </a>
+        }
+        @if (b.status === 'Pending' || b.status === 'PaymentPending') {
+          <button class="btn btn-danger bd-action-btn" (click)="cancel()"
+            [disabled]="cancelling()" type="button">
+            @if (cancelling()) {
+              <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Cancelling…
+            } @else {
+              <i class="fas fa-times" aria-hidden="true"></i> Cancel Booking
+            }
+          </button>
+        }
+        @if (b.status === 'Cancelled') {
+          <div class="bd-cancelled-note">
+            <i class="fas fa-info-circle" aria-hidden="true"></i>
+            This booking has been cancelled.
+          </div>
+        }
+      </div>
+
+    </aside>
+  </div>
+}

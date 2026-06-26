@@ -1,0 +1,36 @@
+﻿<nav class="navbar" role="navigation" aria-label="Main navigation">
+  <a routerLink="/" class="brand" aria-label="BusBooking home">
+    <span class="brand-icon" aria-hidden="true">🚌</span>
+    <span class="brand-name">BusBooking</span>
+  </a>
+
+  <ul class="nav-links" role="list">
+    <li>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+    </li>
+    <li><a href="/#about">About Us</a></li>
+    <li><a href="/#faq">FAQs</a></li>
+    @if (auth.isAuthenticated()) {
+      <li><a routerLink="/bookings" routerLinkActive="active">My Bookings</a></li>
+      <li><a routerLink="/profile" routerLinkActive="active">Profile</a></li>
+    }
+    @if (auth.isVendor()) {
+      <li><a routerLink="/vendor/dashboard" routerLinkActive="active">Vendor Portal</a></li>
+    }
+    @if (auth.isAdmin()) {
+      <li><a routerLink="/admin/dashboard" routerLinkActive="active">Admin</a></li>
+    }
+  </ul>
+
+  <div class="nav-auth">
+    @if (auth.isAuthenticated()) {
+      <span class="user-name" aria-label="Logged in as {{ auth.displayName() }}">
+        {{ auth.displayName() ?? auth.email() }}
+      </span>
+      <button class="btn-outline" (click)="auth.logout()" type="button">Sign out</button>
+    } @else {
+      <a routerLink="/signup" class="btn-signup">Sign up</a>
+      <a routerLink="/login" class="btn-primary">Sign in</a>
+    }
+  </div>
+</nav>

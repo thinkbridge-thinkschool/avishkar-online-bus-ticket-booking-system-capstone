@@ -91,7 +91,7 @@ public sealed class SeatConcurrencyTests
         var scheduleId = Guid.NewGuid();
         var seat = Seat.Create(scheduleId, 5, SeatType.Window, 400m);
         var schedule = Schedule.Create(Guid.NewGuid(), Guid.NewGuid(),
-            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0));
+            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0), Guid.NewGuid());
         schedule.AddSeats([seat]);
 
         schedule.ReserveSeats([5]); // Request A succeeds
@@ -110,7 +110,7 @@ public sealed class SeatConcurrencyTests
         var scheduleId = Guid.NewGuid();
         var seat = Seat.Create(scheduleId, 1, SeatType.Window, 400m);
         var schedule = Schedule.Create(Guid.NewGuid(), Guid.NewGuid(),
-            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0));
+            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0), Guid.NewGuid());
         schedule.AddSeats([seat]);
 
         var ex = Assert.Throws<InvalidOperationException>(() => schedule.ReserveSeats([99]));
@@ -124,7 +124,7 @@ public sealed class SeatConcurrencyTests
         var scheduleId = Guid.NewGuid();
         var seat = Seat.Create(scheduleId, 5, SeatType.Aisle, 350m);
         var schedule = Schedule.Create(Guid.NewGuid(), Guid.NewGuid(),
-            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0));
+            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0), Guid.NewGuid());
         schedule.AddSeats([seat]);
 
         Assert.Throws<InvalidOperationException>(() => schedule.ReserveSeats([5, 5]));
@@ -137,7 +137,7 @@ public sealed class SeatConcurrencyTests
         var seat3 = Seat.Create(scheduleId, 3, SeatType.Window, 400m);
         var seat7 = Seat.Create(scheduleId, 7, SeatType.Aisle, 350m);
         var schedule = Schedule.Create(Guid.NewGuid(), Guid.NewGuid(),
-            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0));
+            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0), Guid.NewGuid());
         schedule.AddSeats([seat3, seat7]);
 
         var prices = schedule.ReserveSeats([3, 7]);
@@ -158,7 +158,7 @@ public sealed class SeatConcurrencyTests
         var scheduleId = Guid.NewGuid();
         var seat = Seat.Create(scheduleId, 1, SeatType.Middle, 375m);
         var schedule = Schedule.Create(Guid.NewGuid(), Guid.NewGuid(),
-            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0));
+            DateOnly.FromDateTime(DateTime.UtcNow), new TimeOnly(8, 0), new TimeOnly(12, 0), Guid.NewGuid());
         schedule.AddSeats([seat]);
 
         schedule.ReserveSeats([1]);

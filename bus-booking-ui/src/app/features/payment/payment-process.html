@@ -1,0 +1,263 @@
+<!-- ── Demo Payment Modal ─────────────────────────────────────────────────── -->
+@if (showMockModal()) {
+  <div class="mock-overlay" (click)="closeMockModal()" role="dialog" aria-modal="true" aria-label="Demo Payment">
+    <div class="mock-modal" (click)="$event.stopPropagation()">
+
+      <div class="mock-header">
+        <div class="mock-logo">
+          <i class="fas fa-credit-card"></i>
+          <span>Razorpay</span>
+        </div>
+        <div class="mock-header-amount">₹{{ booking()?.totalAmount }}</div>
+        <button class="mock-close" (click)="closeMockModal()" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="mock-tabs">
+        <button class="mock-tab mock-tab--active" type="button">
+          <i class="far fa-credit-card"></i> Card
+        </button>
+        <button class="mock-tab" type="button">
+          <i class="fas fa-mobile-alt"></i> UPI
+        </button>
+        <button class="mock-tab" type="button">
+          <i class="fas fa-university"></i> Net Banking
+        </button>
+      </div>
+
+      <div class="mock-body">
+        <div class="mock-demo-badge">
+          <i class="fas fa-flask"></i> Demo Mode — no real payment will occur
+        </div>
+
+        <div class="mock-field">
+          <label class="mock-label">Card Number</label>
+          <div class="mock-input-wrap">
+            <input class="mock-input" type="text" value="4111 1111 1111 1111" readonly />
+            <i class="fab fa-cc-visa mock-card-icon"></i>
+          </div>
+        </div>
+
+        <div class="mock-row">
+          <div class="mock-field">
+            <label class="mock-label">Expiry</label>
+            <input class="mock-input" type="text" value="12/26" readonly />
+          </div>
+          <div class="mock-field">
+            <label class="mock-label">CVV</label>
+            <input class="mock-input" type="text" value="•••" readonly />
+          </div>
+        </div>
+
+        <div class="mock-field">
+          <label class="mock-label">Cardholder Name</label>
+          <input class="mock-input" type="text" value="Test User" readonly />
+        </div>
+
+        @if (error()) {
+          <div class="mock-error" role="alert">{{ error() }}</div>
+        }
+
+        <button class="mock-pay-btn" type="button"
+          (click)="confirmMockPayment()" [disabled]="mockConfirming()">
+          @if (mockConfirming()) {
+            <i class="fas fa-spinner fa-spin"></i> Processing…
+          } @else {
+            <i class="fas fa-lock"></i> Pay ₹{{ booking()?.totalAmount }}
+          }
+        </button>
+
+        <p class="mock-footer">
+          <i class="fas fa-shield-alt"></i>
+          Secured by <strong>Razorpay</strong>
+        </p>
+      </div>
+
+    </div>
+  </div>
+}
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error() && !booking()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (booking(); as b) {
+
+  <!-- ── Gradient Header ─────────────────────────────────────────────── -->
+  <div class="pp-header">
+    <div class="pp-header-content">
+      <a class="back-link-on-gradient" [routerLink]="['/bookings', bookingId()]">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Booking
+      </a>
+      <div class="pp-title">
+        <i class="fas fa-lock" aria-hidden="true"></i>
+        <h1>Complete Payment</h1>
+      </div>
+      <div class="pp-route">
+        @if (displaySource() && displayDestination()) {
+          <span class="pp-city">{{ displaySource() }}</span>
+          <span class="pp-arrow"><i class="fas fa-long-arrow-alt-right" aria-hidden="true"></i></span>
+          <span class="pp-city">{{ displayDestination() }}</span>
+        }
+        @if (displayTravelDate()) {
+          <span class="pp-date-chip">
+            <i class="far fa-calendar-alt" aria-hidden="true"></i>
+            {{ formatDate(displayTravelDate()) }}
+          </span>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Two-column layout ──────────────────────────────────────────── -->
+  <div class="pp-layout">
+
+    <!-- LEFT: Order Summary ──────────────────────────────────────── -->
+    <div class="card pp-summary">
+      <h2 class="pp-section-title">
+        <i class="fas fa-receipt" aria-hidden="true"></i> Order Summary
+      </h2>
+
+      <!-- Journey mini-timeline -->
+      @if (displayDepartureTime()) {
+        <div class="pp-journey">
+          <div class="ppj-stop">
+            <span class="ppj-time">{{ formatTime(displayDepartureTime()) }}</span>
+            <span class="ppj-city">{{ displaySource() }}</span>
+          </div>
+          <div class="ppj-middle">
+            @if (displayArrivalTime()) {
+              <span class="ppj-dur">{{ duration(displayDepartureTime(), displayArrivalTime()) }}</span>
+            }
+            <div class="ppj-track"></div>
+          </div>
+          <div class="ppj-stop ppj-end">
+            @if (displayArrivalTime()) {
+              <span class="ppj-time">{{ formatTime(displayArrivalTime()) }}</span>
+            }
+            <span class="ppj-city">{{ displayDestination() }}</span>
+          </div>
+        </div>
+      }
+
+      <!-- Trip details -->
+      <div class="pp-details">
+        @if (displayBusName()) {
+          <div class="ppd-row">
+            <span class="ppd-key"><i class="fas fa-bus" aria-hidden="true"></i> Bus</span>
+            <span class="ppd-val">
+              {{ displayBusName() }}
+              @if (displayBusNumber()) {
+                <span class="ppd-num">{{ displayBusNumber() }}</span>
+              }
+            </span>
+          </div>
+        }
+        @if (displayTravelDate()) {
+          <div class="ppd-row">
+            <span class="ppd-key"><i class="far fa-calendar-alt" aria-hidden="true"></i> Travel Date</span>
+            <span class="ppd-val">{{ formatDate(displayTravelDate()) }}</span>
+          </div>
+        }
+        <div class="ppd-row">
+          <span class="ppd-key"><i class="fas fa-chair" aria-hidden="true"></i> Passengers</span>
+          <span class="ppd-val">{{ b.seats.length }} seat{{ b.seats.length !== 1 ? 's' : '' }}</span>
+        </div>
+      </div>
+
+      <!-- Per-seat breakdown -->
+      <div class="pp-seat-list">
+        @for (seat of b.seats; track seat.seatNumber) {
+          <div class="pp-seat-row">
+            <span class="pp-seat-badge">
+              <i class="fas fa-chair" aria-hidden="true"></i> {{ seat.seatNumber }}
+            </span>
+            <span class="pp-seat-name">{{ seat.passengerName }}</span>
+            <span class="pp-seat-price">₹{{ seat.seatPrice }}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Total -->
+      <div class="pp-total">
+        <span class="pp-total-label">
+          <i class="fas fa-receipt" aria-hidden="true"></i> Total Amount
+        </span>
+        <strong class="pp-total-value">₹{{ b.totalAmount }}</strong>
+      </div>
+    </div>
+
+    <!-- RIGHT: Secure Checkout + Policy ───────────────────────── -->
+    <div class="pp-pay-side">
+
+      <div class="card pp-pay-card">
+        <h2 class="pp-section-title">
+          <i class="fas fa-shield-alt" aria-hidden="true"></i> Secure Checkout
+        </h2>
+
+        <div class="pp-trust">
+          <div class="pp-trust-item">
+            <i class="fas fa-lock" aria-hidden="true"></i>
+            <span>256-bit SSL Encryption</span>
+          </div>
+          <div class="pp-trust-item">
+            <i class="fas fa-user-shield" aria-hidden="true"></i>
+            <span>PCI DSS Compliant</span>
+          </div>
+          <div class="pp-trust-item">
+            <i class="fas fa-undo-alt" aria-hidden="true"></i>
+            <span>Instant Refunds on Cancellation</span>
+          </div>
+        </div>
+
+        <div class="pp-methods">
+          <span class="pp-methods-label">Accepted Payment Methods</span>
+          <div class="pp-method-pills">
+            <span class="pp-method-pill"><i class="fas fa-mobile-alt"></i> UPI</span>
+            <span class="pp-method-pill"><i class="far fa-credit-card"></i> Cards</span>
+            <span class="pp-method-pill"><i class="fas fa-university"></i> Net Banking</span>
+            <span class="pp-method-pill"><i class="fas fa-wallet"></i> Wallets</span>
+          </div>
+        </div>
+
+        @if (error()) {
+          <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
+        }
+
+        <div class="pp-amount-display">
+          <span class="pp-amount-label">Amount Due</span>
+          <span class="pp-amount-value">₹{{ b.totalAmount }}</span>
+        </div>
+
+        <button class="btn btn-primary pp-pay-btn" type="button"
+          (click)="pay()" [disabled]="paying()">
+          @if (paying()) {
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Opening Razorpay…
+          } @else {
+            <i class="fas fa-lock" aria-hidden="true"></i>
+            Pay ₹{{ b.totalAmount }} via Razorpay
+            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+          }
+        </button>
+
+        <p class="pp-powered">
+          <i class="fas fa-shield-alt" aria-hidden="true"></i>
+          Powered by <strong>Razorpay</strong> — India's most trusted payment gateway
+        </p>
+      </div>
+
+      <div class="card pp-policy">
+        <h3 class="pp-policy-title">
+          <i class="fas fa-info-circle" aria-hidden="true"></i> Cancellation Policy
+        </h3>
+        <ul class="pp-policy-list">
+          <li>Cancel before 24 hours for a full refund</li>
+          <li>Cancellations within 24 hours attract 50% charges</li>
+          <li>No refund on day of travel</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+}

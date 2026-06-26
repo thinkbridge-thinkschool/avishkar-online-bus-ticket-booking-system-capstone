@@ -1,0 +1,99 @@
+<div class="signup-wrapper">
+
+  <!-- ── Left panel: marketing ────────────────────────────────── -->
+  <div class="signup-left">
+    <div class="signup-left-inner">
+      <a routerLink="/" class="brand">
+        <span class="brand-icon">🚌</span>
+        <span class="brand-name">BusBooking</span>
+      </a>
+
+      <div class="hero-text">
+        <h1>Travel smarter across India</h1>
+        <p>Book bus tickets for hundreds of routes in seconds — from your phone or desktop.</p>
+      </div>
+
+      <ul class="feature-list">
+        <li>
+          <span class="feature-check">✓</span>
+          <div>
+            <strong>Wide coverage</strong>
+            <span>Routes connecting major cities across India</span>
+          </div>
+        </li>
+        <li>
+          <span class="feature-check">✓</span>
+          <div>
+            <strong>Secure payments</strong>
+            <span>Razorpay-powered — UPI, cards, net banking, wallets</span>
+          </div>
+        </li>
+        <li>
+          <span class="feature-check">✓</span>
+          <div>
+            <strong>Instant confirmation</strong>
+            <span>Get your e-ticket the moment payment clears</span>
+          </div>
+        </li>
+        <li>
+          <span class="feature-check">✓</span>
+          <div>
+            <strong>Easy management</strong>
+            <span>View, track, or cancel bookings anytime</span>
+          </div>
+        </li>
+      </ul>
+
+      <div class="trust-line">
+        Trusted by travellers. Powered by Microsoft Identity.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right panel: sign-up card ───────────────────────────── -->
+  <div class="signup-right">
+    <div class="signup-card">
+      <div class="card-header">
+        <h2>Create your account</h2>
+        <p>Sign up free — no password to remember. We use your Microsoft account to keep things simple and secure.</p>
+      </div>
+
+      @if (msalEnabled) {
+        <button type="button" class="ms-btn" (click)="signup()">
+          <svg class="ms-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
+            <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
+            <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+          </svg>
+          Continue with Microsoft
+        </button>
+      }
+
+      @if (localAuthEnabled) {
+        @if (msalEnabled) {
+          <div class="divider"><span>or</span></div>
+        }
+        <a routerLink="/register" class="email-btn">
+          Sign up with email
+        </a>
+      }
+
+      <p class="terms">
+        By creating an account you agree to our
+        <a href="#" tabindex="-1">Terms of Service</a> and
+        <a href="#" tabindex="-1">Privacy Policy</a>.
+      </p>
+
+      <div class="signin-row">
+        Already have an account?
+        @if (localAuthEnabled) {
+          <a routerLink="/login" class="link-btn">Sign in</a>
+        } @else {
+          <button type="button" class="link-btn" (click)="signin()">Sign in</button>
+        }
+      </div>
+    </div>
+  </div>
+
+</div>

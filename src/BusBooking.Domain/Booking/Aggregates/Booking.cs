@@ -5,11 +5,12 @@ using BusBooking.Domain.Common;
 
 namespace BusBooking.Domain.Booking.Aggregates;
 
-public sealed class Booking : BaseEntity
+public sealed class Booking : BaseEntity, ITenantEntity
 {
     public Guid UserId { get; private set; }
     public string UserEmail { get; private set; } = default!;
     public Guid ScheduleId { get; private set; }
+    public Guid TenantId { get; private set; }
     public BookingStatus Status { get; private set; } = BookingStatus.Pending;
     public decimal TotalAmount { get; private set; }
     public DateTime BookedAt { get; private set; }
@@ -19,16 +20,17 @@ public sealed class Booking : BaseEntity
 
     private Booking() { }
 
-    public static Booking Create(Guid userId, string userEmail, Guid scheduleId, IEnumerable<BookedSeat> seats)
+    public static Booking Create(Guid userId, string userEmail, Guid scheduleId, IEnumerable<BookedSeat> seats, Guid tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userEmail);
 
         var booking = new Booking
         {
-            UserId = userId,
-            UserEmail = userEmail,
+            UserId     = userId,
+            UserEmail  = userEmail,
             ScheduleId = scheduleId,
-            BookedAt = DateTime.UtcNow,
+            TenantId   = tenantId,
+            BookedAt   = DateTime.UtcNow,
         };
 
         booking._seats.AddRange(seats);
@@ -42,7 +44,7 @@ public sealed class Booking : BaseEntity
 
     public void Confirm(string userName)
     {
-        if (Status != BookingStatus.Pending)
+        if (Status != BookingStatus.Pending && Status != BookingStatus.PaymentPending)
             throw new InvalidOperationException($"Cannot confirm a booking in '{Status}' status.");
 
         Status = BookingStatus.Confirmed;
@@ -51,6 +53,24 @@ public sealed class Booking : BaseEntity
         RaiseDomainEvent(new BookingConfirmedEvent(
             Id, UserEmail, userName, ScheduleId, TotalAmount,
             _seats.Select(s => s.SeatNumber).ToList()));
+    }
+
+    public void AwaitPayment()
+    {
+        if (Status != BookingStatus.Pending)
+            throw new InvalidOperationException("Booking must be Pending to await payment.");
+
+        Status = BookingStatus.PaymentPending;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void MarkPaymentFailed()
+    {
+        if (Status != BookingStatus.PaymentPending)
+            throw new InvalidOperationException("Booking must be in PaymentPending state.");
+
+        Status = BookingStatus.PaymentFailed;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Cancel()

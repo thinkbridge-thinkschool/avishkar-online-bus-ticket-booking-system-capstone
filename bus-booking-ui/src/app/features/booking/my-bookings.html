@@ -1,0 +1,164 @@
+<!-- ── Gradient Header ───────────────────────────────────────────────────── -->
+<div class="mb-header">
+  <div class="mb-header-content">
+    <div class="mb-header-title">
+      <div class="mb-header-icon">
+        <i class="fas fa-ticket-alt" aria-hidden="true"></i>
+      </div>
+      <div>
+        <h1>My Bookings</h1>
+        <p class="mb-header-sub">Your travel history and upcoming trips</p>
+      </div>
+    </div>
+    @if (!loading() && !error() && bookings().length > 0) {
+      <div class="mb-stats">
+        <div class="mb-stat">
+          <span class="mb-stat-value">{{ bookings().length }}</span>
+          <span class="mb-stat-label">Total</span>
+        </div>
+        <div class="mb-stat-sep"></div>
+        <div class="mb-stat">
+          <span class="mb-stat-value">{{ confirmedCount() }}</span>
+          <span class="mb-stat-label">Confirmed</span>
+        </div>
+        <div class="mb-stat-sep"></div>
+        <div class="mb-stat">
+          <span class="mb-stat-value">₹{{ totalSpent() }}</span>
+          <span class="mb-stat-label">Total Spent</span>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (bookings().length === 0) {
+
+  <!-- ── Empty state ─────────────────────────────────────────────────────── -->
+  <div class="mb-empty">
+    <div class="mb-empty-icon">
+      <i class="fas fa-ticket-alt" aria-hidden="true"></i>
+    </div>
+    <h3>No bookings yet</h3>
+    <p>You haven't booked any bus tickets yet. Find a bus and get going!</p>
+    <a routerLink="/" class="btn btn-primary mb-empty-btn">
+      <i class="fas fa-search" aria-hidden="true"></i> Search Buses
+    </a>
+  </div>
+
+} @else {
+
+  <!-- ── Filter tabs ─────────────────────────────────────────────────────── -->
+  <div class="mb-filters" role="tablist" aria-label="Filter bookings">
+    <button class="mb-filter-btn" [class.active]="filterStatus() === 'all'"
+      (click)="filterStatus.set('all')" type="button" role="tab"
+      [attr.aria-selected]="filterStatus() === 'all'">
+      All
+      <span class="mb-filter-count">{{ bookings().length }}</span>
+    </button>
+    <button class="mb-filter-btn" [class.active]="filterStatus() === 'Confirmed'"
+      (click)="filterStatus.set('Confirmed')" type="button" role="tab"
+      [attr.aria-selected]="filterStatus() === 'Confirmed'">
+      <span class="mb-filter-dot mb-dot-confirmed"></span>
+      Confirmed
+      <span class="mb-filter-count">{{ confirmedCount() }}</span>
+    </button>
+    <button class="mb-filter-btn" [class.active]="filterStatus() === 'Pending'"
+      (click)="filterStatus.set('Pending')" type="button" role="tab"
+      [attr.aria-selected]="filterStatus() === 'Pending'">
+      <span class="mb-filter-dot mb-dot-pending"></span>
+      Pending
+    </button>
+    <button class="mb-filter-btn" [class.active]="filterStatus() === 'Cancelled'"
+      (click)="filterStatus.set('Cancelled')" type="button" role="tab"
+      [attr.aria-selected]="filterStatus() === 'Cancelled'">
+      <span class="mb-filter-dot mb-dot-cancelled"></span>
+      Cancelled
+    </button>
+  </div>
+
+  @if (filteredBookings().length === 0) {
+    <div class="mb-no-results">
+      <i class="fas fa-filter" aria-hidden="true"></i>
+      No {{ filterStatus() }} bookings found.
+    </div>
+  } @else {
+    <div class="mb-list">
+      @for (b of filteredBookings(); track b.bookingId) {
+        <div class="mb-card card" [attr.data-status]="b.status">
+
+          <div class="mb-card-main">
+            <!-- Route + status -->
+            <div class="mb-card-top">
+              <div class="mb-route">
+                @if (b.fromCityName && b.toCityName) {
+                  <span class="mb-city">{{ b.fromCityName }}</span>
+                  <span class="mb-route-arrow">
+                    <i class="fas fa-long-arrow-alt-right" aria-hidden="true"></i>
+                  </span>
+                  <span class="mb-city">{{ b.toCityName }}</span>
+                  @if (b.departureTime) {
+                    <span class="mb-dep-time">
+                      <i class="far fa-clock" aria-hidden="true"></i>
+                      {{ formatTime(b.departureTime) }}
+                    </span>
+                  }
+                } @else {
+                  <span class="mb-bid-fallback">
+                    Booking #{{ b.bookingId.slice(0, 8).toUpperCase() }}
+                  </span>
+                }
+              </div>
+              <app-status-badge [status]="b.status" />
+            </div>
+
+            <!-- Meta row -->
+            <div class="mb-card-meta">
+              <span class="mb-meta-item">
+                <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                {{ formatDate(b.bookedAt) }}
+              </span>
+              <span class="mb-meta-sep">·</span>
+              <span class="mb-meta-item">
+                <i class="fas fa-chair" aria-hidden="true"></i>
+                {{ b.seats.length }} seat{{ b.seats.length !== 1 ? 's' : '' }}
+              </span>
+              <span class="mb-meta-sep">·</span>
+              <span class="mb-meta-item mb-meta-id">
+                <i class="fas fa-hashtag" aria-hidden="true"></i>
+                {{ b.bookingId.slice(0, 8).toUpperCase() }}
+              </span>
+            </div>
+
+            <!-- Passenger preview chips -->
+            @if (b.seats.length > 0) {
+              <div class="mb-passengers">
+                @for (seat of b.seats.slice(0, 3); track seat.seatNumber) {
+                  <span class="mb-pax-chip">
+                    <i class="fas fa-chair" aria-hidden="true"></i>
+                    {{ seat.seatNumber }} · {{ seat.passengerName }}
+                  </span>
+                }
+                @if (b.seats.length > 3) {
+                  <span class="mb-pax-more">+{{ b.seats.length - 3 }} more</span>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Amount + CTA -->
+          <div class="mb-card-right">
+            <div class="mb-amount">₹{{ b.totalAmount }}</div>
+            <a [routerLink]="['/bookings', b.bookingId]" class="btn btn-primary mb-view-btn">
+              View <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+
+        </div>
+      }
+    </div>
+  }
+}

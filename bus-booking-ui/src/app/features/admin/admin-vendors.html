@@ -1,0 +1,46 @@
+<a routerLink="/admin/dashboard" class="back-link">
+  <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Dashboard
+</a>
+<h1>Vendor Management</h1>
+@if (actionError()) {
+  <div class="error-alert" role="alert">{{ actionError() }}</div>
+}
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <div class="error-alert" role="alert">{{ error() }}</div>
+} @else if (vendors().length === 0) {
+  <div class="empty-state"><h3>No vendors registered</h3></div>
+} @else {
+  <div class="card" style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="border-bottom:2px solid #e2e8f0">
+          <th style="text-align:left;padding:.75rem">Company</th>
+          <th style="text-align:left;padding:.75rem">Email</th>
+          <th style="text-align:left;padding:.75rem">Phone</th>
+          <th style="text-align:left;padding:.75rem">Status</th>
+          <th style="text-align:left;padding:.75rem">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of vendors(); track v.vendorId) {
+          <tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:.75rem;font-weight:600">{{ v.vendorName }}</td>
+            <td style="padding:.75rem">{{ v.email }}</td>
+            <td style="padding:.75rem">{{ v.phoneNumber }}</td>
+            <td style="padding:.75rem"><app-status-badge [status]="v.status" /></td>
+            <td style="padding:.75rem;display:flex;gap:.5rem">
+              @if (v.status === 'Pending') {
+                <button class="btn btn-secondary" style="font-size:.8rem;padding:.3rem .75rem"
+                  (click)="approve(v.vendorId)" type="button">Approve</button>
+                <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .75rem"
+                  (click)="reject(v.vendorId)" type="button">Reject</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

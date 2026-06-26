@@ -22,6 +22,8 @@ internal sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
             seats.Property(s => s.PassengerName).HasMaxLength(100);
             seats.Property(s => s.PassengerGender).HasMaxLength(10);
             seats.Property(s => s.SeatPrice).HasColumnType("decimal(18,2)");
+            seats.Property(s => s.PassengerPhone).HasMaxLength(15);
+            seats.Property(s => s.PassengerEmail).HasMaxLength(200);
         });
 
         // Ignore domain events — not persisted
@@ -29,5 +31,6 @@ internal sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
 
         builder.HasIndex(b => b.UserId);
         builder.HasIndex(b => b.ScheduleId);
+        builder.HasIndex(b => new { b.TenantId, b.UserId });
     }
 }
