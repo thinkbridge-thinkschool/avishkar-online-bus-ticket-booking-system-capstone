@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using Microsoft.Extensions.Configuration;
 using BusBooking.Infrastructure.Persistence;
 using BusBooking.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authentication;
@@ -19,11 +20,24 @@ namespace BusBooking.Api.IntegrationTests;
 /// Factory that boots the API against an in-memory SQLite provider with a
 /// fake JWT handler so tests can run without Entra ID.
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
+
+        // Provide LocalJwt config so JwtTokenService resolves without throwing in all tests
+        builder.ConfigureAppConfiguration((_, cfg) =>
+        {
+            cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["LocalJwt:SigningKey"]               = "test-signing-key-minimum-32-characters-ok",
+                ["LocalJwt:Issuer"]                   = "BusBooking",
+                ["LocalJwt:Audience"]                 = "BusBookingClient",
+                ["LocalJwt:AccessTokenExpiryMinutes"] = "60",
+                ["LocalJwt:RefreshTokenExpiryDays"]   = "7",
+            });
+        });
 
         builder.ConfigureServices(services =>
         {

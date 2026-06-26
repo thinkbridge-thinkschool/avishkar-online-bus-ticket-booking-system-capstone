@@ -213,13 +213,17 @@ builder.Services.AddRateLimiter(o =>
         l.QueueLimit  = 0;
     });
 
+    // Limits are configurable so test environments can raise them without hitting false 429s
+    var authStrictLimit = builder.Configuration.GetValue("RateLimits:AuthStrictPerMinute", 5);
+    var authLimit       = builder.Configuration.GetValue("RateLimits:AuthPerMinute", 10);
+
     o.AddPolicy("auth-strict", ctx =>
         RateLimitPartition.GetFixedWindowLimiter(
             ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
                 Window      = TimeSpan.FromMinutes(1),
-                PermitLimit = 5,
+                PermitLimit = authStrictLimit,
                 QueueLimit  = 0,
             }));
 
@@ -229,7 +233,7 @@ builder.Services.AddRateLimiter(o =>
             _ => new FixedWindowRateLimiterOptions
             {
                 Window      = TimeSpan.FromMinutes(1),
-                PermitLimit = 10,
+                PermitLimit = authLimit,
                 QueueLimit  = 0,
             }));
 

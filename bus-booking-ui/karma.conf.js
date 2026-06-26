@@ -27,7 +27,7 @@ module.exports = function (config) {
         global: {
           statements: 30,
           branches: 10,
-          functions: 18, // lowered from 25; Phase 10 adds unit tests to restore this
+          functions: 30,
           lines: 30,
         },
       },
