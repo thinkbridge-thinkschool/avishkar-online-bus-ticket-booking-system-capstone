@@ -22,6 +22,7 @@ Four-layer Clean Architecture deployed as a Linux App Service on Azure:
 - [Day 26 — App Insights + KQL](#day-26--app-insights--kql)
 - [Day 27 — Security pass](#day-27--security-pass)
 - [Day 31 — Polish: Tests, Performance, Security](#day-31--polish-tests-performance-security)
+- [Day 32 — Ship + demo + postmortem](#day-32--ship--demo--postmortem)
 
 ---
 
@@ -1133,6 +1134,133 @@ The Application layer reports 28.7% because the cobertura file covers the full A
 **Proves:** All three .NET test projects pass cleanly — 78 Domain unit tests, 29 Application unit tests, and 9 API integration tests — covering the full Clean Architecture stack from domain rules through HTTP endpoints.
 
 ![SS-35](Screenshots/SS-35_dotnet-tests-116passed.png)
+
+---
+
+## Day 32 — Ship + demo + postmortem
+
+**Deployed:** [https://app-busbooking-prod-wa7imf.azurewebsites.net/](https://app-busbooking-prod-wa7imf.azurewebsites.net/)  
+**Demo video:** [Watch on Loom](https://www.loom.com/share/66fc48d0514f4eae8e50b8480e09e738)
+
+---
+
+### What shipped
+
+A fully deployed, end-to-end online bus ticket booking platform running on Azure with three distinct role-based portals:
+
+| Portal | Role | Key capabilities |
+|--------|------|-----------------|
+| Passenger | Any registered user | Search buses by route + date, visual seat selection, Razorpay test payment, booking history, PDF receipt, Microsoft SSO |
+| Vendor | Bus operator | Register vendor profile, register operator company (pending admin approval), manage fleet (bus number, type, seats), create departure schedules with fares |
+| Admin / SuperAdmin | Platform admin | Dashboard with platform-wide stats, approve/reject/suspend operator companies, approve/reject vendors, manage cities and routes |
+
+**Production stack:**
+
+| Component | Detail |
+|-----------|--------|
+| API | .NET 10 Minimal API, Clean Architecture (Domain / Application / Infrastructure / Api) |
+| Frontend | Angular 21 SPA, served as static files from the same App Service |
+| Database | Azure SQL, Standard S2, EF Core 10 code-first migrations auto-applied at startup |
+| Messaging | Azure Service Bus Premium, topics `booking-confirmed` + `booking-cancelled`, Managed Identity auth |
+| Auth | Dual-scheme JWT — Microsoft Entra ID SSO + local email/password with refresh tokens |
+| Hosting | Azure App Service B2 (Linux), `rg-busbooking-prod`, Southeast Asia |
+| Secrets | All credentials in Azure Key Vault, resolved at runtime via Key Vault references — zero passwords in App Service settings |
+| Observability | Azure Application Insights + OpenTelemetry, distributed tracing across API → Service Bus → background worker |
+
+---
+
+### Postmortem — issues found and fixed on demo day
+
+#### Issue 1 — First deploy went to the dev environment
+
+**Symptom:** `azd deploy` succeeded but the change appeared on `app-busbooking-dev-paqrwn`, not prod.
+
+**Root cause:** `azd env list` showed `dev` as the default environment. Running `azd deploy` without `--environment` always targets the default.
+
+**Fix:** `azd deploy --environment prod` to explicitly target production. Default environment has no bearing on which environment is deployed to if the flag is passed.
+
+**Time lost:** ~12 minutes diagnosing an apparent crash loop that was actually the dev app starting normally.
+
+---
+
+#### Issue 2 — Razorpay opened the old card-first popup on production instead of the new multi-panel checkout
+
+**Symptom:** localhost showed the new Razorpay hosted multi-panel UI; production showed the older custom modal.
+
+**Root cause:** Azure App Service had `Razorpay__MockPayment=true` set as an application setting — a manual override applied during early development that was never removed. The `MockPayment=true` path bypasses Razorpay entirely and shows the application's own mock modal. This setting existed only in Azure and was absent from `appsettings.Development.json`, which is why localhost and production diverged.
+
+**Fix:**
+```powershell
+az webapp config appsettings set \
+  --name app-busbooking-prod-wa7imf \
+  --resource-group rg-busbooking-prod \
+  --settings Razorpay__MockPayment=false
+```
+
+**Lesson:** Any manual App Service setting override that diverges from the Bicep template is a hidden environment difference. Long-lived manual overrides should either be codified in Bicep or removed.
+
+---
+
+#### Issue 3 — Payment confirmation returned 409 Conflict after Razorpay succeeded
+
+**Symptom:** Razorpay checkout completed, payment callback fired, but the API returned `409 OK` (HTTP 409 with body `"Booking is not in PaymentPending status"`).
+
+**Root cause — a two-step failure:**
+
+**Step 1:** `ServiceBusEventPublisher.PublishAsync<T>` used `typeof(T)` to derive the Service Bus topic name. Because `BookingConfirmedEvent` was published from a `foreach (var evt in booking.DomainEvents)` loop where `DomainEvents` is typed as `IReadOnlyCollection<IDomainEvent>`, the C# compiler inferred `T = IDomainEvent` at compile time — not the concrete runtime type. `typeof(IDomainEvent)` → strip `"Event"` → kebab-case → topic `"i-domain"`, which does not exist → `ServiceBusException (MessagingEntityNotFound)` → unhandled → 500.
+
+**Step 2:** The payment and booking records were already committed to the database _before_ the publish was attempted (lines 48–49 of `ProcessPaymentHandler.cs`). The 500 caused the user to retry. On retry, the booking status was already `Confirmed`, triggering the `InvalidOperationException` that maps to 409.
+
+**Fix:**
+
+```csharp
+// Before
+var topic = TopicFor(typeof(T));               // T = IDomainEvent at compile time → "i-domain"
+
+// After
+var eventType = domainEvent.GetType();         // concrete runtime type → "booking-confirmed"
+var topic = TopicFor(eventType);
+```
+
+Also added a `catch (ServiceBusException)` to prevent a Service Bus transport failure from crashing an already-committed payment — the payment record is safe in the database; the event can be retried or re-published without re-charging the user.
+
+**Lesson:** `typeof(T)` and `domainEvent.GetType()` are only equivalent when the concrete type is passed directly at the call site. Any interface-typed collection breaks generic type inference. Always prefer `.GetType()` for runtime dispatch.
+
+---
+
+#### Issue 4 — Integration tests all failing after adding MigrateAsync to startup
+
+**Symptom:** Every API integration test failed with `System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.`
+
+**Root cause:** `Program.cs` called `db.Database.MigrateAsync()` unconditionally at app startup. Integration tests use `WebApplicationFactory<Program>` with the EF Core **InMemory** provider. `MigrateAsync()` is a relational-only method and throws on InMemory, crashing the host before any test ran.
+
+**Fix:** One guard line:
+
+```csharp
+if (db.Database.IsRelational())
+    await db.Database.MigrateAsync();
+```
+
+`IsRelational()` returns `true` for SQL Server, SQLite, and PostgreSQL; `false` for InMemory and Cosmos. Production and local dev are unaffected.
+
+---
+
+### Deliverables checklist
+
+| # | Deliverable | Status |
+|---|-------------|--------|
+| 1 | Full-stack production deployment live at azurewebsites.net | Done |
+| 2 | Passenger portal — search, seat selection, Razorpay test payment, booking history | Done |
+| 3 | Vendor portal — vendor registration, company registration, fleet + schedule management | Done |
+| 4 | Admin portal — dashboard stats, tenant approval, vendor approval, city/route management | Done |
+| 5 | Dual auth — Microsoft Entra ID SSO + local email/password with refresh tokens | Done |
+| 6 | Email verification on registration (Gmail SMTP) | Done |
+| 7 | Razorpay test payments working end-to-end in production | Done |
+| 8 | Service Bus event publishing fixed (`GetType()` over `typeof(T)`) | Done |
+| 9 | Service Bus resilience — `ServiceBusException` caught, committed payments protected | Done |
+| 10 | Integration tests unblocked — `IsRelational()` guard on `MigrateAsync()` | Done |
+| 11 | CI pipeline green — .NET tests, Angular tests, Playwright E2E | Done |
+| 12 | Loom demo video recorded — passenger + vendor + admin portal flows | Done |
 
 ---
 
