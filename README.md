@@ -1,5 +1,10 @@
 # Online Bus Ticket Booking System
 
+**Live app:** [https://app-busbooking-prod-wa7imf.azurewebsites.net/](https://app-busbooking-prod-wa7imf.azurewebsites.net/)  
+**Demo video:** [Watch on Loom](https://www.loom.com/share/66fc48d0514f4eae8e50b8480e09e738)
+
+---
+
 ## Project Overview
 
 .NET 10 Clean Architecture API deployed to Azure via the Azure Developer CLI (`azd`) with Azure Deployment Stacks managing both `dev` and `prod` environments, and Managed Identity for all Azure resource access.
