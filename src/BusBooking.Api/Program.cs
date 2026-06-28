@@ -317,11 +317,12 @@ app.MapPaymentEndpoints();
 app.MapFeedbackEndpoints();
 app.MapLocalAuthEndpoints();
 
-// Migrations — always run; EF skips already-applied ones (idempotent, ~50ms on warm DB)
+// Migrations — skipped for non-relational providers (e.g. InMemory used by integration tests)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<BusBooking.Infrastructure.Persistence.BusBookingDbContext>();
-    await db.Database.MigrateAsync();
+    if (db.Database.IsRelational())
+        await db.Database.MigrateAsync();
 }
 
 // Seeding — Development always; Production only when SeedDemoData=true
