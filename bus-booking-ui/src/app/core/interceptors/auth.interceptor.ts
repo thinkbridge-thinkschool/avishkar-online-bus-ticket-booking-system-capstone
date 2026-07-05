@@ -4,14 +4,14 @@ import { from, switchMap, catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  if (!req.url.startsWith('/api/') && !req.url.includes('/api/')) return next(req);
+  if (!req.url.startsWith('/api/') && !req.url.includes('/api/')) return next(req); // if the URL is not an API endpoint(like logo.png), skip this interceptor and pass the request to the next interceptor in the chain.
 
-  const auth = inject(AuthService);
+  const auth = inject(AuthService);  // AuthService as the place that knows: Where is the current JWT stored
 
-  return from(auth.getAccessToken()).pipe(
+  return from(auth.getAccessToken()).pipe(       // Do we currently have an access token
     switchMap(token => {
       const cloned = token
-        ? req.clone({ headers: req.headers.set('Authorization', `Bearer ${token}`) })
+        ? req.clone({ headers: req.headers.set('Authorization', `Bearer ${token}`) }) 
         : req;
       return next(cloned).pipe(
         catchError(err => {

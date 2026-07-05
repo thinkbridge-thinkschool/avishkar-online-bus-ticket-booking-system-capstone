@@ -40,8 +40,8 @@ export class LocalLoginComponent {
       this.error.set('Please enter your email and password.');
       return;
     }
-    this.loading.set(true);
-    this.error.set(null);
+    this.loading.set(true); // The UI can react like Signing In...
+    this.error.set(null); // Clear any previous error messages, previous login failed.
     try {
       const response = await this.api.login(this.email.trim().toLowerCase(), this.password);
       this.auth.setLocalAccessToken(response.accessToken);

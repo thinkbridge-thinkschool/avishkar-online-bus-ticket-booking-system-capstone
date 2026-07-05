@@ -23,11 +23,11 @@ internal sealed class AppUserRepository(BusBookingDbContext db) : IAppUserReposi
                 u => u.ExternalLogins.Any(l =>
                     l.LoginProvider == provider && l.ProviderKey == providerKey), ct);
 
-    public Task<AppUser?> GetByEmailAsync(string email, CancellationToken ct = default) =>
+    public Task<AppUser?> GetByEmailAsync(string email, CancellationToken ct = default) => // Task, Means this is an asynchronous database operation.Database queries take time, so we don't block the thread while waiting.
         db.AppUsers
-            .Include(u => u.ExternalLogins)
-            .Include(u => u.Roles)
-            .FirstOrDefaultAsync(u => u.Email == email, ct);
+            .Include(u => u.ExternalLogins) // Multiple login provider accounts can be linked to a single user account. So we need to include the ExternalLogins navigation property to get all the linked external logins for the user.
+            .Include(u => u.Roles) // Include the Roles navigation property to get all the roles assigned to the user.
+            .FirstOrDefaultAsync(u => u.Email == email, ct); // There should never be two users with the same email., So finding the first match is enough.
 
     public Task<IReadOnlyList<AppUser>> GetAllAsync(int skip, int take, CancellationToken ct = default) =>
         db.AppUsers

@@ -35,7 +35,7 @@ public sealed class BusBookingDbContext(
     public DbSet<AppUserRole> AppUserRoles => Set<AppUserRole>();
     public DbSet<AuthAuditLog> AuthAuditLogs => Set<AuthAuditLog>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder modelBuilder) // application automatically loads all entity configurations
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BusBookingDbContext).Assembly);
 

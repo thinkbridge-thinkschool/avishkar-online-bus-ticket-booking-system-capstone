@@ -28,7 +28,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Threading.RateLimiting;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);  //It loads: appsettings.json, Dependency Injection container
 
 // ── Request size limit ────────────────────────────────────────────────────────
 // Reject bodies over 64 KB at the Kestrel layer before they reach the app,
@@ -300,7 +300,7 @@ app.UseStaticFiles();
 app.UseCors("BusBookingUi");
 app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit
 app.UseOutputCache();       // after rate limiter and before auth
-app.UseAuthentication();
+app.UseAuthentication();    // For every request, check if an authentication token (JWT) exists.
 app.UseMiddleware<TenantResolutionMiddleware>(); // after auth so JWT claims are available
 app.UseAuthorization();
 

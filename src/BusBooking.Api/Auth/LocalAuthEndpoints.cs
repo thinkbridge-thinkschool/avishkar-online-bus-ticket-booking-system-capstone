@@ -52,7 +52,7 @@ public static class LocalAuthEndpoints
         if (body.Password.Length < 8)
             return Results.BadRequest("Password must be at least 8 characters.");
 
-        var existing = await userRepo.GetByEmailAsync(body.Email.ToLowerInvariant(), ct);
+        var existing = await userRepo.GetByEmailAsync(body.Email.ToLowerInvariant(), ct); // checks for already email present
         if (existing is not null)
             return Results.Conflict("An account with this email already exists.");
 
@@ -66,10 +66,10 @@ public static class LocalAuthEndpoints
         credential.SetEmailVerificationToken(tokenHash,
             DateTime.UtcNow.AddHours(VerificationTokenExpiryHours));
 
-        await userRepo.AddAsync(user, ct);
-        await userRepo.AddExternalLoginAsync(login, ct);
-        await credRepo.AddAsync(credential, ct);
-        await credRepo.SaveChangesAsync(ct);
+        await userRepo.AddAsync(user, ct); // It only adds the object to EF Core's Change Tracker.
+        await userRepo.AddExternalLoginAsync(login, ct); // Think of it like writing items on a shopping list.
+        await credRepo.AddAsync(credential, ct); // Add the credential to the Change Tracker.
+        await credRepo.SaveChangesAsync(ct); // Persist all changes to the database.
 
         var verifyUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}/api/v1/auth/verify-email?token={rawToken}";
         await email.SendEmailVerificationAsync(user.Email, user.DisplayName, verifyUrl, ct);
@@ -109,14 +109,14 @@ public static class LocalAuthEndpoints
             return Results.Unauthorized();
         }
 
-        var credential = await credRepo.GetByAppUserIdAsync(user.Id, ct);
+        var credential = await credRepo.GetByAppUserIdAsync(user.Id, ct); // contains password-specific information such as the BCrypt password hash, failed login attempts, and verification tokens
         if (credential is null)
         {
             await RecordAudit(audit, AuthAuditLog.Events.LoginFailure, false, body.Email, user.Id, ip, userAgent, ct);
             return Results.Unauthorized(); // MSAL-only account
         }
 
-        if (credential.IsLocked())
+        if (credential.IsLocked()) // Is this account currently locked, multile failed login attempts have been made in a short period of time, so the account is temporarily locked to prevent brute-force attacks.
         {
             await RecordAudit(audit, AuthAuditLog.Events.LoginLocked, false, body.Email, user.Id, ip, userAgent, ct);
             return Results.Problem("Account is temporarily locked due to too many failed attempts.",
@@ -135,13 +135,13 @@ public static class LocalAuthEndpoints
             return Results.Problem("Email address has not been verified. Check your inbox for the verification link.",
                 statusCode: StatusCodes.Status403Forbidden);
 
-        credential.RecordSuccessfulLogin();
+        credential.RecordSuccessfulLogin();   // FailedLoginAttempts = 0;
         await credRepo.SaveChangesAsync(ct);
 
-        var roles       = user.Roles.Select(r => r.RoleName);
-        var accessToken = jwt.IssueAccessToken(user.Id, user.Email, user.DisplayName, roles);
+        var roles       = user.Roles.Select(r => r.RoleName);  // Collect User Roles to include in the JWT token. This allows the application to know what permissions the user has without needing to query the database again.
+        var accessToken = jwt.IssueAccessToken(user.Id, user.Email, user.DisplayName, roles); // Issue a JWT access token for the user, which will be used for authenticating subsequent requests to the API.
 
-        var (rawRefresh, refreshHash) = GenerateToken();
+        var (rawRefresh, refreshHash) = GenerateToken(); // Generate a new refresh token, which will be used to obtain new access tokens without requiring the user to log in again.
         var expiresAt = DateTime.UtcNow.AddDays(7);
         var refresh   = RefreshToken.Create(user.Id, refreshHash, expiresAt);
         await refreshRepo.AddAsync(refresh, ct);
@@ -260,7 +260,7 @@ public static class LocalAuthEndpoints
             return Results.BadRequest("Verification link is invalid or has expired.");
 
         credential.AppUser.VerifyEmail();
-        credential.ClearEmailVerificationToken();
+        credential.ClearEmailVerificationToken(); // The same link could be used
         await credRepo.SaveChangesAsync(ct);
 
         await RecordAudit(audit, AuthAuditLog.Events.EmailVerified, true,

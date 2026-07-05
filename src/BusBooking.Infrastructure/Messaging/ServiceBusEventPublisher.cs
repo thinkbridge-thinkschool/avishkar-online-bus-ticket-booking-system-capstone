@@ -8,10 +8,10 @@ using Microsoft.Extensions.Logging;
 namespace BusBooking.Infrastructure.Messaging;
 
 internal sealed class ServiceBusEventPublisher(
-    ServiceBusClient client,
-    ILogger<ServiceBusEventPublisher> logger) : IEventPublisher
+    ServiceBusClient client,      // connect Azure Service Bus.
+    ILogger<ServiceBusEventPublisher> logger) : IEventPublisher // Used to write logs, BookingConfirmedEvent Published
 {
-    private static readonly ActivitySource _source = new("BusBooking.Messaging");
+    private static readonly ActivitySource _source = new("BusBooking.Messaging"); // ActivitySource measures: Time taken
 
     // Topic name derived from event type: BookingConfirmedEvent → "booking-confirmed"
     private static string TopicFor(Type eventType) =>

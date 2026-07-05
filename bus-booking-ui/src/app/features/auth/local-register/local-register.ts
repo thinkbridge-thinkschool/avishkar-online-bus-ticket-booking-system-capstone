@@ -31,7 +31,7 @@ export class LocalRegisterComponent {
     });
   }
 
-  async submit(): Promise<void> {
+  async submit(): Promise<void> {  // client-side validation by checking that the email, password, and display name are present and that the password is at least 8 characters long.
     if (!this.email || !this.password || !this.displayName) {
       this.error.set('All fields are required.');
       return;

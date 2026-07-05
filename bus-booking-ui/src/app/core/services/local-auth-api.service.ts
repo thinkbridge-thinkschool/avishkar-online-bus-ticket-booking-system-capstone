@@ -13,20 +13,20 @@ export interface RegisterResponse {
   userId: string;
 }
 
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: 'root' }) // Create only one object of LocalAuthApiService and make it available throughout the application.
 export class LocalAuthApiService {
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {}            // HttpClient is Angular's built-in class for calling APIs.
 
-  register(email: string, password: string, displayName: string) {
+  register(email: string, password: string, displayName: string) { // Create HttpRequest so send to interceptor chain in app.config.ts
     return firstValueFrom(
-      this.http.post<RegisterResponse>('/api/v1/auth/register', { email, password, displayName }),
-    );
+      this.http.post<RegisterResponse>('/api/v1/auth/register', { email, password, displayName }), //It tells Angular: The backend will return data matching the RegisterResponse type
+    ); // Angular lets the API Base Interceptor add the base URL later. 
   }
 
   login(email: string, password: string) {
     return firstValueFrom(
-      this.http.post<TokenResponse>('/api/v1/auth/login', { email, password }, { withCredentials: true }),
-    );
+      this.http.post<TokenResponse>('/api/v1/auth/login', { email, password }, { withCredentials: true }), //This sends an HTTP POST request. Why POST? Because we are sending data to the server.
+    ); //  withCredentials: true, Refresh Token cookie can be stored or sent. 2) This request may use cookies
   }
 
   refresh() {
