@@ -57,13 +57,17 @@ param tenantId string
 @description('Entra ID application (client) ID of the BusBooking API app registration.')
 param aadClientId string
 
+@description('Optional override for Service Bus SKU. Leave empty to use the environment-driven default (Premium for prod, Standard for dev).')
+@allowed(['', 'Standard', 'Premium'])
+param serviceBusSkuOverride string = ''
+
 // ── Environment-driven SKU derivation ─────────────────────────────────────────
 
 var sqlSkuName        = environment == 'prod' ? 'S2'   : 'Basic'
 var sqlCapacity       = environment == 'prod' ? 50     : 5
 // Premium required for private endpoints. Standard used on dev to avoid cost
 // and namespace recreation (Azure does not support in-place Standard→Premium upgrade).
-var serviceBusSku     = environment == 'prod' ? 'Premium' : 'Standard'
+var serviceBusSku     = serviceBusSkuOverride == 'Standard' ? 'Standard' : (serviceBusSkuOverride == 'Premium' ? 'Premium' : (environment == 'prod' ? 'Premium' : 'Standard'))
 var appServicePlanSku = environment == 'prod' ? 'B2'   : 'B1'
 
 // ── Pre-computed resource names ───────────────────────────────────────────────
@@ -73,7 +77,13 @@ var appServicePlanSku = environment == 'prod' ? 'B2'   : 'B1'
 // create a cycle (api → serviceBus/keyVault AND serviceBus/keyVault → api).
 var suffix = take(uniqueString(resourceGroup().id), 6)
 var sbFqdn = 'sb-${appName}-${environment}-${suffix}.servicebus.windows.net'
-var kvName = 'kv-${appName}-${environment}-${suffix}'
+// Key Vault name must match keyvault.bicep's own 5-char truncation exactly —
+// 'kv-<appName>-<environment>-' is already 19 chars, and Key Vault names are
+// capped at 24, so keyvault.bicep truncates to 5 chars instead of the general
+// 6-char suffix. Using the 6-char suffix here would produce a name that
+// doesn't match the real vault, breaking the Key Vault reference below.
+var kvNameSuffix = take(uniqueString(resourceGroup().id), 5)
+var kvName = 'kv-${appName}-${environment}-${kvNameSuffix}'
 
 // ── Modules ───────────────────────────────────────────────────────────────────
 

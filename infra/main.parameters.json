@@ -28,6 +28,9 @@
     },
     "aadClientId": {
       "value": "${AAD_CLIENT_ID}"
+    },
+    "serviceBusSkuOverride": {
+      "value": "${SERVICE_BUS_SKU_OVERRIDE}"
     }
   }
 }

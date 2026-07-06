@@ -45,4 +45,4 @@ infra:
       mode: denyWriteAndDelete       # blocks manual writes/deletes → catches drift
       applyToChildScopes: true       # deny assignments cascade to child resources
       excludedPrincipals:
-        - bed97e4c-dfbd-4aa1-a1e4-ec7af963a676  # deploying user — exempted so azd can publish
+        - 1fd0c50c-0880-48bd-bedf-8c334d2037ab  # deploying user — exempted so azd can publish

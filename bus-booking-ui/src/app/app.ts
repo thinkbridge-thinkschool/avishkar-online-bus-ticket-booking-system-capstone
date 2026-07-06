@@ -1,6 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { AuthService } from './core/services/auth.service';
 import { NavBarComponent } from './shared/components/nav-bar/nav-bar';
 
 @Component({
@@ -9,10 +8,4 @@ import { NavBarComponent } from './shared/components/nav-bar/nav-bar';
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
-export class App implements OnInit {
-  constructor(readonly auth: AuthService) {}
-
-  ngOnInit(): void {
-    this.auth.initialize();
-  }
-}
+export class App {}

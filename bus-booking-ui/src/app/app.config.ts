@@ -3,6 +3,8 @@ import {
   importProvidersFrom,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
+  provideAppInitializer,
+  inject,
 } from '@angular/core';
 import {
   provideRouter,
@@ -28,6 +30,7 @@ import { apiBaseInterceptor } from './core/interceptors/api-base.interceptor';
 import { retryInterceptor } from './core/interceptors/retry.interceptor';
 import { timeoutInterceptor } from './core/interceptors/timeout.interceptor';
 import { LocalAuthStrategy } from './core/services/local-auth-strategy';
+import { AuthService } from './core/services/auth.service';
 
 // MSAL is only enabled when a real clientId (not a placeholder) is configured.
 const msalEnabled =
@@ -71,6 +74,10 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
+    // Block initial navigation/guards until MSAL redirect handling + local silent
+    // refresh have settled — otherwise a hard reload on a protected deep link can
+    // see isAuthenticated()===false and bounce to '/' before auth state resolves.
+    provideAppInitializer(() => inject(AuthService).initialize()),
     provideRouter(
       routes,
       withComponentInputBinding(),

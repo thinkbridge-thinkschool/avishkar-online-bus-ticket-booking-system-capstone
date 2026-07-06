@@ -33,3 +33,9 @@ param tenantId              = readEnvironmentVariable('AZURE_TENANT_ID', '')
 param sqlAdminPrincipalId   = readEnvironmentVariable('AZURE_PRINCIPAL_ID', '')
 param sqlAdminPrincipalName = readEnvironmentVariable('AZURE_PRINCIPAL_NAME', '')
 param aadClientId           = readEnvironmentVariable('AAD_CLIENT_ID', '')
+
+// 2026-07-06 redeploy to new Azure subscription: Service Bus forced to Standard.
+// Premium (~$667/mo) buys only a Service-Bus-specific private endpoint — no
+// demo-visible behavior differs (same topics, same managed-identity auth).
+// Remove this line to restore the original Premium prod architecture.
+param serviceBusSkuOverride = 'Standard'

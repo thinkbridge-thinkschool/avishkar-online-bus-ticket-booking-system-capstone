@@ -57,10 +57,14 @@ internal sealed class AppClaimsTransformer(
         var existing = await db.AppUsers.FindAsync(oidGuid);
         if (existing is not null) return;
 
+        // v1 access tokens for a custom API scope don't carry preferred_username/email/upn
+        // by default (those are ID-token claims unless requested as optional claims on the
+        // access token). Fall back to a placeholder so provisioning never crashes; once the
+        // App Registration is configured to emit a real email claim, this branch stops firing.
         var email = principal.FindFirst("preferred_username")?.Value
                  ?? principal.FindFirst("email")?.Value
                  ?? principal.FindFirst("upn")?.Value
-                 ?? string.Empty;
+                 ?? $"{oid}@entra.local";
         var displayName = principal.FindFirst("name")?.Value
                        ?? email;
 

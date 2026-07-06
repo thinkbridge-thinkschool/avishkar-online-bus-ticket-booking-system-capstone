@@ -132,8 +132,13 @@ if (hasAzureAdConfig)
                         try
                         {
                             var decoded = new JwtSecurityToken(raw);
-                            if (!decoded.Issuer.Contains("microsoftonline.com",
-                                    StringComparison.OrdinalIgnoreCase))
+                            // v2 tokens use login.microsoftonline.com; v1 tokens (issued when an
+                            // App Registration's api.requestedAccessTokenVersion isn't explicitly
+                            // set to 2) use sts.windows.net. Both are legitimate Entra ID issuers.
+                            var isEntraIssuer =
+                                decoded.Issuer.Contains("microsoftonline.com", StringComparison.OrdinalIgnoreCase) ||
+                                decoded.Issuer.Contains("sts.windows.net", StringComparison.OrdinalIgnoreCase);
+                            if (!isEntraIssuer)
                                 return "Local";
                         }
                         catch { /* malformed — let the default handler produce 401 */ }
