@@ -1,5 +1,6 @@
 using BusBooking.Application.Buses;
 using BusBooking.Application.Cities;
+using BusBooking.Application.Routes;
 using BusBooking.Application.Vendors;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Commands.CreateSchedule;
@@ -81,17 +82,25 @@ public static class ScheduleEndpoints
     }
 
     private static async Task<IResult> GetVendorSchedules(
-        Guid vendorId, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+        Guid vendorId, IScheduleRepository scheduleRepo, IBusRepository busRepo, IRouteRepository routeRepo, CancellationToken ct)
     {
-        var handler = new GetVendorSchedulesHandler(scheduleRepo, busRepo);
+        var handler = new GetVendorSchedulesHandler(scheduleRepo, busRepo, routeRepo);
         var results = await handler.HandleAsync(new GetVendorSchedulesQuery(vendorId), ct);
         return Results.Ok(results);
     }
 
     private static async Task<IResult> CreateSchedule(
-        CreateScheduleCommand command,
-        IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+        CreateScheduleBody body, HttpContext httpContext,
+        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
     {
+        var oid = GetAppUserId(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound("Vendor profile not found. Register as a vendor first.");
+
+        var command = new CreateScheduleCommand(
+            body.BusId, body.RouteId, body.TravelDate, body.DepartureTime, body.ArrivalTime, body.BasePrice, vendor.Id);
         var handler = new CreateScheduleHandler(busRepo, scheduleRepo);
         try
         {
@@ -105,10 +114,16 @@ public static class ScheduleEndpoints
     }
 
     private static async Task<IResult> UpdateSchedule(
-        Guid scheduleId, UpdateScheduleRequest body,
-        IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+        Guid scheduleId, UpdateScheduleBody body, HttpContext httpContext,
+        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
     {
-        var command = new UpdateScheduleCommand(scheduleId, body.RequestingVendorId, body.DepartureTime, body.ArrivalTime);
+        var oid = GetAppUserId(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound("Vendor profile not found.");
+
+        var command = new UpdateScheduleCommand(scheduleId, vendor.Id, body.DepartureTime, body.ArrivalTime);
         var handler = new UpdateScheduleHandler(scheduleRepo, busRepo);
         try
         {
@@ -120,13 +135,19 @@ public static class ScheduleEndpoints
     }
 
     private static async Task<IResult> DeleteSchedule(
-        Guid scheduleId, Guid requestingVendorId,
-        IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+        Guid scheduleId, HttpContext httpContext,
+        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
     {
+        var oid = GetAppUserId(httpContext);
+        if (oid is null) return Results.Unauthorized();
+
+        var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
+        if (vendor is null) return Results.NotFound("Vendor profile not found.");
+
         var handler = new DeleteScheduleHandler(scheduleRepo, busRepo);
         try
         {
-            await handler.HandleAsync(new DeleteScheduleCommand(scheduleId, requestingVendorId), ct);
+            await handler.HandleAsync(new DeleteScheduleCommand(scheduleId, vendor.Id), ct);
             return Results.NoContent();
         }
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
@@ -135,7 +156,7 @@ public static class ScheduleEndpoints
 
     private static async Task<IResult> GetMySchedules(
         HttpContext httpContext, IVendorRepository vendorRepo,
-        IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+        IScheduleRepository scheduleRepo, IBusRepository busRepo, IRouteRepository routeRepo, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
@@ -143,7 +164,7 @@ public static class ScheduleEndpoints
         var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
         if (vendor is null) return Results.NotFound("Vendor not found.");
 
-        var handler = new GetVendorSchedulesHandler(scheduleRepo, busRepo);
+        var handler = new GetVendorSchedulesHandler(scheduleRepo, busRepo, routeRepo);
         var results = await handler.HandleAsync(new GetVendorSchedulesQuery(vendor.Id), ct);
         return Results.Ok(results);
     }
@@ -152,5 +173,6 @@ public static class ScheduleEndpoints
         ctx.User.FindFirst("app:userId")?.Value;
 }
 
-public sealed record UpdateScheduleRequest(
-    Guid RequestingVendorId, TimeOnly DepartureTime, TimeOnly ArrivalTime);
+public sealed record CreateScheduleBody(
+    Guid BusId, Guid RouteId, DateOnly TravelDate, TimeOnly DepartureTime, TimeOnly ArrivalTime, decimal BasePrice);
+public sealed record UpdateScheduleBody(TimeOnly DepartureTime, TimeOnly ArrivalTime);

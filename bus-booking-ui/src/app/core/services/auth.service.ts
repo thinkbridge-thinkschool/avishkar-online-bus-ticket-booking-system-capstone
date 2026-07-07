@@ -41,19 +41,34 @@ export class AuthService {
   readonly isVendor     = computed(() => this.roles().includes('BusBooking.Vendor'));
   readonly isAdmin      = computed(() => this.roles().includes('BusBooking.Admin'));
   readonly isSuperAdmin = computed(() => this.roles().includes('BusBooking.SuperAdmin'));
+  readonly isAnyAdmin   = computed(() => this.isAdmin() || this.isSuperAdmin());
+
+  // Set for exactly one tick after MSAL completes a login redirect (as opposed to a
+  // plain page load of an already-authenticated session). MSAL has no dedicated
+  // callback route — it lands back on "/" — so this is how App knows to redirect
+  // an admin away from the home page right after sign-in. Read via consumeRedirectFlag().
+  private readonly _justCompletedRedirect = signal(false);
 
   // ── Initialization ──────────────────────────────────────────────────────────
 
   async initialize(): Promise<void> {
     if (this.msal) {
       await this.msal.instance.initialize();
-      await this.msal.instance.handleRedirectPromise().catch(() => null);
+      const redirectResult = await this.msal.instance.handleRedirectPromise().catch(() => null);
       const accounts = this.msal.instance.getAllAccounts();
       this._account.set(accounts[0] ?? null);
+      if (redirectResult) this._justCompletedRedirect.set(true);
     }
     if (this.local) {
       await this.local.initialize();
     }
+  }
+
+  // One-shot read: true only immediately after a fresh MSAL login redirect completes.
+  consumeRedirectFlag(): boolean {
+    const was = this._justCompletedRedirect();
+    this._justCompletedRedirect.set(false);
+    return was;
   }
 
   // ── Auth actions ─────────────────────────────────────────────────────────────

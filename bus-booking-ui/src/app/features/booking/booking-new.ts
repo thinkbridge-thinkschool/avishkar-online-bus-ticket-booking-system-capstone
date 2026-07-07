@@ -64,9 +64,9 @@ export class BookingNewComponent implements OnInit {
     });
   }
 
-  async ngOnInit(): Promise<void> {
+  async ngOnInit(): Promise<void> {        // Angular Booking Page Opens
     const qp = this.activatedRoute.snapshot.queryParams;
-    this.displaySource.set(qp['source'] ?? '');
+    this.displaySource.set(qp['source'] ?? '');         // Here the value are stored.
     this.displayDestination.set(qp['destination'] ?? '');
     this.displayBusName.set(qp['busName'] ?? '');
     this.displayBusNumber.set(qp['busNumber'] ?? '');
@@ -76,7 +76,7 @@ export class BookingNewComponent implements OnInit {
     this.displayMinPrice.set(qp['minSeatPrice'] ? +qp['minSeatPrice'] : null);
 
     try {
-      const s = await this.scheduleService.getById(this.scheduleId());
+      const s = await this.scheduleService.getById(this.scheduleId()); // makes /api/v1/schedules/12345 "scheduleId":"12345","totalSeats":40,
       this.schedule.set(s);
     } catch (err: unknown) {
       this.error.set((err as Error).message);
@@ -96,18 +96,18 @@ export class BookingNewComponent implements OnInit {
     }
   }
 
-  async submit(): Promise<void> {
+  async submit(): Promise<void> { 
     if (this.selectedSeats().length === 0) {
       this.error.set('Please select at least one seat.');
       return;
     }
-    this.form.markAllAsTouched();
+    this.form.markAllAsTouched(); // Passenger Name required, Age required, Gender required, Email
     if (this.form.invalid) return;
 
     this.submitting.set(true);
-    this.error.set(null);
+    this.error.set(null);    // Clear Previous Error
     try {
-      interface PassengerFormValue {
+      interface PassengerFormValue {    // Gets passenger details from the form and sends to backend.
         passengerName: string;
         passengerAge: number;
         passengerGender: string;
@@ -116,7 +116,7 @@ export class BookingNewComponent implements OnInit {
       }
       const values = this.form.getRawValue();
       const passengerValues = values.passengers as PassengerFormValue[];
-      const passengers = passengerValues.map((p, i) => ({
+      const passengers = passengerValues.map((p, i) => ({        // Create Passenger Object
         seatNumber: this.selectedSeats()[i],
         passengerName: p.passengerName,
         passengerAge: p.passengerAge,
@@ -124,11 +124,11 @@ export class BookingNewComponent implements OnInit {
         passengerPhone: p.passengerPhone || undefined,
         passengerEmail: p.passengerEmail || undefined,
       }));
-      const bookingId = await this.bookingService.createBooking({
+      const bookingId = await this.bookingService.createBooking({         // calls booking service to create booking in backend
         scheduleId: this.scheduleId(),
         seats: passengers,
       });
-      await this.router.navigate(['/payment', bookingId], {
+      await this.router.navigate(['/payment', bookingId], {          // navigate to payment page
         queryParams: {
           source: this.displaySource(),
           destination: this.displayDestination(),

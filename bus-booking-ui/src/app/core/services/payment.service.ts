@@ -13,7 +13,7 @@ export class PaymentService {
     );
   }
 
-  async processPayment(cmd: ProcessPaymentRequest): Promise<string> {
+  async processPayment(cmd: ProcessPaymentRequest): Promise<string> { //  verify & process payment
     const res = await firstValueFrom(
       this.http.post<{ paymentId: string }>('/api/v1/payments', cmd)
     );

@@ -33,13 +33,13 @@ export interface SearchSchedulesRequest {
 export interface CreateScheduleRequest {
   routeId: string;
   busId: string;
-  travelDate?: string;
-  departureTime: string;
-  arrivalTime: string;
-  pricePerSeat: number;
+  travelDate: string;    // "yyyy-MM-dd"
+  departureTime: string; // "HH:mm:ss"
+  arrivalTime: string;   // "HH:mm:ss"
+  basePrice: number;
 }
 
 export interface UpdateScheduleRequest {
-  departureTime?: string;
-  arrivalTime?: string;
+  departureTime: string; // "HH:mm:ss"
+  arrivalTime: string;   // "HH:mm:ss"
 }

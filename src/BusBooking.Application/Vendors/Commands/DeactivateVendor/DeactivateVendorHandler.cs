@@ -9,7 +9,7 @@ public sealed class DeactivateVendorHandler(IVendorRepository vendorRepo)
         var vendor = await vendorRepo.GetByIdAsync(command.VendorId, ct)
             ?? throw new NotFoundException("Vendor", command.VendorId);
 
-        if (vendor.EntraObjectId != command.RequestingEntraObjectId)
+        if (!command.IsAdmin && vendor.EntraObjectId != command.RequestingEntraObjectId)
             throw new UnauthorizedAccessException("You are not authorized to deactivate this vendor.");
 
         vendor.Deactivate();

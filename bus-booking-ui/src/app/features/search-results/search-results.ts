@@ -29,31 +29,31 @@ export class SearchResultsComponent implements OnInit {
   readonly sortBy = signal<'departure' | 'price'>('departure');
   readonly typeFilter = signal<string>('');
 
-  readonly filteredSchedules = computed(() => {
+  readonly filteredSchedules = computed(() => { // whenever Sort changes Angular automatically recalculates the list.
     let list = this.schedules();
     const f = this.typeFilter();
     if (f) list = list.filter(s => s.busType === f);
     if (this.sortBy() === 'price') {
-      return [...list].sort((a, b) => (a.minSeatPrice ?? 9999) - (b.minSeatPrice ?? 9999));
+      return [...list].sort((a, b) => (a.minSeatPrice ?? 9999) - (b.minSeatPrice ?? 9999)); // sort by price, if price is null, treat it as 9999
     }
-    return [...list].sort((a, b) => a.departureTime.localeCompare(b.departureTime));
+    return [...list].sort((a, b) => a.departureTime.localeCompare(b.departureTime)); // sort by departure time
   });
 
   async ngOnInit(): Promise<void> {
-    const p = this.route.snapshot.queryParams;
-    this.travelDate.set(p['travelDate'] ?? '');
+    const p = this.route.snapshot.queryParams;    // reads the value from home.ts router.navigate(['/search'],{
+    this.travelDate.set(p['travelDate'] ?? ''); // Angular stores the travel date in a signal.
     try {
       const [cities, results] = await Promise.all([
-        this.cityService.getCities(),
-        this.scheduleService.searchSchedules({
+        this.cityService.getCities(),           
+        this.scheduleService.searchSchedules({     // returns BUS A, Bus B.
           fromCityId: p['fromCityId'],
           toCityId: p['toCityId'],
           travelDate: p['travelDate'],
         }),
       ]);
-      this.fromCityName.set(cities.find(c => c.cityId === p['fromCityId'])?.cityName ?? p['fromCityId']);
+      this.fromCityName.set(cities.find(c => c.cityId === p['fromCityId'])?.cityName ?? p['fromCityId']); // // why city again bcz only city IDs are passed from the Home page.We need city name to display.
       this.toCityName.set(cities.find(c => c.cityId === p['toCityId'])?.cityName ?? p['toCityId']);
-      this.schedules.set(results);
+      this.schedules.set(results);    // The HTML displays this list. Bus and schedule details are displayed in the search-results.html file.
     } catch (err: unknown) {
       this.error.set((err as Error).message);
     } finally {
@@ -61,12 +61,12 @@ export class SearchResultsComponent implements OnInit {
     }
   }
 
-  book(s: Schedule): void {
+  book(s: Schedule): void {   // Suppose user clicks, Book Now Angular executes to schedule
     if (!this.auth.isAuthenticated()) {
       this.auth.login();
       return;
     }
-    this.router.navigate(['/book', s.scheduleId], {
+    this.router.navigate(['/book', s.scheduleId], {      // If user is logged in Angular navigates to /book/{scheduleId}.
       queryParams: {
         source: s.source,
         destination: s.destination,

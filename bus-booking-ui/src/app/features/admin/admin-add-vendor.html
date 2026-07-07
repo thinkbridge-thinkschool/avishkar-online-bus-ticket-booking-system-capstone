@@ -1,0 +1,56 @@
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.75rem;margin-bottom:.5rem">
+  <h1 style="margin:0;display:flex;align-items:center;gap:.6rem">
+    <i class="fas fa-circle-plus" aria-hidden="true"></i> Add New Vendor
+  </h1>
+  <a routerLink="/admin/vendors" class="btn btn-outline">
+    <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Vendors
+  </a>
+</div>
+<p style="color:#6b7280;margin-bottom:1.5rem">
+  Create a pre-approved vendor profile for an existing account. The user must already have signed up
+  before you can turn their account into a vendor here.
+</p>
+
+<div class="card" style="max-width:640px">
+  @if (error()) {
+    <div class="error-alert" role="alert">{{ error() }}</div>
+  }
+  <form [formGroup]="form" (ngSubmit)="addVendor()">
+    <div class="form-group">
+      <label for="userEmail" class="form-label">Existing User's Email *</label>
+      <input id="userEmail" type="email" class="form-control" formControlName="userEmail"
+             placeholder="user@example.com" />
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label for="vendorName" class="form-label">Company Name *</label>
+        <input id="vendorName" class="form-control" formControlName="vendorName"
+               placeholder="ABC Travels Pvt. Ltd." />
+      </div>
+      <div class="form-group">
+        <label for="phoneNumber" class="form-label">Phone Number *</label>
+        <input id="phoneNumber" class="form-control" formControlName="phoneNumber"
+               placeholder="+91 98765 43210" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="address" class="form-label">Address *</label>
+      <input id="address" class="form-control" formControlName="address"
+             placeholder="123 Main St, City, State" />
+    </div>
+    <div class="form-group">
+      <label for="licenseNumber" class="form-label">License Number *</label>
+      <input id="licenseNumber" class="form-control" formControlName="licenseNumber"
+             placeholder="LIC-2024-XXXXXX" />
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:.75rem;margin-top:1rem">
+      <a routerLink="/admin/vendors" class="btn btn-outline">Cancel</a>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        <i class="fas fa-save" aria-hidden="true"></i> {{ saving() ? 'Adding…' : 'Add Vendor' }}
+      </button>
+    </div>
+  </form>
+</div>

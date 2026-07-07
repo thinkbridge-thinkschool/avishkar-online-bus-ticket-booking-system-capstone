@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AppError } from '../models/app-error';
-import type { Vendor, RegisterVendorRequest, UpdateVendorProfileRequest } from '../../shared/models/vendor.model';
+import type { Vendor, RegisterVendorRequest, RegisterNewVendorRequest, UpdateVendorProfileRequest } from '../../shared/models/vendor.model';
 import type { Bus, CreateBusRequest, UpdateBusRequest } from '../../shared/models/bus.model';
 
 @Injectable({ providedIn: 'root' })
@@ -11,6 +11,13 @@ export class VendorService {
 
   async register(cmd: RegisterVendorRequest): Promise<string> {
     return firstValueFrom(this.http.post<string>('/api/v1/vendors/register', cmd));
+  }
+
+  // Public, pre-login signup — creates the account and the vendor profile together.
+  async registerNew(cmd: RegisterNewVendorRequest): Promise<{ message: string; vendorId: string }> {
+    return firstValueFrom(
+      this.http.post<{ message: string; vendorId: string }>('/api/v1/vendors/register-new', cmd),
+    );
   }
 
   async getMyProfile(): Promise<Vendor | null> {

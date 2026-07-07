@@ -1,24 +1,21 @@
 using BusBooking.Application.Booking.Repositories;
+using BusBooking.Application.Buses;
+using BusBooking.Application.Routes;
+using BusBooking.Application.Scheduling.Repositories;
 
 namespace BusBooking.Application.Booking.Queries.GetUserBookings;
 
-public sealed class GetUserBookingsHandler(IBookingRepository bookingRepo)
+public sealed class GetUserBookingsHandler(
+    IBookingRepository bookingRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, IRouteRepository routeRepo)
 {
     public async Task<IReadOnlyList<BookingDto>> HandleAsync(
         GetUserBookingsQuery query, CancellationToken ct = default)
     {
         var bookings = await bookingRepo.GetByUserIdAsync(query.UserId, ct);
 
-        return bookings
-            .Select(b => new BookingDto(
-                b.Id,
-                b.ScheduleId,
-                b.Status,
-                b.TotalAmount,
-                b.BookedAt,
-                b.Seats
-                    .Select(s => new BookedSeatDto(s.SeatNumber, s.PassengerName, s.PassengerAge, s.SeatPrice, s.PassengerGender))
-                    .ToList()))
-            .ToList();
+        var dtos = new List<BookingDto>(bookings.Count);
+        foreach (var b in bookings)
+            dtos.Add(await BookingDtoFactory.CreateAsync(b, scheduleRepo, busRepo, routeRepo, ct));
+        return dtos;
     }
 }

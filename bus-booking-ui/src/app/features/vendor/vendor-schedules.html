@@ -21,7 +21,7 @@
           <select id="route" class="form-control" formControlName="routeId">
             <option value="">Select route</option>
             @for (r of routes(); track r.routeId) {
-              <option [value]="r.routeId">{{ r.fromCityName }} → {{ r.toCityName }}</option>
+              <option [value]="r.routeId">{{ r.source }} → {{ r.destination }}</option>
             }
           </select>
         </div>
@@ -66,6 +66,7 @@
       <thead>
         <tr style="border-bottom:2px solid #e2e8f0">
           <th style="text-align:left;padding:.75rem">Route</th>
+          <th style="text-align:left;padding:.75rem">Bus</th>
           <th style="text-align:left;padding:.75rem">Departure</th>
           <th style="text-align:left;padding:.75rem">Arrival</th>
           <th style="text-align:left;padding:.75rem">Price</th>
@@ -76,9 +77,10 @@
       <tbody>
         @for (s of schedules(); track s.scheduleId) {
           <tr style="border-bottom:1px solid #e2e8f0">
-            <td style="padding:.75rem">{{ s.busName ?? s.busId ?? '—' }}</td>
-            <td style="padding:.75rem">{{ formatDT(s.departureTime) }}</td>
-            <td style="padding:.75rem">{{ formatDT(s.arrivalTime) }}</td>
+            <td style="padding:.75rem">{{ s.source }} → {{ s.destination }}</td>
+            <td style="padding:.75rem">{{ s.busNumber ?? s.busName ?? '—' }}</td>
+            <td style="padding:.75rem">{{ formatDT(s.travelDate, s.departureTime) }}</td>
+            <td style="padding:.75rem">{{ formatDT(s.travelDate, s.arrivalTime) }}</td>
             <td style="padding:.75rem">{{ s.minSeatPrice !== null && s.minSeatPrice !== undefined ? '₹' + s.minSeatPrice : '—' }}</td>
             <td style="padding:.75rem"><app-status-badge [status]="s.isActive !== false ? 'Active' : 'Inactive'" /></td>
             <td style="padding:.75rem">

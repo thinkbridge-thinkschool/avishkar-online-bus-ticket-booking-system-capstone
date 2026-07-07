@@ -19,6 +19,16 @@ export interface RegisterVendorRequest {
   licenseNumber: string;
 }
 
+export interface RegisterNewVendorRequest {
+  vendorName: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
+  confirmPassword: string;
+  address: string;
+  licenseNumber: string;
+}
+
 export interface UpdateVendorProfileRequest {
   vendorName?: string;
   phoneNumber?: string;

@@ -1,0 +1,78 @@
+<div class="vendor-register-wrapper">
+  <div class="vendor-register-card">
+    <div class="vendor-register-header">
+      <h1>Vendor Registration</h1>
+      <p>Register for a new vendor account</p>
+    </div>
+
+    <div class="vendor-register-body">
+      @if (submitted()) {
+        <div class="success-panel">
+          <h3>Registration submitted!</h3>
+          <p>Check your email to verify your account, then wait for admin approval before you can sign in.</p>
+          <button class="btn btn-primary" style="width:100%" (click)="goToLogin()" type="button">
+            Back to Vendor Login
+          </button>
+        </div>
+      } @else {
+        @if (error()) {
+          <div class="error-alert" role="alert">{{ error() }}</div>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="submit()">
+          <div class="form-group">
+            <label for="vendorName" class="form-label">Vendor Name</label>
+            <input id="vendorName" class="form-control" formControlName="vendorName"
+                   placeholder="Enter vendor name" />
+          </div>
+
+          <div class="form-group">
+            <label for="email" class="form-label">Email Address</label>
+            <input id="email" type="email" class="form-control" formControlName="email"
+                   placeholder="Enter email address" />
+          </div>
+
+          <div class="form-group">
+            <label for="phoneNumber" class="form-label">Phone Number</label>
+            <input id="phoneNumber" class="form-control" formControlName="phoneNumber"
+                   placeholder="Enter phone number (e.g., 9876543210)" />
+          </div>
+
+          <div class="form-group">
+            <label for="password" class="form-label">Password</label>
+            <input id="password" type="password" class="form-control" formControlName="password"
+                   placeholder="Enter password (min 8 characters)" />
+          </div>
+
+          <div class="form-group">
+            <label for="confirmPassword" class="form-label">Confirm Password</label>
+            <input id="confirmPassword" type="password" class="form-control" formControlName="confirmPassword"
+                   placeholder="Confirm password" />
+          </div>
+
+          <div class="form-group">
+            <label for="address" class="form-label">Address</label>
+            <textarea id="address" class="form-control" rows="3" formControlName="address"
+                      placeholder="Enter complete address"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="licenseNumber" class="form-label">License Number</label>
+            <input id="licenseNumber" class="form-control" formControlName="licenseNumber"
+                   placeholder="Enter license number" />
+          </div>
+
+          <button class="btn btn-primary vendor-register-submit" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Registering…' : 'Register Vendor' }}
+          </button>
+          <a routerLink="/vendor/login" class="btn btn-outline vendor-register-submit">Back to Login</a>
+        </form>
+
+        <div class="info-alert">
+          <strong>Important:</strong> Your registration will be reviewed by an administrator.
+          You will be notified via email once your account is approved and you can then login.
+        </div>
+      }
+    </div>
+  </div>
+</div>

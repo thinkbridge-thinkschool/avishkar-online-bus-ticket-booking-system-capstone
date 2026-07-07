@@ -1,3 +1,5 @@
+using BusBooking.Domain.Vendor.Enums;
+
 namespace BusBooking.Application.Admin.Queries.GetAdminDashboard;
 
 public sealed record AdminDashboardDto(
@@ -10,4 +12,12 @@ public sealed record AdminDashboardDto(
     int PendingTenants,
     int ActiveTenants,
     int SuspendedTenants,
-    decimal TotalRevenue);
+    decimal TotalRevenue,
+    IReadOnlyList<RecentVendorDto> RecentVendors);
+
+public sealed record RecentVendorDto(
+    Guid VendorId,
+    string VendorName,
+    string Email,
+    VendorStatus Status,
+    DateTime CreatedAt);

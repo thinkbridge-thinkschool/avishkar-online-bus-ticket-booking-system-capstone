@@ -1,6 +1,7 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AdminService } from '../../core/services/admin.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge';
 import type { Vendor } from '../../shared/models/vendor.model';
@@ -9,14 +10,25 @@ import type { Vendor } from '../../shared/models/vendor.model';
   selector: 'app-admin-vendors',
   imports: [RouterLink, LoadingSpinnerComponent, StatusBadgeComponent],
   templateUrl: './admin-vendors.html',
+  styleUrl: './admin-vendors.css',
 })
 export class AdminVendorsComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   readonly vendors = signal<Vendor[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
+  readonly searchTerm = signal('');
+
+  readonly filteredVendors = computed(() => {
+    const term = this.searchTerm().trim().toLowerCase();
+    if (!term) return this.vendors();
+    return this.vendors().filter(v =>
+      v.vendorName.toLowerCase().includes(term) || v.email.toLowerCase().includes(term)
+    );
+  });
 
   async ngOnInit(): Promise<void> {
     try {
@@ -28,23 +40,22 @@ export class AdminVendorsComponent implements OnInit {
     }
   }
 
-  async approve(vendorId: string): Promise<void> {
-    try {
-      await this.adminService.approveVendor(vendorId);
-      this.vendors.update(list =>
-        list.map(v => v.vendorId === vendorId ? { ...v, status: 'Approved' as const } : v)
-      );
-    } catch (err: unknown) {
-      this.actionError.set((err as Error).message);
-    }
+  updateSearch(value: string): void {
+    this.searchTerm.set(value);
   }
 
-  async reject(vendorId: string): Promise<void> {
-    if (!confirm('Reject this vendor?')) return;
+  async deactivate(vendorId: string): Promise<void> {
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Confirm Deactivate',
+      message: 'Deactivate this vendor? They will no longer be able to manage buses or schedules.',
+      confirmText: 'Deactivate',
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
-      await this.adminService.rejectVendor(vendorId);
+      await this.adminService.deactivateVendor(vendorId);
       this.vendors.update(list =>
-        list.map(v => v.vendorId === vendorId ? { ...v, status: 'Rejected' as const } : v)
+        list.map(v => v.vendorId === vendorId ? { ...v, isActive: false } : v)
       );
     } catch (err: unknown) {
       this.actionError.set((err as Error).message);

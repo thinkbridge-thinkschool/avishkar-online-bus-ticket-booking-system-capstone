@@ -3,6 +3,7 @@ import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { VendorService } from '../../core/services/vendor.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 import type { Bus, BusType } from '../../shared/models/bus.model';
 
@@ -16,6 +17,7 @@ const BUS_TYPES: BusType[] = ['Seater', 'SemiSleeper', 'Sleeper', 'AC', 'NonAC']
 export class VendorBusesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly vendorService = inject(VendorService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   readonly buses = signal<Bus[]>([]);
   readonly loading = signal(true);
@@ -59,7 +61,13 @@ export class VendorBusesComponent implements OnInit {
   }
 
   async deleteBus(busId: string): Promise<void> {
-    if (!confirm('Delete this bus?')) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Confirm Delete',
+      message: 'Are you sure you want to delete this bus?',
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await this.vendorService.deleteBus(busId);
       this.buses.update(list => list.filter(b => b.busId !== busId));

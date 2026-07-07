@@ -22,7 +22,11 @@ export interface Booking {
   seats: BookedSeat[];
   fromCityName?: string;
   toCityName?: string;
+  travelDate?: string;
   departureTime?: string;
+  arrivalTime?: string;
+  busName?: string;
+  busNumber?: string;
 }
 
 export interface CreateBookingRequest {

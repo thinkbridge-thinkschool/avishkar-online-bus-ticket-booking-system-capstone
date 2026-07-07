@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TenantService } from '../../core/services/tenant.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge';
 import type { Tenant } from '../../shared/models/tenant.model';
@@ -12,6 +13,7 @@ import type { Tenant } from '../../shared/models/tenant.model';
 })
 export class AdminTenantsComponent implements OnInit {
   private readonly tenantService = inject(TenantService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   readonly tenants = signal<Tenant[]>([]);
   readonly loading = signal(true);
@@ -41,7 +43,13 @@ export class AdminTenantsComponent implements OnInit {
   }
 
   async reject(tenantId: string): Promise<void> {
-    if (!confirm('Reject this tenant registration?')) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Confirm Reject',
+      message: 'Are you sure you want to reject this tenant registration?',
+      confirmText: 'Reject',
+      danger: true,
+    });
+    if (!confirmed) return;
     this.actionError.set(null);
     try {
       await this.tenantService.rejectTenant(tenantId);
@@ -54,7 +62,13 @@ export class AdminTenantsComponent implements OnInit {
   }
 
   async suspend(tenantId: string): Promise<void> {
-    if (!confirm('Suspend this tenant? Their users will lose access.')) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Confirm Suspend',
+      message: 'Suspend this tenant? Their users will lose access.',
+      confirmText: 'Suspend',
+      danger: true,
+    });
+    if (!confirmed) return;
     this.actionError.set(null);
     try {
       await this.tenantService.suspendTenant(tenantId);

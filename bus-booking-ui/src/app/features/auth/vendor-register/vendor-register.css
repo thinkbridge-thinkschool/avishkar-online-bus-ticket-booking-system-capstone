@@ -1,0 +1,67 @@
+.vendor-register-wrapper {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  background: var(--bg);
+}
+
+.vendor-register-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.vendor-register-header {
+  background: var(--primary-gradient);
+  color: #fff;
+  padding: 2rem;
+  text-align: center;
+}
+
+.vendor-register-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+}
+
+.vendor-register-header p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.vendor-register-body {
+  padding: 2rem 2.5rem 2.5rem;
+}
+
+.vendor-register-submit {
+  width: 100%;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.info-alert {
+  margin-top: 1.5rem;
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  color: #0e7490;
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.success-panel {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.success-panel h3 { margin-bottom: 0.5rem; }
+.success-panel p { color: var(--text-muted); margin-bottom: 1.5rem; }
+
+@media (max-width: 640px) {
+  .vendor-register-body { padding: 1.5rem; }
+}

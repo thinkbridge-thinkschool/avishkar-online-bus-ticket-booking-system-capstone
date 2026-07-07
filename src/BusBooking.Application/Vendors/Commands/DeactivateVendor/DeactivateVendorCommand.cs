@@ -1,3 +1,3 @@
 namespace BusBooking.Application.Vendors.Commands.DeactivateVendor;
 
-public sealed record DeactivateVendorCommand(Guid VendorId, string RequestingEntraObjectId);
+public sealed record DeactivateVendorCommand(Guid VendorId, string RequestingEntraObjectId, bool IsAdmin = false);

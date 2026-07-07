@@ -21,6 +21,12 @@ public sealed class GetAdminDashboardHandler(
         var revenue  = await bookingRepo.GetTotalRevenueAsync(ct);
         var tenants  = await tenantRepo.GetAllAsync(ct);
 
+        var recentVendors = vendors
+            .OrderByDescending(v => v.CreatedAt)
+            .Take(5)
+            .Select(v => new RecentVendorDto(v.Id, v.VendorName, v.Email, v.Status, v.CreatedAt))
+            .ToList();
+
         return new AdminDashboardDto(
             TotalVendors:     vendors.Count,
             PendingVendors:   vendors.Count(v => v.Status == VendorStatus.Pending),
@@ -31,6 +37,7 @@ public sealed class GetAdminDashboardHandler(
             PendingTenants:   tenants.Count(t => t.Status == TenantStatus.PendingApproval),
             ActiveTenants:    tenants.Count(t => t.Status == TenantStatus.Active),
             SuspendedTenants: tenants.Count(t => t.Status == TenantStatus.Suspended),
-            TotalRevenue:     revenue);
+            TotalRevenue:     revenue,
+            RecentVendors:    recentVendors);
     }
 }

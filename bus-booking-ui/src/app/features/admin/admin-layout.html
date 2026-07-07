@@ -1,0 +1,46 @@
+<div class="admin-shell">
+  <aside class="admin-sidebar">
+    <a routerLink="/admin/dashboard" class="admin-brand">
+      <span class="admin-brand-icon" aria-hidden="true">🚌</span>
+      <span>Bus Admin</span>
+    </a>
+    <p class="admin-welcome">Welcome, {{ auth.displayName() ?? auth.email() }}</p>
+
+    <nav class="admin-nav" role="navigation" aria-label="Admin navigation">
+      <a routerLink="/admin/dashboard" routerLinkActive="active" class="admin-nav-link">
+        <i class="fas fa-gauge-high" aria-hidden="true"></i> Dashboard
+      </a>
+      <a routerLink="/admin/add-vendor" routerLinkActive="active" class="admin-nav-link">
+        <i class="fas fa-circle-plus" aria-hidden="true"></i> Add Vendor
+      </a>
+      <a routerLink="/admin/vendors" routerLinkActive="active" class="admin-nav-link">
+        <i class="fas fa-users" aria-hidden="true"></i> Manage Vendors
+      </a>
+      <a routerLink="/admin/pending-vendors" routerLinkActive="active" class="admin-nav-link">
+        <i class="fas fa-clock" aria-hidden="true"></i> Pending Requests
+        @if (pendingCount() > 0) {
+          <span class="admin-nav-badge">{{ pendingCount() }}</span>
+        }
+      </a>
+      @if (auth.isSuperAdmin()) {
+        <a routerLink="/admin/tenants" routerLinkActive="active" class="admin-nav-link">
+          <i class="fas fa-building" aria-hidden="true"></i> Tenants
+        </a>
+      }
+      <a routerLink="/admin/cities" routerLinkActive="active" class="admin-nav-link">
+        <i class="fas fa-city" aria-hidden="true"></i> Cities
+      </a>
+      <a routerLink="/admin/routes" routerLinkActive="active" class="admin-nav-link">
+        <i class="fas fa-route" aria-hidden="true"></i> Routes
+      </a>
+    </nav>
+
+    <button class="admin-nav-link admin-logout" (click)="auth.logout()" type="button">
+      <i class="fas fa-right-from-bracket" aria-hidden="true"></i> Logout
+    </button>
+  </aside>
+
+  <main class="admin-content">
+    <router-outlet />
+  </main>
+</div>

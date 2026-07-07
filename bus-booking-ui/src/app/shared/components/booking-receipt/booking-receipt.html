@@ -1,0 +1,156 @@
+@if (booking(); as b) {
+  <div class="pc-receipt card">
+
+    <!-- Receipt header -->
+    <div class="pc-receipt-header">
+      <div class="pc-receipt-brand">
+        <span class="pc-brand-icon">🚌</span>
+        <span class="pc-brand-name">BusBooking</span>
+      </div>
+      <div class="pc-receipt-meta">
+        <div class="pc-meta-row">
+          <span>Booking ID:</span>
+          <strong>{{ b.bookingId }}</strong>
+        </div>
+        <div class="pc-meta-row">
+          <span>Booked On:</span>
+          <strong>{{ formatDateTime(b.bookedAt) }}</strong>
+        </div>
+        <div class="pc-meta-row">
+          <span>Status:</span>
+          <span class="pc-status-pill" [class.pc-status-confirmed]="isConfirmed()">
+            {{ b.status }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pc-divider-band"><span>E-TICKET</span></div>
+
+    <!-- ── Journey ────────────────────────────────────────────────── -->
+    <section class="pc-section">
+      <h3 class="pc-section-title">
+        <i class="fas fa-route" aria-hidden="true"></i> Journey Details
+      </h3>
+
+      <div class="pc-journey">
+        <div class="pcj-stop">
+          @if (b.departureTime) {
+            <span class="pcj-time">{{ formatTime(b.departureTime) }}</span>
+          }
+          <span class="pcj-city">{{ b.fromCityName || '—' }}</span>
+        </div>
+        <div class="pcj-middle">
+          @if (b.departureTime && b.arrivalTime) {
+            <span class="pcj-dur">{{ duration(b.departureTime, b.arrivalTime) }}</span>
+          }
+          <div class="pcj-track">
+            <span class="pcj-bus-icon"><i class="fas fa-bus" aria-hidden="true"></i></span>
+          </div>
+        </div>
+        <div class="pcj-stop pcj-end">
+          @if (b.arrivalTime) {
+            <span class="pcj-time">{{ formatTime(b.arrivalTime) }}</span>
+          }
+          <span class="pcj-city">{{ b.toCityName || '—' }}</span>
+        </div>
+      </div>
+
+      <div class="pc-journey-chips">
+        @if (b.busName) {
+          <div class="pcjc-item">
+            <i class="fas fa-bus" aria-hidden="true"></i>
+            <span>{{ b.busName }}</span>
+            @if (b.busNumber) {
+              <span class="pcjc-num">{{ b.busNumber }}</span>
+            }
+          </div>
+        }
+        @if (b.travelDate) {
+          <div class="pcjc-item">
+            <i class="far fa-calendar-alt" aria-hidden="true"></i>
+            <span>{{ formatDate(b.travelDate) }}</span>
+          </div>
+        }
+        @if (b.departureTime && b.arrivalTime) {
+          <div class="pcjc-item">
+            <i class="far fa-clock" aria-hidden="true"></i>
+            <span>{{ formatTime(b.departureTime) }} → {{ formatTime(b.arrivalTime) }}</span>
+          </div>
+        }
+      </div>
+    </section>
+
+    <div class="pc-sep"></div>
+
+    <!-- ── Passengers ──────────────────────────────────────────────── -->
+    <section class="pc-section">
+      <h3 class="pc-section-title">
+        <i class="fas fa-users" aria-hidden="true"></i> Passenger Details
+      </h3>
+      <div class="pc-table-wrap">
+        <table class="pc-table">
+          <thead>
+            <tr>
+              <th>Seat</th>
+              <th>Name</th>
+              <th>Age</th>
+              <th>Gender</th>
+              <th class="pc-th-right">Fare</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (seat of b.seats; track seat.seatNumber) {
+              <tr>
+                <td>
+                  <span class="pc-seat-chip">
+                    <i class="fas fa-chair" aria-hidden="true"></i> {{ seat.seatNumber }}
+                  </span>
+                </td>
+                <td class="pc-td-name">{{ seat.passengerName }}</td>
+                <td>{{ seat.passengerAge }} yrs</td>
+                <td>{{ seat.passengerGender ?? '—' }}</td>
+                <td class="pc-td-price">₹{{ seat.seatPrice }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="pc-sep"></div>
+
+    <!-- ── Payment Summary ─────────────────────────────────────────── -->
+    <section class="pc-section">
+      <h3 class="pc-section-title">
+        <i class="fas fa-receipt" aria-hidden="true"></i> Payment Summary
+      </h3>
+      <div class="pc-pay-rows">
+        <div class="pc-pay-row">
+          <span>Seat Fare ({{ b.seats.length }} seat{{ b.seats.length !== 1 ? 's' : '' }} × ₹{{ b.seats[0]?.seatPrice ?? 0 }})</span>
+          <span>₹{{ b.totalAmount }}</span>
+        </div>
+        <div class="pc-pay-row">
+          <span>Convenience Fee</span>
+          <span class="pc-free">FREE</span>
+        </div>
+      </div>
+      <div class="pc-pay-total">
+        <span class="pc-pay-total-label">
+          <i class="fas fa-check-circle" aria-hidden="true"></i> Amount Paid
+        </span>
+        <span class="pc-pay-total-value">₹{{ b.totalAmount }}</span>
+      </div>
+      <p class="pc-razorpay-note">
+        <i class="fas fa-shield-alt" aria-hidden="true"></i>
+        Payment secured &amp; verified via <strong>Razorpay</strong>
+      </p>
+    </section>
+
+    <!-- Receipt footer -->
+    <div class="pc-receipt-footer">
+      <span>Thank you for choosing BusBooking! Have a safe journey 🚌</span>
+      <span class="pc-footer-id">{{ b.bookingId }}</span>
+    </div>
+  </div>
+}

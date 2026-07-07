@@ -1,14 +1,10 @@
 export interface BusRoute {
   routeId: string;
-  fromCityId: string;
-  toCityId: string;
-  fromCityName?: string;
-  toCityName?: string;
-  estimatedMinutes: number;
+  source: string;
+  destination: string;
 }
 
 export interface CreateRouteRequest {
-  fromCityId: string;
-  toCityId: string;
-  estimatedMinutes: number;
+  source: string;
+  destination: string;
 }

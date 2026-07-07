@@ -37,10 +37,10 @@ export class PaymentProcessComponent implements OnInit {
   readonly displayMinPrice = signal<number | null>(null);
   readonly displaySeatCount = signal(0);
 
-  async ngOnInit(): Promise<void> {
+  async ngOnInit(): Promise<void> {    // component automatically runs when the page opens. It reads the bookingId from the URL and fetches the booking details from the backend.
     const qp = this.activatedRoute.snapshot.queryParams;
     this.displaySource.set(qp['source'] ?? '');
-    this.displayDestination.set(qp['destination'] ?? '');
+    this.displayDestination.set(qp['destination'] ?? ''); // store data 
     this.displayBusName.set(qp['busName'] ?? '');
     this.displayBusNumber.set(qp['busNumber'] ?? '');
     this.displayDepartureTime.set(qp['departureTime'] ?? '');
@@ -50,7 +50,7 @@ export class PaymentProcessComponent implements OnInit {
     this.displaySeatCount.set(qp['seatCount'] ? +qp['seatCount'] : 0);
 
     try {
-      this.booking.set(await this.bookingService.getById(this.bookingId()));
+      this.booking.set(await this.bookingService.getById(this.bookingId()));   // calls service to get booking details from backend and store in booking signal.
     } catch (err: unknown) {
       this.error.set((err as Error).message);
     } finally {
@@ -58,13 +58,13 @@ export class PaymentProcessComponent implements OnInit {
     }
   }
 
-  async pay(): Promise<void> {
-    this.paying.set(true);
+  async pay(): Promise<void> {           // when user click pay via razorpay button
+    this.paying.set(true);       // changes the button from "Pay via Razorpay" to "Processing Payment..." and disables the button.
     this.error.set(null);
     try {
-      const order = await this.paymentService.createOrder({ bookingId: this.bookingId() });
+      const order = await this.paymentService.createOrder({ bookingId: this.bookingId() }); // SERVICE CREATE ORDER CALLS BACKEND /api/v1/payments/create-order which calls Razorpay API to create order and returns orderId, amount, currency, keyId.
 
-      if (order.keyId === 'mock') {
+      if (order.keyId === 'mock') {    // Demo Payment Popup
         this.mockOrder = order;
         this.paying.set(false);
         this.showMockModal.set(true);
@@ -74,7 +74,7 @@ export class PaymentProcessComponent implements OnInit {
       if (typeof window.Razorpay === 'undefined') {
         throw new Error('Razorpay checkout could not be loaded. Please refresh the page.');
       }
-      this.openRazorpay(order.orderId, order.amountPaise, order.currency, order.keyId);
+      this.openRazorpay(order.orderId, order.amountPaise, order.currency, order.keyId);  // This opens the Razorpay checkout popup.
     } catch (err: unknown) {
       this.error.set((err as Error).message);
       this.paying.set(false);
@@ -97,26 +97,12 @@ export class PaymentProcessComponent implements OnInit {
         razorpayPaymentId:  `mock_pay_${this.mockOrder.orderId.slice(-12)}`,
         razorpaySignature:  'mock_sig',
       });
-      window.location.href = `/payment/confirm?${this.buildConfirmParams()}`;
+      window.location.href = `/payment/confirm?bookingId=${this.bookingId()}`;
     } catch (err: unknown) {
       const httpErr = err as { error?: { message?: string }; message?: string };
       this.error.set(httpErr?.error?.message ?? httpErr?.message ?? 'Payment failed.');
       this.mockConfirming.set(false);
     }
-  }
-
-  private buildConfirmParams(): string {
-    return new URLSearchParams({
-      bookingId:     this.bookingId(),
-      source:        this.displaySource(),
-      destination:   this.displayDestination(),
-      busName:       this.displayBusName(),
-      busNumber:     this.displayBusNumber(),
-      departureTime: this.displayDepartureTime(),
-      arrivalTime:   this.displayArrivalTime(),
-      travelDate:    this.displayTravelDate(),
-      minSeatPrice:  this.displayMinPrice() !== null ? String(this.displayMinPrice()) : '',
-    }).toString();
   }
 
   private openRazorpay(
@@ -126,7 +112,6 @@ export class PaymentProcessComponent implements OnInit {
     keyId: string,
   ): void {
     const bookingId = this.bookingId();
-    const params = this.buildConfirmParams();
 
     const rzp = new window.Razorpay({
       key: keyId,
@@ -137,14 +122,14 @@ export class PaymentProcessComponent implements OnInit {
       order_id: orderId,
       handler: (response) => {
         this.paymentService
-          .processPayment({
+          .processPayment({   // calls service to verify & process payment
             bookingId,
             razorpayOrderId: response.razorpay_order_id,
             razorpayPaymentId: response.razorpay_payment_id,
             razorpaySignature: response.razorpay_signature,
           })
           .then(() => {
-            window.location.href = `/payment/confirm?${params}`;
+            window.location.href = `/payment/confirm?bookingId=${bookingId}`;
           })
           .catch((err: unknown) => {
             const httpErr = err as { error?: { message?: string }; message?: string };

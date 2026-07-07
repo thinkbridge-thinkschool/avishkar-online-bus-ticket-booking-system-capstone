@@ -6,9 +6,12 @@ public sealed record VendorScheduleDto(
     string BusName,
     string BusNumber,
     Guid RouteId,
+    string Source,
+    string Destination,
     DateOnly TravelDate,
     TimeOnly DepartureTime,
     TimeOnly ArrivalTime,
     bool IsActive,
     int TotalSeats,
-    int AvailableSeats);
+    int AvailableSeats,
+    decimal? MinSeatPrice);

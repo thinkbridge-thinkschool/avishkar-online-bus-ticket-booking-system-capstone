@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CityService } from '../../core/services/city.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 import type { City } from '../../shared/models/city.model';
 
@@ -13,6 +14,7 @@ import type { City } from '../../shared/models/city.model';
 export class AdminCitiesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly cityService = inject(CityService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   readonly cities = signal<City[]>([]);
   readonly loading = signal(true);
@@ -50,7 +52,13 @@ export class AdminCitiesComponent implements OnInit {
   }
 
   async deleteCity(cityId: string): Promise<void> {
-    if (!confirm('Delete this city?')) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Confirm Delete',
+      message: 'Are you sure you want to delete this city?',
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await this.cityService.deleteCity(cityId);
       this.cities.update(list => list.filter(c => c.cityId !== cityId));

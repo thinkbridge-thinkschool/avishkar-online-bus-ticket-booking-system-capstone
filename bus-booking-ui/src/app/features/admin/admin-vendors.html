@@ -1,10 +1,14 @@
-<a routerLink="/admin/dashboard" class="back-link">
-  <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Dashboard
-</a>
-<h1>Vendor Management</h1>
+<div class="vendors-header">
+  <h1><i class="fas fa-users" aria-hidden="true"></i> Manage Vendors</h1>
+  <a routerLink="/admin/add-vendor" class="btn-add-vendor">
+    <i class="fas fa-plus" aria-hidden="true"></i> Add New Vendor
+  </a>
+</div>
+
 @if (actionError()) {
   <div class="error-alert" role="alert">{{ actionError() }}</div>
 }
+
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
@@ -12,35 +16,66 @@
 } @else if (vendors().length === 0) {
   <div class="empty-state"><h3>No vendors registered</h3></div>
 } @else {
-  <div class="card" style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse">
-      <thead>
-        <tr style="border-bottom:2px solid #e2e8f0">
-          <th style="text-align:left;padding:.75rem">Company</th>
-          <th style="text-align:left;padding:.75rem">Email</th>
-          <th style="text-align:left;padding:.75rem">Phone</th>
-          <th style="text-align:left;padding:.75rem">Status</th>
-          <th style="text-align:left;padding:.75rem">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (v of vendors(); track v.vendorId) {
-          <tr style="border-bottom:1px solid #e2e8f0">
-            <td style="padding:.75rem;font-weight:600">{{ v.vendorName }}</td>
-            <td style="padding:.75rem">{{ v.email }}</td>
-            <td style="padding:.75rem">{{ v.phoneNumber }}</td>
-            <td style="padding:.75rem"><app-status-badge [status]="v.status" /></td>
-            <td style="padding:.75rem;display:flex;gap:.5rem">
-              @if (v.status === 'Pending') {
-                <button class="btn btn-secondary" style="font-size:.8rem;padding:.3rem .75rem"
-                  (click)="approve(v.vendorId)" type="button">Approve</button>
-                <button class="btn btn-danger" style="font-size:.8rem;padding:.3rem .75rem"
-                  (click)="reject(v.vendorId)" type="button">Reject</button>
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+  <div class="card vendors-card">
+    <div class="vendors-toolbar">
+      <div class="vendor-search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="text" placeholder="Search vendors…"
+               [value]="searchTerm()" (input)="updateSearch($any($event.target).value)" />
+      </div>
+      <div class="vendor-total">Total Vendors: <strong>{{ vendors().length }}</strong></div>
+    </div>
+
+    @if (filteredVendors().length === 0) {
+      <div class="empty-state"><h3>No vendors match your search</h3></div>
+    } @else {
+      <div style="overflow-x:auto">
+        <table class="vendors-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Vendor Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>License No.</th>
+              <th>Address</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (v of filteredVendors(); track v.vendorId; let i = $index) {
+              <tr>
+                <td class="vendor-id">#{{ i + 1 }}</td>
+                <td>
+                  <div class="vendor-name-cell">
+                    <span class="vendor-avatar"><i class="fas fa-building" aria-hidden="true"></i></span>
+                    <div>
+                      <div class="vendor-name">{{ v.vendorName }}</div>
+                      <app-status-badge [status]="v.status" />
+                    </div>
+                  </div>
+                </td>
+                <td><i class="fas fa-envelope" aria-hidden="true"></i> {{ v.email }}</td>
+                <td><i class="fas fa-phone" aria-hidden="true"></i> {{ v.phoneNumber }}</td>
+                <td><span class="license-pill">{{ v.licenseNumber || '—' }}</span></td>
+                <td><i class="fas fa-location-dot" aria-hidden="true"></i> {{ v.address || '—' }}</td>
+                <td>
+                  @if (v.status === 'Approved' && v.isActive) {
+                    <button class="icon-btn-delete" (click)="deactivate(v.vendorId)"
+                            title="Deactivate vendor" type="button">
+                      <i class="fas fa-trash" aria-hidden="true"></i>
+                    </button>
+                  } @else if (!v.isActive) {
+                    <span class="text-muted-sm">Deactivated</span>
+                  } @else {
+                    <span class="text-muted-sm">Awaiting approval</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   </div>
 }

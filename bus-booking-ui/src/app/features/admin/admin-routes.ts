@@ -3,6 +3,7 @@ import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { RouteService } from '../../core/services/route.service';
 import { CityService } from '../../core/services/city.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner';
 import type { BusRoute } from '../../shared/models/route.model';
 import type { City } from '../../shared/models/city.model';
@@ -16,6 +17,7 @@ export class AdminRoutesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly routeService = inject(RouteService);
   private readonly cityService = inject(CityService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   readonly routes = signal<BusRoute[]>([]);
   readonly cities = signal<City[]>([]);
@@ -26,7 +28,6 @@ export class AdminRoutesComponent implements OnInit {
   readonly form = this.fb.nonNullable.group({
     fromCityId: ['', Validators.required],
     toCityId: ['', Validators.required],
-    estimatedMinutes: [180, [Validators.required, Validators.min(1)]],
   });
 
   async ngOnInit(): Promise<void> {
@@ -54,9 +55,13 @@ export class AdminRoutesComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
     try {
-      await this.routeService.createRoute(this.form.getRawValue());
+      const { fromCityId, toCityId } = this.form.getRawValue();
+      await this.routeService.createRoute({
+        source: this.cityName(fromCityId),
+        destination: this.cityName(toCityId),
+      });
       this.routes.set(await this.routeService.getRoutes());
-      this.form.reset({ fromCityId: '', toCityId: '', estimatedMinutes: 180 });
+      this.form.reset({ fromCityId: '', toCityId: '' });
     } catch (err: unknown) {
       this.error.set((err as Error).message);
     } finally {
@@ -65,18 +70,18 @@ export class AdminRoutesComponent implements OnInit {
   }
 
   async deleteRoute(routeId: string): Promise<void> {
-    if (!confirm('Delete this route?')) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Confirm Delete',
+      message: 'Are you sure you want to delete this route?',
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await this.routeService.deleteRoute(routeId);
       this.routes.update(list => list.filter(r => r.routeId !== routeId));
     } catch (err: unknown) {
       this.error.set((err as Error).message);
     }
-  }
-
-  formatDuration(mins: number): string {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   }
 }

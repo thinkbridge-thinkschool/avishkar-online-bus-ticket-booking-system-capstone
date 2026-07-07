@@ -1,7 +1,13 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
+using BusBooking.Application.Common.Interfaces;
+using BusBooking.Application.Identity;
+using BusBooking.Application.Tenants;
 using BusBooking.Application.Vendors;
+using BusBooking.Application.Vendors.Commands.AdminCreateVendor;
 using BusBooking.Application.Vendors.Commands.ApproveVendor;
 using BusBooking.Application.Vendors.Commands.DeactivateVendor;
 using BusBooking.Application.Vendors.Commands.RegisterVendor;
@@ -10,6 +16,9 @@ using BusBooking.Application.Vendors.Commands.UpdateVendorProfile;
 using BusBooking.Application.Vendors.Queries.GetAllVendors;
 using BusBooking.Application.Vendors.Queries.GetPendingVendors;
 using BusBooking.Application.Vendors.Queries.GetVendorProfile;
+using BusBooking.Domain.Identity.Entities;
+using BusBooking.Domain.Identity.Enums;
+using BusBooking.Domain.Vendor.Aggregates;
 
 namespace BusBooking.Api.Vendors;
 
@@ -24,6 +33,8 @@ public static class VendorEndpoints
             .RequireRateLimiting("api");
 
         group.MapPost("/register", RegisterVendor);
+        group.MapPost("/register-new", RegisterNewVendorAccount).AllowAnonymous().RequireRateLimiting("auth");
+        group.MapPost("/admin-create", AdminCreateVendor).RequireAuthorization("AdminOnly");
         group.MapGet("/me", GetMyVendorProfile);
         group.MapGet("/{vendorId:guid}", GetVendorProfile);
         group.MapGet("/", GetAllVendors).RequireAuthorization("AdminOnly");
@@ -48,6 +59,85 @@ public static class VendorEndpoints
             var id = await handler.HandleAsync(command, ct);
             return Results.Created($"/api/v1/vendors/{id}", new { vendorId = id });
         }
+        catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
+    }
+
+    // Public, unauthenticated self-service signup: creates a brand-new local account
+    // (mirrors LocalAuthEndpoints.Register) *and* a Pending vendor profile for it in one
+    // step, for people who don't already have a BusBooking account. Contrast with
+    // RegisterVendor above, which attaches a vendor profile to an *existing*, already
+    // signed-in user — this is the only vendor entry point that also creates the login.
+    private static async Task<IResult> RegisterNewVendorAccount(
+        RegisterNewVendorBody body,
+        IAppUserRepository userRepo,
+        ILocalCredentialRepository credRepo,
+        IPasswordService passwords,
+        IEmailService email,
+        IVendorRepository vendorRepo,
+        HttpContext ctx,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(body.Email) || !body.Email.Contains('@'))
+            return Results.BadRequest("A valid email address is required.");
+        if (string.IsNullOrWhiteSpace(body.VendorName))
+            return Results.BadRequest("Vendor name is required.");
+        if (body.Password.Length < 8)
+            return Results.BadRequest("Password must be at least 8 characters.");
+        if (body.Password != body.ConfirmPassword)
+            return Results.BadRequest("Passwords do not match.");
+
+        var normalizedEmail = body.Email.Trim().ToLowerInvariant();
+
+        if (await userRepo.GetByEmailAsync(normalizedEmail, ct) is not null)
+            return Results.Conflict("An account with this email already exists.");
+        if (await vendorRepo.GetByEmailAsync(normalizedEmail, ct) is not null)
+            return Results.Conflict($"A vendor with email '{normalizedEmail}' is already registered.");
+
+        var appUserId    = Guid.NewGuid();
+        var user         = AppUser.Create(appUserId, normalizedEmail, body.VendorName);
+        var login        = ExternalLogin.Create(appUserId, LoginProvider.Local, normalizedEmail);
+        var passwordHash = passwords.Hash(body.Password);
+        var credential   = LocalCredential.Create(appUserId, passwordHash);
+
+        var rawToken  = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawToken))).ToLowerInvariant();
+        credential.SetEmailVerificationToken(tokenHash, DateTime.UtcNow.AddHours(24));
+
+        await userRepo.AddAsync(user, ct);
+        await userRepo.AddExternalLoginAsync(login, ct);
+        await credRepo.AddAsync(credential, ct);
+        await credRepo.SaveChangesAsync(ct);
+
+        var vendor = Vendor.Register(
+            appUserId.ToString(), body.VendorName, normalizedEmail, body.PhoneNumber, body.Address, body.LicenseNumber);
+        await vendorRepo.AddAsync(vendor, ct);
+        await vendorRepo.SaveChangesAsync(ct);
+
+        var verifyUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}/api/v1/auth/verify-email?token={rawToken}";
+        await email.SendEmailVerificationAsync(user.Email, user.DisplayName, verifyUrl, ct);
+
+        return Results.Created($"/api/v1/vendors/{vendor.Id}", new
+        {
+            message = "Registration submitted! Check your email to verify your account, " +
+                      "then wait for admin approval before you can sign in.",
+            vendorId = vendor.Id
+        });
+    }
+
+    private static async Task<IResult> AdminCreateVendor(
+        AdminCreateVendorBody body, IVendorRepository vendorRepo, IAppUserRepository userRepo,
+        ITenantRepository tenantRepo, CancellationToken ct)
+    {
+        var command = new AdminCreateVendorCommand(
+            body.UserEmail, body.VendorName, body.PhoneNumber, body.Address, body.LicenseNumber);
+        var handler = new AdminCreateVendorHandler(vendorRepo, userRepo, tenantRepo);
+        try
+        {
+            var id = await handler.HandleAsync(command, ct);
+            return Results.Created($"/api/v1/vendors/{id}", new { vendorId = id });
+        }
+        catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
@@ -123,10 +213,11 @@ public static class VendorEndpoints
         var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
 
+        var isAdmin = httpContext.User.IsInRole("BusBooking.SuperAdmin");
         var handler = new DeactivateVendorHandler(vendorRepo);
         try
         {
-            await handler.HandleAsync(new DeactivateVendorCommand(vendorId, oid), ct);
+            await handler.HandleAsync(new DeactivateVendorCommand(vendorId, oid, isAdmin), ct);
             return Results.NoContent();
         }
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
@@ -134,9 +225,10 @@ public static class VendorEndpoints
     }
 
     private static async Task<IResult> ApproveVendor(
-        Guid vendorId, IVendorRepository vendorRepo, IEventPublisher publisher, CancellationToken ct)
+        Guid vendorId, IVendorRepository vendorRepo, IAppUserRepository userRepo,
+        IEventPublisher publisher, ITenantRepository tenantRepo, CancellationToken ct)
     {
-        var handler = new ApproveVendorHandler(vendorRepo, publisher);
+        var handler = new ApproveVendorHandler(vendorRepo, userRepo, publisher, tenantRepo);
         try
         {
             await handler.HandleAsync(new ApproveVendorCommand(vendorId), ct);
@@ -166,5 +258,10 @@ public static class VendorEndpoints
 
 public sealed record RegisterVendorBody(
     string VendorName, string Email, string PhoneNumber, string Address, string LicenseNumber);
+public sealed record RegisterNewVendorBody(
+    string VendorName, string Email, string PhoneNumber, string Password, string ConfirmPassword,
+    string Address, string LicenseNumber);
+public sealed record AdminCreateVendorBody(
+    string UserEmail, string VendorName, string PhoneNumber, string Address, string LicenseNumber);
 public sealed record UpdateVendorProfileRequest(string VendorName, string PhoneNumber, string Address);
 public sealed record RejectVendorRequest(string Reason);

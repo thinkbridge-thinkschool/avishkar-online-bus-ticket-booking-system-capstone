@@ -12,3 +12,9 @@
   width: 100%;
   box-sizing: border-box;
 }
+
+.main-content--full {
+  padding: 0;
+  max-width: none;
+  margin: 0;
+}

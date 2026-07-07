@@ -18,6 +18,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/local-login/local-login').then(m => m.LocalLoginComponent),
   },
   {
+    path: 'vendor/login',
+    loadComponent: () => import('./features/auth/vendor-login/vendor-login').then(m => m.VendorLoginComponent),
+  },
+  {
+    path: 'vendor/register',
+    loadComponent: () => import('./features/auth/vendor-register/vendor-register').then(m => m.VendorRegisterComponent),
+  },
+  {
     path: 'register',
     loadComponent: () => import('./features/auth/local-register/local-register').then(m => m.LocalRegisterComponent),
   },
@@ -110,34 +118,48 @@ export const routes: Routes = [
       import('./features/vendor/vendor-schedules').then(m => m.VendorSchedulesComponent),
   },
   {
-    path: 'admin/dashboard',
-    canActivate: [superAdminGuard],
-    loadComponent: () =>
-      import('./features/admin/admin-dashboard').then(m => m.AdminDashboardComponent),
-  },
-  {
-    path: 'admin/tenants',
-    canActivate: [superAdminGuard],
-    loadComponent: () =>
-      import('./features/admin/admin-tenants').then(m => m.AdminTenantsComponent),
-  },
-  {
-    path: 'admin/cities',
+    path: 'admin',
     canActivate: [adminGuard],
     loadComponent: () =>
-      import('./features/admin/admin-cities').then(m => m.AdminCitiesComponent),
-  },
-  {
-    path: 'admin/routes',
-    canActivate: [adminGuard],
-    loadComponent: () =>
-      import('./features/admin/admin-routes').then(m => m.AdminRoutesComponent),
-  },
-  {
-    path: 'admin/vendors',
-    canActivate: [adminGuard],
-    loadComponent: () =>
-      import('./features/admin/admin-vendors').then(m => m.AdminVendorsComponent),
+      import('./features/admin/admin-layout').then(m => m.AdminLayoutComponent),
+    children: [
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./features/admin/admin-dashboard').then(m => m.AdminDashboardComponent),
+      },
+      {
+        path: 'add-vendor',
+        loadComponent: () =>
+          import('./features/admin/admin-add-vendor').then(m => m.AdminAddVendorComponent),
+      },
+      {
+        path: 'vendors',
+        loadComponent: () =>
+          import('./features/admin/admin-vendors').then(m => m.AdminVendorsComponent),
+      },
+      {
+        path: 'pending-vendors',
+        loadComponent: () =>
+          import('./features/admin/admin-pending-vendors').then(m => m.AdminPendingVendorsComponent),
+      },
+      {
+        path: 'tenants',
+        canActivate: [superAdminGuard],
+        loadComponent: () =>
+          import('./features/admin/admin-tenants').then(m => m.AdminTenantsComponent),
+      },
+      {
+        path: 'cities',
+        loadComponent: () =>
+          import('./features/admin/admin-cities').then(m => m.AdminCitiesComponent),
+      },
+      {
+        path: 'routes',
+        loadComponent: () =>
+          import('./features/admin/admin-routes').then(m => m.AdminRoutesComponent),
+      },
+    ],
   },
   { path: '**', redirectTo: '' },
 ];

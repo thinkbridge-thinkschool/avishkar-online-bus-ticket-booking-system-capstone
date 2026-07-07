@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, HostListener, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -10,4 +10,26 @@ import { AuthService } from '../../../core/services/auth.service';
 })
 export class NavBarComponent {
   readonly auth = inject(AuthService);
+
+  readonly userMenuOpen = signal(false);
+
+  toggleUserMenu(): void {
+    this.userMenuOpen.update(open => !open);
+  }
+
+  closeUserMenu(): void {
+    this.userMenuOpen.set(false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!(event.target as HTMLElement).closest('.user-menu')) {
+      this.closeUserMenu();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.closeUserMenu();
+  }
 }

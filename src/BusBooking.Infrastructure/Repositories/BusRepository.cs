@@ -11,7 +11,7 @@ internal sealed class BusRepository(BusBookingDbContext db) : IBusRepository
         db.Buses.FirstOrDefaultAsync(b => b.Id == id, ct);
 
     public async Task<IReadOnlyList<Bus>> GetByVendorIdAsync(Guid vendorId, CancellationToken ct = default) =>
-        await db.Buses.Where(b => b.VendorId == vendorId).ToListAsync(ct);
+        await db.Buses.Where(b => b.VendorId == vendorId && b.IsActive).ToListAsync(ct);
 
     public Task<bool> ExistsByBusNumberAsync(string busNumber, CancellationToken ct = default) =>
         db.Buses.AnyAsync(b => b.BusNumber == busNumber, ct);

@@ -3,8 +3,10 @@ using BusBooking.Application.Booking.Commands.CancelBooking;
 using BusBooking.Application.Booking.Commands.CreateBooking;
 using BusBooking.Application.Booking.Queries.GetUserBookings;
 using BusBooking.Application.Booking.Repositories;
+using BusBooking.Application.Buses;
 using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
+using BusBooking.Application.Routes;
 using BusBooking.Application.Scheduling.Repositories;
 
 namespace BusBooking.Api.Booking;
@@ -61,13 +63,16 @@ public static class BookingEndpoints
     private static async Task<IResult> GetMyBookings(
         ClaimsPrincipal principal,
         IBookingRepository bookingRepo,
+        IScheduleRepository scheduleRepo,
+        IBusRepository busRepo,
+        IRouteRepository routeRepo,
         CancellationToken ct)
     {
         var oidValue = principal.FindFirst("app:userId")?.Value;
         if (!Guid.TryParse(oidValue, out var userId))
             return Results.Unauthorized();
 
-        var handler = new GetUserBookingsHandler(bookingRepo);
+        var handler = new GetUserBookingsHandler(bookingRepo, scheduleRepo, busRepo, routeRepo);
         var dtos = await handler.HandleAsync(new GetUserBookingsQuery(userId), ct);
         return Results.Ok(dtos);
     }
@@ -76,6 +81,9 @@ public static class BookingEndpoints
         Guid bookingId,
         ClaimsPrincipal principal,
         IBookingRepository bookingRepo,
+        IScheduleRepository scheduleRepo,
+        IBusRepository busRepo,
+        IRouteRepository routeRepo,
         CancellationToken ct)
     {
         var oidValue = principal.FindFirst("app:userId")?.Value;
@@ -86,25 +94,19 @@ public static class BookingEndpoints
         if (booking is null) return Results.NotFound();
         if (booking.UserId != userId) return Results.Forbid();
 
-        var dto = new BookingDto(
-            booking.Id,
-            booking.ScheduleId,
-            booking.Status,
-            booking.TotalAmount,
-            booking.BookedAt,
-            booking.Seats
-                .Select(s => new BookedSeatDto(s.SeatNumber, s.PassengerName, s.PassengerAge, s.SeatPrice, s.PassengerGender))
-                .ToList());
-
+        var dto = await BookingDtoFactory.CreateAsync(booking, scheduleRepo, busRepo, routeRepo, ct);
         return Results.Ok(dto);
     }
 
     private static async Task<IResult> GetUserBookings(
         Guid userId,
         IBookingRepository bookingRepo,
+        IScheduleRepository scheduleRepo,
+        IBusRepository busRepo,
+        IRouteRepository routeRepo,
         CancellationToken ct)
     {
-        var handler = new GetUserBookingsHandler(bookingRepo);
+        var handler = new GetUserBookingsHandler(bookingRepo, scheduleRepo, busRepo, routeRepo);
         var dtos = await handler.HandleAsync(new GetUserBookingsQuery(userId), ct);
         return Results.Ok(dtos);
     }

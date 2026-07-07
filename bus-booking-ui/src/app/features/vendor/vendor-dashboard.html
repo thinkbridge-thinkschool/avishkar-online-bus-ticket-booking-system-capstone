@@ -47,9 +47,46 @@
         <div>
           <h2 style="margin:0">{{ v.vendorName }}</h2>
           <p style="color:#6b7280;margin:.25rem 0 0">{{ v.email }}</p>
+          <p style="color:#6b7280;margin:.25rem 0 0">{{ v.phoneNumber }}</p>
+          <p style="color:#6b7280;margin:.25rem 0 0">{{ v.address }}</p>
         </div>
-        <app-status-badge [status]="v.status" />
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.5rem">
+          <app-status-badge [status]="v.status" />
+          @if (!editingProfile()) {
+            <button class="btn btn-outline" style="font-size:.8rem;padding:.3rem .75rem"
+              (click)="startEditProfile()" type="button">Edit Profile</button>
+          }
+        </div>
       </div>
+
+      @if (editingProfile()) {
+        <div style="margin-top:1.25rem;border-top:1px solid #e2e8f0;padding-top:1.25rem">
+          @if (profileError()) {
+            <div class="error-alert" role="alert">{{ profileError() }}</div>
+          }
+          <div class="form-group">
+            <label class="form-label">Company Name</label>
+            <input class="form-control" [value]="editVendorName()"
+                   (input)="editVendorName.set($any($event.target).value)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone Number</label>
+            <input class="form-control" [value]="editPhoneNumber()"
+                   (input)="editPhoneNumber.set($any($event.target).value)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Address</label>
+            <input class="form-control" [value]="editAddress()"
+                   (input)="editAddress.set($any($event.target).value)" />
+          </div>
+          <div style="display:flex;gap:.75rem">
+            <button class="btn btn-primary" (click)="saveProfile()" [disabled]="profileSaving()" type="button">
+              {{ profileSaving() ? 'Saving…' : 'Save Changes' }}
+            </button>
+            <button class="btn btn-outline" (click)="cancelEditProfile()" type="button">Cancel</button>
+          </div>
+        </div>
+      }
     </div>
   }
 

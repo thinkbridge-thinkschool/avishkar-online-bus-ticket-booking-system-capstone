@@ -29,8 +29,29 @@
       </span>
       <button class="btn-outline" (click)="auth.logout()" type="button">Sign out</button>
     } @else {
-      <a routerLink="/signup" class="btn-signup">Sign up</a>
-      <a routerLink="/login" class="btn-primary">Sign in</a>
+      <div class="user-menu">
+        <button
+          type="button"
+          class="btn-outline user-menu-trigger"
+          [attr.aria-expanded]="userMenuOpen()"
+          aria-haspopup="true"
+          (click)="toggleUserMenu()"
+        >
+          User Login
+          <span class="caret" aria-hidden="true">▾</span>
+        </button>
+        @if (userMenuOpen()) {
+          <ul class="user-menu-panel" role="menu">
+            <li role="none">
+              <a routerLink="/login" role="menuitem" (click)="closeUserMenu()">Login</a>
+            </li>
+            <li role="none">
+              <a routerLink="/signup" role="menuitem" (click)="closeUserMenu()">Sign Up</a>
+            </li>
+          </ul>
+        }
+      </div>
+      <a routerLink="/vendor/login" class="btn-primary">Vendor Login</a>
     }
   </div>
 </nav>

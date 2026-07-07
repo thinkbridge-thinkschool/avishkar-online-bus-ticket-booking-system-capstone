@@ -246,8 +246,9 @@ builder.Services.AddRateLimiter(o =>
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
-// In Development, skip real Service Bus — log events to console instead.
-if (builder.Environment.IsDevelopment())
+// If Service Bus isn't configured (e.g. local dev, or Production without ServiceBus:Namespace
+// set), fall back to a no-op publisher so IEventPublisher is always resolvable.
+if (string.IsNullOrEmpty(builder.Configuration["ServiceBus:Namespace"]))
     builder.Services.AddScoped<IEventPublisher, NoOpEventPublisher>();
 
 var app = builder.Build();

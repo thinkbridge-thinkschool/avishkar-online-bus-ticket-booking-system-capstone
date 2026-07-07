@@ -34,6 +34,14 @@ export class VendorDashboardComponent implements OnInit {
   readonly address = signal('');
   readonly licenseNumber = signal('');
 
+  // Profile edit form (post-approval)
+  readonly editingProfile = signal(false);
+  readonly profileSaving = signal(false);
+  readonly profileError = signal<string | null>(null);
+  readonly editVendorName = signal('');
+  readonly editPhoneNumber = signal('');
+  readonly editAddress = signal('');
+
   async ngOnInit(): Promise<void> {
     this.regEmail.set(this.auth.email() ?? '');
     try {
@@ -73,6 +81,45 @@ export class VendorDashboardComponent implements OnInit {
       this.registerError.set((err as Error).message);
     } finally {
       this.registering.set(false);
+    }
+  }
+
+  startEditProfile(): void {
+    const v = this.vendor();
+    if (!v) return;
+    this.editVendorName.set(v.vendorName);
+    this.editPhoneNumber.set(v.phoneNumber);
+    this.editAddress.set(v.address ?? '');
+    this.profileError.set(null);
+    this.editingProfile.set(true);
+  }
+
+  cancelEditProfile(): void {
+    this.editingProfile.set(false);
+  }
+
+  async saveProfile(): Promise<void> {
+    const v = this.vendor();
+    if (!v) return;
+    const vendorName = this.editVendorName().trim();
+    const phoneNumber = this.editPhoneNumber().trim();
+    const address = this.editAddress().trim();
+
+    if (!vendorName || !phoneNumber || !address) {
+      this.profileError.set('All fields are required.');
+      return;
+    }
+
+    this.profileSaving.set(true);
+    this.profileError.set(null);
+    try {
+      await this.vendorService.updateProfile(v.vendorId, { vendorName, phoneNumber, address });
+      this.vendor.set(await this.vendorService.getMyProfile());
+      this.editingProfile.set(false);
+    } catch (err: unknown) {
+      this.profileError.set((err as Error).message);
+    } finally {
+      this.profileSaving.set(false);
     }
   }
 }

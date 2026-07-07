@@ -1,4 +1,7 @@
-<app-nav-bar />
-<main class="main-content">
+@if (!isAdminRoute()) {
+  <app-nav-bar />
+}
+<main class="main-content" [class.main-content--full]="isAdminRoute()">
   <router-outlet />
 </main>
+<app-confirm-dialog />

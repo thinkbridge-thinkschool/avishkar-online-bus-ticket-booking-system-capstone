@@ -1,36 +1,72 @@
-<h1>Admin Dashboard</h1>
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
   <div class="error-alert" role="alert">{{ error() }}</div>
 } @else if (dashboard(); as d) {
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem">
-    <div class="card" style="text-align:center">
-      <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ d.totalUsers }}</div>
-      <div style="color:#6b7280;font-size:.875rem">Users</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.75rem;margin-bottom:1.5rem">
+    <h1 style="margin:0">Dashboard</h1>
+    <div style="color:#6b7280;font-weight:600;display:flex;align-items:center;gap:.5rem">
+      <i class="fas fa-calendar-days" aria-hidden="true"></i>
+      {{ today | date:'EEEE, MMMM d, y' }}
     </div>
-    <div class="card" style="text-align:center">
-      <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ d.totalVendors }}</div>
-      <div style="color:#6b7280;font-size:.875rem">Vendors</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.25rem;margin-bottom:2rem">
+    <div class="card" style="border-left:4px solid var(--green);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:2rem;font-weight:800;color:var(--text)">{{ d.totalUsers }}</div>
+        <div style="color:#6b7280;font-size:.9rem">Total Users</div>
+      </div>
+      <div style="width:52px;height:52px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center">
+        <i class="fas fa-users" style="color:var(--green);font-size:1.4rem" aria-hidden="true"></i>
+      </div>
     </div>
-    <div class="card" style="text-align:center">
-      <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ d.totalBookings }}</div>
-      <div style="color:#6b7280;font-size:.875rem">Bookings</div>
+
+    <div class="card" style="border-left:4px solid #2563eb;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:2rem;font-weight:800;color:var(--text)">{{ d.totalVendors }}</div>
+        <div style="color:#6b7280;font-size:.9rem">Total Vendors</div>
+      </div>
+      <div style="width:52px;height:52px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center">
+        <i class="fas fa-building" style="color:#2563eb;font-size:1.4rem" aria-hidden="true"></i>
+      </div>
     </div>
-    <div class="card" style="text-align:center">
-      <div style="font-size:2rem;font-weight:700;color:#e85d04">₹{{ d.totalRevenue }}</div>
-      <div style="color:#6b7280;font-size:.875rem">Revenue</div>
+
+    <div class="card" style="border-left:4px solid var(--orange);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:2rem;font-weight:800;color:var(--text)">{{ d.totalBookings }}</div>
+        <div style="color:#6b7280;font-size:.9rem">Total Bookings</div>
+      </div>
+      <div style="width:52px;height:52px;border-radius:50%;background:#ffedd5;display:flex;align-items:center;justify-content:center">
+        <i class="fas fa-ticket" style="color:var(--orange);font-size:1.4rem" aria-hidden="true"></i>
+      </div>
     </div>
+
+    <div class="card" style="border-left:4px solid var(--navy);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:2rem;font-weight:800;color:var(--text)">₹{{ d.totalRevenue }}</div>
+        <div style="color:#6b7280;font-size:.9rem">Total Revenue</div>
+      </div>
+      <div style="width:52px;height:52px;border-radius:50%;background:#ede9fe;display:flex;align-items:center;justify-content:center">
+        <i class="fas fa-sack-dollar" style="color:var(--navy);font-size:1.4rem" aria-hidden="true"></i>
+      </div>
+    </div>
+
     @if (d.pendingVendors > 0) {
-      <div class="card" style="text-align:center;border:2px solid #f5a623">
-        <div style="font-size:2rem;font-weight:700;color:#f5a623">{{ d.pendingVendors }}</div>
-        <div style="color:#6b7280;font-size:.875rem">Pending Vendors</div>
+      <div class="card" style="border-left:4px solid var(--yellow);display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:2rem;font-weight:800;color:var(--text)">{{ d.pendingVendors }}</div>
+          <div style="color:#6b7280;font-size:.9rem">Pending Vendors</div>
+        </div>
+        <div style="width:52px;height:52px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center">
+          <i class="fas fa-clock" style="color:var(--yellow);font-size:1.4rem" aria-hidden="true"></i>
+        </div>
       </div>
     }
   </div>
 
   @if (auth.isSuperAdmin()) {
-    <h2 style="font-size:1.125rem;font-weight:600;margin:1.5rem 0 .75rem">Tenants</h2>
+    <h2 style="font-size:1.125rem;font-weight:600;margin:0 0 .75rem">Tenants</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:2rem">
       <div class="card" style="text-align:center">
         <div style="font-size:2rem;font-weight:700;color:#1a2b4a">{{ d.totalTenants }}</div>
@@ -55,12 +91,50 @@
     </div>
   }
 
-  <div style="display:flex;gap:1rem;flex-wrap:wrap">
-    @if (auth.isSuperAdmin()) {
-      <a routerLink="/admin/tenants" class="btn btn-primary">Manage Tenants</a>
+  <div class="card" style="margin-bottom:2rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+      <h2 style="margin:0;display:flex;align-items:center;gap:.6rem;font-size:1.15rem">
+        <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Recent Vendors
+      </h2>
+      <a routerLink="/admin/vendors" class="btn btn-outline">View All <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+    </div>
+    @if (d.recentVendors.length === 0) {
+      <p style="color:#6b7280;text-align:center;padding:1.5rem 0">No vendors registered yet.</p>
+    } @else {
+      @for (v of d.recentVendors; track v.vendorId; let last = $last) {
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0" [style.border-bottom]="last ? 'none' : '1px solid #e2e8f0'">
+          <div>
+            <div style="font-weight:700">{{ v.vendorName }}</div>
+            <div style="color:#6b7280;font-size:.875rem;margin-top:.2rem">
+              <i class="fas fa-envelope" aria-hidden="true"></i> {{ v.email }}
+            </div>
+          </div>
+          <div style="color:#6b7280;font-size:.9rem;display:flex;align-items:center;gap:.4rem">
+            <app-status-badge [status]="v.status" />
+          </div>
+        </div>
+      }
     }
-    <a routerLink="/admin/vendors" class="btn btn-secondary">Manage Vendors</a>
-    <a routerLink="/admin/cities" class="btn btn-secondary">Manage Cities</a>
-    <a routerLink="/admin/routes" class="btn btn-outline">Manage Routes</a>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+      <h2 style="margin:0;display:flex;align-items:center;gap:.6rem;font-size:1.15rem">
+        <i class="fas fa-clock" style="color:var(--yellow)" aria-hidden="true"></i> Pending Vendor Requests
+      </h2>
+      <a routerLink="/admin/pending-vendors" class="btn btn-outline">View All <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+    </div>
+    @if (d.pendingVendors === 0) {
+      <div style="text-align:center;padding:2rem 0">
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
+          <i class="fas fa-check" style="color:#fff;font-size:1.5rem" aria-hidden="true"></i>
+        </div>
+        <p style="color:#6b7280;margin:0">No pending vendor requests</p>
+      </div>
+    } @else {
+      <p style="color:#6b7280;margin:0">
+        {{ d.pendingVendors }} vendor{{ d.pendingVendors === 1 ? '' : 's' }} waiting for approval.
+      </p>
+    }
   </div>
 }

@@ -29,8 +29,9 @@ export class LocalLoginComponent {
   constructor() {
     effect(() => {
       if (this.auth.isAuthenticated()) {
-        const returnUrl = this.route.snapshot.queryParams['returnUrl'] as string ?? '/';
-        void this.router.navigateByUrl(returnUrl);
+        const returnUrl = this.route.snapshot.queryParams['returnUrl'] as string | undefined;
+        const target = returnUrl ?? (this.auth.isAnyAdmin() ? '/admin/dashboard' : '/');
+        void this.router.navigateByUrl(target);
       }
     });
   }

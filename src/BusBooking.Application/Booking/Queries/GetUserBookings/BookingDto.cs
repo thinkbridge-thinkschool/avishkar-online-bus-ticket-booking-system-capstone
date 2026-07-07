@@ -8,7 +8,14 @@ public sealed record BookingDto(
     BookingStatus Status,
     decimal TotalAmount,
     DateTime BookedAt,
-    IReadOnlyList<BookedSeatDto> Seats);
+    IReadOnlyList<BookedSeatDto> Seats,
+    string? FromCityName = null,
+    string? ToCityName = null,
+    DateOnly? TravelDate = null,
+    TimeOnly? DepartureTime = null,
+    TimeOnly? ArrivalTime = null,
+    string? BusName = null,
+    string? BusNumber = null);
 
 public sealed record BookedSeatDto(
     int SeatNumber,

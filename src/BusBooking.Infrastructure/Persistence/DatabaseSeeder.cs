@@ -3,6 +3,7 @@ using BusBooking.Domain.Identity.Enums;
 using BusBooking.Domain.Scheduling.Entities;
 using BusBooking.Domain.Scheduling.Enums;
 using BusBooking.Domain.Tenants.Aggregates;
+using BusBooking.Domain.Vendor.Aggregates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -89,18 +90,19 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
             hasInfrastructure = false;
         }
 
-        if (missingDates.Count == 0)
-        {
-            logger.LogInformation(
-                "Demo schedules are complete for {Today} through {End} — skipping seed.",
-                today, window[^1]);
-            return;
-        }
-
-        if (hasInfrastructure)
+        if (!hasInfrastructure)
+            await FullSeedAsync(window, ct);
+        else if (missingDates.Count > 0)
             await AddMissingSchedulesAsync(missingDates, ct);
         else
-            await FullSeedAsync(window, ct);
+            logger.LogInformation(
+                "Demo schedules are complete for {Today} through {End} — skipping schedule seed.",
+                today, window[^1]);
+
+        // Independent of schedule/tenant state above — self-heals on every startup so these
+        // dev accounts exist even in a database that already had infrastructure before this
+        // seeding was introduced (e.g. identity tables added by a later migration).
+        await SeedDevAccountsAsync(ct);
     }
 
     // ── Path A: empty DB — drop, migrate, seed everything ────────────────────
@@ -173,27 +175,9 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
         await db.Schedules.AddRangeAsync(schedules, ct);
         await db.SaveChangesAsync(ct);
 
-        // Dev SuperAdmin (local auth) — fixed ID so seed is idempotent
-        // Password: Admin@123456  — NEVER use in production
-        var superAdminId    = Guid.Parse("00000000-0000-0000-0000-000000000002");
-        var superAdminEmail = "admin@busbooking.local";
-        var superAdmin      = AppUser.Create(superAdminId, superAdminEmail, "Dev SuperAdmin", emailVerified: true);
-        var superAdminLogin = ExternalLogin.Create(superAdminId, LoginProvider.Local, superAdminEmail);
-        var superAdminCred  = LocalCredential.Create(superAdminId,
-            BCrypt.Net.BCrypt.HashPassword("Admin@123456", 12));
-        var superAdminRole  = AppUserRole.Create(superAdminId, "BusBooking.SuperAdmin");
-        await db.AppUsers.AddAsync(superAdmin, ct);
-        await db.ExternalLogins.AddAsync(superAdminLogin, ct);
-        await db.LocalCredentials.AddAsync(superAdminCred, ct);
-        await db.AppUserRoles.AddAsync(superAdminRole, ct);
-        await db.SaveChangesAsync(ct);
-
         logger.LogInformation(
             "Full seed complete: 4 cities, 8 routes, 8 buses, {Count} schedules across {Days} days ({From} to {To}).",
             schedules.Count, dates.Count, dates[0], dates[^1]);
-        logger.LogInformation(
-            "Dev SuperAdmin seeded — email: {Email} / password: Admin@123456 (local dev only).",
-            superAdminEmail);
     }
 
     // ── Path B: infrastructure exists — insert only missing schedule dates ────
@@ -224,6 +208,98 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
         logger.LogInformation(
             "Partial seed: added {Count} schedules for {Days} missing date(s) ({From} to {To}).",
             schedules.Count, missingDates.Count, missingDates[0], missingDates[^1]);
+    }
+
+    // ── Dev accounts — idempotent, runs regardless of tenant/schedule state ──
+
+    private async Task SeedDevAccountsAsync(CancellationToken ct)
+    {
+        // Dev SuperAdmin (local auth) — fixed ID so seed is idempotent
+        // Password: Admin@123456  — NEVER use in production
+        var superAdminEmail = "admin@busbooking.local";
+        if (!await db.AppUsers.IgnoreQueryFilters().AnyAsync(u => u.Email == superAdminEmail, ct))
+        {
+            var superAdminId    = Guid.Parse("00000000-0000-0000-0000-000000000002");
+            var superAdmin      = AppUser.Create(superAdminId, superAdminEmail, "Dev SuperAdmin", emailVerified: true);
+            var superAdminLogin = ExternalLogin.Create(superAdminId, LoginProvider.Local, superAdminEmail);
+            var superAdminCred  = LocalCredential.Create(superAdminId,
+                BCrypt.Net.BCrypt.HashPassword("Admin@123456", 12));
+            var superAdminRole  = AppUserRole.Create(superAdminId, "BusBooking.SuperAdmin");
+            await db.AppUsers.AddAsync(superAdmin, ct);
+            await db.ExternalLogins.AddAsync(superAdminLogin, ct);
+            await db.LocalCredentials.AddAsync(superAdminCred, ct);
+            await db.AppUserRoles.AddAsync(superAdminRole, ct);
+            await db.SaveChangesAsync(ct);
+
+            logger.LogInformation(
+                "Dev SuperAdmin seeded — email: {Email} / password: Admin@123456 (local dev only).",
+                superAdminEmail);
+        }
+
+        // Dev Vendor (local auth) — fixed ID so seed is idempotent
+        // Password: BusBooking#Vendor2026!  — NEVER use in production
+        // Each piece below is checked and healed independently, so a database that
+        // already had an earlier piece (e.g. the identity, from a prior version of
+        // this seeder) still picks up anything added later, without duplicating rows.
+        var vendorUserId = Guid.Parse("00000000-0000-0000-0000-000000000003");
+        var vendorEmail  = "vendor@busbooking.local";
+
+        if (!await db.AppUsers.IgnoreQueryFilters().AnyAsync(u => u.Email == vendorEmail, ct))
+        {
+            var vendorUser  = AppUser.Create(vendorUserId, vendorEmail, "Dev Vendor", emailVerified: true);
+            var vendorLogin = ExternalLogin.Create(vendorUserId, LoginProvider.Local, vendorEmail);
+            var vendorCred  = LocalCredential.Create(vendorUserId,
+                BCrypt.Net.BCrypt.HashPassword("BusBooking#Vendor2026!", 12));
+            var vendorRole  = AppUserRole.Create(vendorUserId, "BusBooking.Vendor");
+            await db.AppUsers.AddAsync(vendorUser, ct);
+            await db.ExternalLogins.AddAsync(vendorLogin, ct);
+            await db.LocalCredentials.AddAsync(vendorCred, ct);
+            await db.AppUserRoles.AddAsync(vendorRole, ct);
+            await db.SaveChangesAsync(ct);
+
+            logger.LogInformation(
+                "Dev Vendor seeded — email: {Email} / password: BusBooking#Vendor2026! (local dev only).",
+                vendorEmail);
+        }
+
+        // Vendor business profile — pre-approved and active so the seeded account
+        // can sign in and use the vendor portal immediately, with no admin action required.
+        if (!await db.Vendors.IgnoreQueryFilters().AnyAsync(v => v.Email == vendorEmail, ct))
+        {
+            var vendorProfile = Vendor.Register(
+                entraObjectId: vendorUserId.ToString(),
+                vendorName: "Shivneri Travels Pvt Ltd",
+                email: vendorEmail,
+                phone: "+91-9822012345",
+                address: "Shop No. 14, Shivaji Nagar, Pune, Maharashtra 411005",
+                licenseNumber: "MH-LIC-2026-00123");
+            vendorProfile.Approve();
+            vendorProfile.ClearDomainEvents(); // seeding is not a real approval workflow — no notification should fire
+            await db.Vendors.AddAsync(vendorProfile, ct);
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Tenant — bus/schedule management requires a resolved tenant (see
+        // TenantResolutionMiddleware), which resolves by matching the caller's
+        // app:userId against Tenant.AdminEntraObjectId. A Vendor profile alone
+        // does not grant this; every operating vendor owns exactly one tenant,
+        // same as the self-service "register your tenant" flow real vendors use.
+        if (!await db.Tenants.IgnoreQueryFilters().AnyAsync(t => t.AdminEntraObjectId == vendorUserId.ToString(), ct))
+        {
+            var vendorTenant = Tenant.Register(
+                name: "Shivneri Travels Pvt Ltd",
+                subdomain: "shivneri-travels",
+                adminEmail: vendorEmail,
+                adminEntraObjectId: vendorUserId.ToString());
+            vendorTenant.Approve();
+            vendorTenant.ClearDomainEvents();
+            await db.Tenants.AddAsync(vendorTenant, ct);
+            await db.SaveChangesAsync(ct);
+
+            logger.LogInformation(
+                "Dev Vendor tenant seeded — subdomain: {Subdomain} (local dev only).",
+                vendorTenant.Subdomain);
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -1,0 +1,93 @@
+<div class="auth-wrapper">
+
+  <!-- ── Left panel ──────────────────────────────────────────── -->
+  <div class="auth-left">
+    <div class="auth-left-inner">
+      <a routerLink="/" class="brand">
+        <span class="brand-icon">🚌</span>
+        <span class="brand-name">BusBooking</span>
+      </a>
+      <div class="hero-text">
+        <h1>Vendor Login</h1>
+        <p>Sign in to manage your fleet, schedules, and bookings.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right panel: form ──────────────────────────────────── -->
+  <div class="auth-right">
+    <div class="auth-card">
+      <h2>Vendor sign in</h2>
+
+      @if (error()) {
+        <div class="alert-error" role="alert">{{ error() }}</div>
+      }
+
+      <form (ngSubmit)="submit()" #loginForm="ngForm" novalidate>
+        <div class="field">
+          <label for="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            [(ngModel)]="email"
+            required
+            email
+            autocomplete="email"
+            placeholder="you@example.com"
+            [disabled]="loading()"
+          />
+        </div>
+
+        <div class="field">
+          <label for="password">
+            Password
+            <a routerLink="/forgot-password" class="forgot-link" tabindex="-1">Forgot?</a>
+          </label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            [(ngModel)]="password"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••"
+            [disabled]="loading()"
+          />
+        </div>
+
+        <button type="submit" class="submit-btn" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner" aria-hidden="true"></span>
+            Signing in…
+          } @else {
+            Sign in
+          }
+        </button>
+      </form>
+
+      @if (msalEnabled) {
+        <div class="divider"><span>or</span></div>
+        <button type="button" class="ms-btn" (click)="loginWithMicrosoft()">
+          <svg viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
+            <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
+            <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+          </svg>
+          Continue with Microsoft
+        </button>
+      }
+
+      <p class="alt-link">
+        New vendor?
+        <a routerLink="/vendor/register">Register your business</a>
+      </p>
+      <p class="alt-link">
+        Not a vendor?
+        <a routerLink="/login">Sign in as a customer</a>
+      </p>
+    </div>
+  </div>
+
+</div>

@@ -8,7 +8,7 @@ export class CityService {
   constructor(private readonly http: HttpClient) {}
 
   async getCities(): Promise<City[]> {
-    return firstValueFrom(this.http.get<City[]>('/api/v1/cities'));
+    return firstValueFrom(this.http.get<City[]>('/api/v1/cities'));     // Angular stores this list inside, from drop-down list cities.
   }
 
   async createCity(cmd: CreateCityRequest): Promise<string> {

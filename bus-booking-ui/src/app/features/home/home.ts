@@ -6,15 +6,15 @@ import type { City } from '../../shared/models/city.model';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule],
+  imports: [FormsModule],       // Without FormsModule, the ngModel directive will not work and will throw an error.
   templateUrl: './home.html',
   styleUrl: './home.css',
 })
 export class HomeComponent implements OnInit {
-  private readonly router = inject(Router);
-  private readonly cityService = inject(CityService);
+  private readonly router = inject(Router);               // DI, Used to change pages. HOME -> SEARCH
+  private readonly cityService = inject(CityService);    // DI, Used to get the list of cities from the backend.
 
-  readonly cities = signal<City[]>([]);
+  readonly cities = signal<City[]>([]);       // stores data from fronted
   fromCityId = '';
   toCityId = '';
   travelDate = '';
@@ -26,7 +26,7 @@ export class HomeComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      this.cities.set(await this.cityService.getCities());
+      this.cities.set(await this.cityService.getCities());        // ngOnInit() runs automatically when the page opens. To get cities from the backend, we call the getCities() method of the CityService. The result is stored in the cities signal.
     } catch { /* cities load is best-effort */ }
   }
 
