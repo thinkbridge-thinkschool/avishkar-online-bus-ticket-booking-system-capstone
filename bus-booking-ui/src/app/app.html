@@ -5,3 +5,6 @@
   <router-outlet />
 </main>
 <app-confirm-dialog />
+@if (!isAdminRoute() && auth.isAuthenticated()) {
+  <app-assistant-chat />
+}

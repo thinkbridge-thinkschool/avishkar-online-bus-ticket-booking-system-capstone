@@ -93,6 +93,24 @@
   justify-content: center;
 }
 
+.ask-ai-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ask-ai-link:hover { text-decoration: underline; }
+
 /* ── Why Choose Us ───────────────────────────────────────────────────────── */
 .why-choose-us {
   background: #fff;

@@ -1,0 +1,132 @@
+<div class="ac-root">
+
+  @if (open()) {
+    <div class="ac-panel card" role="dialog" aria-label="BusBooking Assistant">
+      <div class="ac-header">
+        <div class="ac-header-title">
+          <i class="fas fa-robot" aria-hidden="true"></i>
+          <span>BusBooking Assistant</span>
+        </div>
+        <button class="ac-close-btn" (click)="toggle()" type="button" aria-label="Close assistant">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <div class="ac-messages">
+        @if (messages().length === 0) {
+          <div class="ac-greeting">
+            <i class="fas fa-comment-dots" aria-hidden="true"></i>
+            <p>Hi! I can help you search buses, check your bookings, or answer questions about
+              BusBooking — payments, cancellations, and more. What can I help with?</p>
+          </div>
+        }
+
+        @for (msg of messages(); track $index) {
+          <div class="ac-msg" [class.ac-msg-user]="msg.role === 'user'" [class.ac-msg-error]="msg.isError">
+            <div class="ac-bubble">{{ msg.text }}</div>
+
+            @for (tool of msg.toolResults; track $index) {
+              @switch (tool.kind) {
+                @case ('schedules') {
+                  @for (s of parseSchedules(tool.dataJson); track s.scheduleId) {
+                    <div class="ac-card">
+                      <div class="ac-card-row">
+                        <strong>{{ s.busName }}</strong>
+                        <span class="ac-card-price">{{ s.minSeatPrice ? '₹' + s.minSeatPrice : 'Sold out' }}</span>
+                      </div>
+                      <div class="ac-card-sub">{{ s.source }} → {{ s.destination }} · {{ s.travelDate }}</div>
+                      <div class="ac-card-sub">{{ formatTime(s.departureTime) }} – {{ formatTime(s.arrivalTime) }} · {{ s.availableSeats }} seats left</div>
+                    </div>
+                  }
+                }
+                @case ('bookings') {
+                  @for (b of parseBookingsList(tool.dataJson); track b.bookingId) {
+                    <a class="ac-card ac-card-link" [routerLink]="['/bookings', b.bookingId]" (click)="toggle()">
+                      <div class="ac-card-row">
+                        <strong>{{ b.fromCityName || '—' }} → {{ b.toCityName || '—' }}</strong>
+                        <span class="ac-card-status">{{ b.status }}</span>
+                      </div>
+                      <div class="ac-card-sub">{{ b.travelDate }} · ₹{{ b.totalAmount }}</div>
+                    </a>
+                  }
+                }
+                @case ('booking') {
+                  @if (parseBooking(tool.dataJson); as b) {
+                    <a class="ac-card ac-card-link" [routerLink]="['/bookings', b.bookingId]" (click)="toggle()">
+                      <div class="ac-card-row">
+                        <strong>{{ b.fromCityName || '—' }} → {{ b.toCityName || '—' }}</strong>
+                        <span class="ac-card-status">{{ b.status }}</span>
+                      </div>
+                      <div class="ac-card-sub">{{ b.travelDate }} · ₹{{ b.totalAmount }}</div>
+                    </a>
+                  }
+                }
+                @case ('cancel-suggestion') {
+                  @if (parseCancelSuggestion(tool.dataJson); as c) {
+                    <div class="ac-card ac-card-warn">
+                      <div class="ac-card-sub">Booking {{ c.bookingId }} — {{ c.status }}</div>
+                      <button class="btn btn-danger ac-cancel-btn" type="button" (click)="confirmCancel(c.bookingId)">
+                        <i class="fas fa-times" aria-hidden="true"></i> Cancel this booking
+                      </button>
+                    </div>
+                  }
+                }
+                @case ('vendor-buses') {
+                  @for (bus of parseVendorBuses(tool.dataJson); track bus.id) {
+                    <div class="ac-card">
+                      <div class="ac-card-row"><strong>{{ bus.busName }}</strong></div>
+                      <div class="ac-card-sub">{{ bus.busNumber }} · {{ bus.busType }} · {{ bus.totalSeats }} seats</div>
+                    </div>
+                  }
+                }
+                @case ('vendor-schedules') {
+                  @for (s of parseVendorSchedules(tool.dataJson); track s.scheduleId) {
+                    <div class="ac-card">
+                      <div class="ac-card-row"><strong>{{ s.busName }}</strong></div>
+                      <div class="ac-card-sub">{{ s.source }} → {{ s.destination }} · {{ s.travelDate }}</div>
+                    </div>
+                  }
+                }
+              }
+            }
+          </div>
+        }
+
+        @if (sending()) {
+          <div class="ac-msg">
+            <div class="ac-bubble ac-typing">
+              <span class="spinner" aria-hidden="true"></span> Thinking…
+            </div>
+          </div>
+        }
+
+        <div #scrollAnchor></div>
+      </div>
+
+      <form class="ac-input-row" (ngSubmit)="send()">
+        <input
+          class="ac-input"
+          type="text"
+          placeholder="Ask about buses, bookings, or policies…"
+          [ngModel]="input()"
+          (ngModelChange)="input.set($event)"
+          name="assistantMessage"
+          [disabled]="sending()"
+          autocomplete="off"
+        />
+        <button class="btn btn-primary ac-send-btn" type="submit" [disabled]="sending() || !input().trim()">
+          <i class="fas fa-paper-plane" aria-hidden="true"></i>
+        </button>
+      </form>
+    </div>
+  }
+
+  <button class="ac-toggle-btn" (click)="toggle()" type="button" [attr.aria-expanded]="open()" aria-label="Open BusBooking Assistant">
+    @if (open()) {
+      <i class="fas fa-chevron-down" aria-hidden="true"></i>
+    } @else {
+      <i class="fas fa-robot" aria-hidden="true"></i>
+    }
+  </button>
+
+</div>

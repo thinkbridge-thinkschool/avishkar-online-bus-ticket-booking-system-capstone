@@ -1,5 +1,6 @@
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
+using BusBooking.Application.Assistant;
 using BusBooking.Application.Booking.Repositories;
 using BusBooking.Application.Common.Interfaces;
 using BusBooking.Application.Identity;
@@ -13,6 +14,7 @@ using BusBooking.Application.Routes;
 using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Application.Users;
 using BusBooking.Application.Vendors;
+using BusBooking.Infrastructure.Assistant;
 using BusBooking.Infrastructure.BackgroundServices;
 using BusBooking.Infrastructure.Email;
 using BusBooking.Infrastructure.Identity;
@@ -79,6 +81,14 @@ public static class InfrastructureServiceExtensions
             services.AddScoped<IEmailService, SmtpEmailService>();
         else
             services.AddScoped<IEmailService, LogEmailService>();
+
+        // AI Assistant — provider selected via AiAssistant:Provider ("Gemini", the default, or
+        // "Groq"). Both sit behind IAiChatProvider identically from AssistantChatHandler's
+        // perspective; this registration is the only place that changes to switch between them.
+        if (string.Equals(config["AiAssistant:Provider"], "Groq", StringComparison.OrdinalIgnoreCase))
+            services.AddHttpClient<IAiChatProvider, GroqChatProvider>();
+        else
+            services.AddHttpClient<IAiChatProvider, GeminiChatProvider>();
 
         services.AddHostedService<SeatExpiryService>();
         services.AddHostedService<BookingCleanupService>();

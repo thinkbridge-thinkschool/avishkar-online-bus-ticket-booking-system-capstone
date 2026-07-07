@@ -1,6 +1,7 @@
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BusBooking.Api;
 using BusBooking.Api.Admin;
+using BusBooking.Api.Assistant;
 using BusBooking.Api.Auth;
 using BusBooking.Api.Booking;
 using BusBooking.Api.Buses;
@@ -243,6 +244,20 @@ builder.Services.AddRateLimiter(o =>
                 QueueLimit  = 0,
             }));
 
+    // Stricter than "api" — each request costs real AI-provider quota. Partitioned per client IP
+    // like "auth"/"auth-strict" (UseRateLimiter runs before UseAuthentication, so JWT claims
+    // aren't available here yet).
+    var assistantLimit = builder.Configuration.GetValue("RateLimits:AssistantPerMinute", 8);
+    o.AddPolicy("assistant", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window      = TimeSpan.FromMinutes(1),
+                PermitLimit = assistantLimit,
+                QueueLimit  = 0,
+            }));
+
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
@@ -321,6 +336,7 @@ app.MapUserEndpoints();
 app.MapAdminEndpoints();
 app.MapPaymentEndpoints();
 app.MapFeedbackEndpoints();
+app.MapAssistantEndpoints();
 app.MapLocalAuthEndpoints();
 
 // Migrations — skipped for non-relational providers (e.g. InMemory used by integration tests)

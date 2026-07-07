@@ -3,16 +3,17 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { NavBarComponent } from './shared/components/nav-bar/nav-bar';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog';
+import { AssistantChatComponent } from './shared/components/assistant-chat/assistant-chat';
 import { AuthService } from './core/services/auth.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NavBarComponent, ConfirmDialogComponent],
+  imports: [RouterOutlet, NavBarComponent, ConfirmDialogComponent, AssistantChatComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App implements OnInit {
-  private readonly auth = inject(AuthService);
+  readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   // The admin section has its own sidebar shell (AdminLayoutComponent) and

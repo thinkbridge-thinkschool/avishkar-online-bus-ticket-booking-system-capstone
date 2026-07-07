@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { TimeoutError } from 'rxjs';
 
 export class AppError extends Error {
   constructor(
@@ -19,6 +20,12 @@ interface ProblemDetails {
 
 export function toAppError(err: unknown): AppError {
   if (err instanceof AppError) return err;
+
+  // RxJS's timeout() operator throws a bare TimeoutError with no HTTP context — surface
+  // something a user can act on instead of the raw "Timeout has occurred".
+  if (err instanceof TimeoutError) {
+    return new AppError(0, 'The request took too long to respond. Please try again.');
+  }
 
   if (err instanceof HttpErrorResponse) {
     const body = err.error as ProblemDetails | null;
