@@ -7,7 +7,7 @@ import { superAdminGuard } from './core/guards/super-admin.guard';
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./features/home/home').then(m => m.HomeComponent),
+    loadComponent: () => import('./features/home/home').then(m => m.HomeComponent), // lazyload: Only download Home component someone needs it.
   },
   {
     path: 'signup',

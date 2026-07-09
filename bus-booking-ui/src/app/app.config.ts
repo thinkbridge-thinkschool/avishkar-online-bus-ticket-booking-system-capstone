@@ -73,13 +73,13 @@ const msalProviders = msalEnabled
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideZonelessChangeDetection(),
+    provideZonelessChangeDetection(),      // enables Angular Signals
     // Block initial navigation/guards until MSAL redirect handling + local silent
     // refresh have settled — otherwise a hard reload on a protected deep link can
     // see isAuthenticated()===false and bounce to '/' before auth state resolves.
-    provideAppInitializer(() => inject(AuthService).initialize()),
+    provideAppInitializer(() => inject(AuthService).initialize()), // initializes login before navigation.
     provideRouter(
-      routes,
+      routes,       // register every route in application like search, booking, payment, etc
       withComponentInputBinding(),
       withViewTransitions(),
       withPreloading(PreloadAllModules),

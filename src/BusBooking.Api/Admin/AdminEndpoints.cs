@@ -34,7 +34,7 @@ public static class AdminEndpoints
         group.MapDelete("/users/{id:guid}/roles/{roleName}",     RevokeRole);
     }
 
-    private static async Task<IResult> GetDashboard(
+    private static async Task<IResult> GetDashboard(     // Returns overall admin dashboard statistics like vendors, users, bookings, and tenants.
         IVendorRepository vendorRepo,
         IUserProfileRepository userRepo,
         IBookingRepository bookingRepo,
@@ -46,7 +46,7 @@ public static class AdminEndpoints
         return Results.Ok(dto);
     }
 
-    private static async Task<IResult> GetTenantMetrics(
+    private static async Task<IResult> GetTenantMetrics(  // Returns tenant-wise metrics and booking statistics for the admin dashboard.
         ITenantRepository tenantRepo,
         IBookingRepository bookingRepo,
         CancellationToken ct)
@@ -56,7 +56,7 @@ public static class AdminEndpoints
         return Results.Ok(metrics);
     }
 
-    private static async Task<IResult> GetUsers(
+    private static async Task<IResult> GetUsers( // Returns a paginated list of users along with their roles and login providers.
         [FromQuery] int skip,
         [FromQuery] int take,
         IAppUserRepository userRepo,
@@ -75,14 +75,14 @@ public static class AdminEndpoints
         }));
     }
 
-    private static async Task<IResult> GrantRole(
+    private static async Task<IResult> GrantRole( // Assigns a new role (Admin, SuperAdmin, or Vendor) to the specified user.
         Guid id,
         GrantRoleRequest body,
         IAppUserRepository userRepo,
         CancellationToken ct)
     {
         if (!ValidRoles.Contains(body.RoleName))
-            return Results.BadRequest($"Unknown role. Valid roles: {string.Join(", ", ValidRoles)}");
+            return Results.BadRequest($"Unknown role. Valid roles: {string.Join(", ", ValidRoles)}"); 
 
         var user = await userRepo.GetByIdAsync(id, ct);
         if (user is null) return Results.NotFound();
@@ -95,7 +95,7 @@ public static class AdminEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> RevokeRole(
+    private static async Task<IResult> RevokeRole(   // DELETE Removes the specified role from the given user.
         Guid id,
         string roleName,
         IAppUserRepository userRepo,

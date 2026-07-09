@@ -7,7 +7,7 @@ using BusBooking.Application.Tenants;
 
 namespace BusBooking.Api.Payments;
 
-public sealed class TenantRazorpayService(
+public sealed class TenantRazorpayService( // TenantRazorpayService is a service class responsible for all communication with Razorpay
     ITenantContext tenantContext,
     ITenantRepository tenantRepo,
     IConfiguration configuration,

@@ -21,14 +21,14 @@ public static class RouteEndpoints
         group.MapDelete("/{routeId:guid}", DeleteRoute).RequireAuthorization("AdminOnly");
     }
 
-    private static async Task<IResult> GetAllRoutes(IRouteRepository routeRepo, CancellationToken ct)
+    private static async Task<IResult> GetAllRoutes(IRouteRepository routeRepo, CancellationToken ct)     // Returns all bus routes configured in the system.
     {
         var handler = new GetAllRoutesHandler(routeRepo);
         var routes = await handler.HandleAsync(new GetAllRoutesQuery(), ct);
         return Results.Ok(routes);
     }
 
-    private static async Task<IResult> CreateRoute(
+    private static async Task<IResult> CreateRoute(     // Creates a new route between two cities (admin only).
         CreateRouteCommand command, IRouteRepository routeRepo, CancellationToken ct)
     {
         var handler = new CreateRouteHandler(routeRepo);
@@ -36,7 +36,7 @@ public static class RouteEndpoints
         return Results.Created($"/api/v1/routes/{id}", new { routeId = id });
     }
 
-    private static async Task<IResult> DeleteRoute(
+    private static async Task<IResult> DeleteRoute(     // Removes a route from the system (admin only).
         Guid routeId, IRouteRepository routeRepo, CancellationToken ct)
     {
         var handler = new DeleteRouteHandler(routeRepo);

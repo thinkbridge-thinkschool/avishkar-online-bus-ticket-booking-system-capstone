@@ -319,7 +319,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseCors("BusBookingUi");
-app.UseRateLimiter();       // before auth so every request (including 401s) counts toward the limit
+app.UseRateLimiter();       // controls how many requests a client is allowed to make in a given time period.
 app.UseOutputCache();       // after rate limiter and before auth
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // after auth so JWT claims are available

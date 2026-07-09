@@ -307,6 +307,39 @@
 
 .pp-powered i { color: var(--green); font-size: 0.8rem; }
 
+/* ── Not payable notice ───────────────────────────────────────────────────── */
+.pp-not-payable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 1rem 0;
+}
+
+.pp-not-payable > i {
+  font-size: 2rem;
+  color: var(--text-muted);
+}
+
+.pp-not-payable .pp-section-title {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.pp-not-payable p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.pp-not-payable .pp-pay-btn {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  text-decoration: none;
+}
+
 /* ── Cancellation policy ──────────────────────────────────────────────────── */
 .pp-policy-title {
   font-size: 0.9rem;

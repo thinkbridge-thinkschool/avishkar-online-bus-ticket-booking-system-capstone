@@ -30,7 +30,7 @@ public static class FeedbackEndpoints
         group.MapGet("/schedule/{scheduleId:guid}/stats", GetFeedbackStatistics);
     }
 
-    private static async Task<IResult> CreateFeedback(
+    private static async Task<IResult> CreateFeedback(     // Submits passenger feedback and rating for a completed booking.
         CreateFeedbackBody body, HttpContext httpContext,
         IFeedbackRepository feedbackRepo, IBookingRepository bookingRepo, CancellationToken ct)
     {
@@ -51,7 +51,7 @@ public static class FeedbackEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> UpdateFeedback(
+    private static async Task<IResult> UpdateFeedback(     // Updates the rating, comment, or category of the authenticated user's feedback entry.
         Guid feedbackId, UpdateFeedbackRequest body, HttpContext httpContext,
         IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
@@ -68,7 +68,7 @@ public static class FeedbackEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> DeleteFeedback(
+    private static async Task<IResult> DeleteFeedback(     // Deletes the authenticated user's feedback entry.
         Guid feedbackId, HttpContext httpContext, IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
         if (!GetAppUserId(httpContext, out var userId)) return Results.Unauthorized();
@@ -83,7 +83,7 @@ public static class FeedbackEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> GetFeedbackByUser(
+    private static async Task<IResult> GetFeedbackByUser(     // Returns all feedback submitted by the specified user.
         Guid userId, IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
         var handler = new GetFeedbackByUserHandler(feedbackRepo);
@@ -91,7 +91,7 @@ public static class FeedbackEndpoints
         return Results.Ok(entries);
     }
 
-    private static async Task<IResult> GetFeedbackBySchedule(
+    private static async Task<IResult> GetFeedbackBySchedule(     // Returns all feedback submitted for the specified schedule.
         Guid scheduleId, IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
         var handler = new GetFeedbackByScheduleHandler(feedbackRepo);
@@ -99,7 +99,7 @@ public static class FeedbackEndpoints
         return Results.Ok(entries);
     }
 
-    private static async Task<IResult> GetFeedbackStatistics(
+    private static async Task<IResult> GetFeedbackStatistics(     // Returns aggregated rating statistics for the specified schedule.
         Guid scheduleId, IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
         var handler = new GetFeedbackStatisticsHandler(feedbackRepo);

@@ -37,7 +37,7 @@ public static class ScheduleEndpoints
         group.MapDelete("/{scheduleId:guid}", DeleteSchedule);
     }
 
-    private static async Task<IResult> SearchSchedules(
+    private static async Task<IResult> SearchSchedules(     // Searches for schedules between two cities on a given travel date.
         Guid fromCityId, Guid toCityId, DateOnly travelDate,
         IScheduleRepository scheduleRepo, ICityRepository cityRepo, CancellationToken ct)
     {
@@ -48,11 +48,11 @@ public static class ScheduleEndpoints
 
         var handler = new SearchSchedulesHandler(scheduleRepo);
         var results = await handler.HandleAsync(
-            new SearchSchedulesQuery(fromCity.CityName, toCity.CityName, travelDate), ct);
+            new SearchSchedulesQuery(fromCity.CityName, toCity.CityName, travelDate), ct); // request query is passed to the handler to get the results from the database.
         return Results.Ok(results);
     }
 
-    private static async Task<IResult> GetScheduleById(
+    private static async Task<IResult> GetScheduleById(     // Returns details for the specified schedule.
         Guid scheduleId, IScheduleRepository scheduleRepo, CancellationToken ct)
     {
         var handler = new GetScheduleByIdHandler(scheduleRepo);
@@ -64,7 +64,7 @@ public static class ScheduleEndpoints
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
     }
 
-    private static async Task<IResult> GetSeats(
+    private static async Task<IResult> GetSeats(     // Returns the seat map and pricing for the specified schedule.
         Guid scheduleId, IScheduleRepository scheduleRepo, CancellationToken ct)
     {
         var schedule = await scheduleRepo.GetByIdWithSeatsAsync(scheduleId, ct);
@@ -81,7 +81,7 @@ public static class ScheduleEndpoints
         return Results.Ok(seats);
     }
 
-    private static async Task<IResult> GetVendorSchedules(
+    private static async Task<IResult> GetVendorSchedules(     // Returns all schedules belonging to the specified vendor.
         Guid vendorId, IScheduleRepository scheduleRepo, IBusRepository busRepo, IRouteRepository routeRepo, CancellationToken ct)
     {
         var handler = new GetVendorSchedulesHandler(scheduleRepo, busRepo, routeRepo);
@@ -89,7 +89,7 @@ public static class ScheduleEndpoints
         return Results.Ok(results);
     }
 
-    private static async Task<IResult> CreateSchedule(
+    private static async Task<IResult> CreateSchedule(     // Creates a new schedule for a bus owned by the authenticated vendor.
         CreateScheduleBody body, HttpContext httpContext,
         IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
     {
@@ -113,7 +113,7 @@ public static class ScheduleEndpoints
         catch (ArgumentException ex) { return Results.BadRequest(ex.Message); }
     }
 
-    private static async Task<IResult> UpdateSchedule(
+    private static async Task<IResult> UpdateSchedule(     // Updates the departure and arrival times of a schedule owned by the authenticated vendor.
         Guid scheduleId, UpdateScheduleBody body, HttpContext httpContext,
         IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
     {
@@ -134,7 +134,7 @@ public static class ScheduleEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> DeleteSchedule(
+    private static async Task<IResult> DeleteSchedule(     // Removes a schedule owned by the authenticated vendor.
         Guid scheduleId, HttpContext httpContext,
         IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
     {
@@ -154,7 +154,7 @@ public static class ScheduleEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> GetMySchedules(
+    private static async Task<IResult> GetMySchedules(     // Returns all schedules belonging to the authenticated vendor.
         HttpContext httpContext, IVendorRepository vendorRepo,
         IScheduleRepository scheduleRepo, IBusRepository busRepo, IRouteRepository routeRepo, CancellationToken ct)
     {

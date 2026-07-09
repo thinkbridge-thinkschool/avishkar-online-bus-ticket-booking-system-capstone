@@ -22,7 +22,7 @@ public static class AssistantEndpoints
            .MapPost("/chat", Chat);
     }
 
-    private static async Task<IResult> Chat(
+    private static async Task<IResult> Chat(     // Sends a user message to the AI assistant and returns its role-aware response.
         AssistantChatBody body,
         ClaimsPrincipal principal,
         IAiChatProvider provider,

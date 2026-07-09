@@ -27,7 +27,7 @@ public static class BusEndpoints
         group.MapGet("/vendor/{vendorId:guid}", GetVendorBuses);
     }
 
-    private static async Task<IResult> CreateBus(
+    private static async Task<IResult> CreateBus(     // Registers a new bus for the authenticated vendor's fleet.
         CreateBusBody body, HttpContext httpContext,
         IVendorRepository vendorRepo, IBusRepository busRepo, ITenantContext tenantContext, CancellationToken ct)
     {
@@ -47,7 +47,7 @@ public static class BusEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> UpdateBus(
+    private static async Task<IResult> UpdateBus(     // Updates the name and seat capacity of a bus owned by the authenticated vendor.
         Guid busId, UpdateBusRequest body, HttpContext httpContext,
         IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
     {
@@ -68,7 +68,7 @@ public static class BusEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> DeleteBus(
+    private static async Task<IResult> DeleteBus(     // Removes a bus from the authenticated vendor's fleet.
         Guid busId, HttpContext httpContext,
         IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
     {
@@ -88,7 +88,7 @@ public static class BusEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> GetVendorBuses(
+    private static async Task<IResult> GetVendorBuses(     // Admin Portal: Returns all buses belonging to the specified vendor.
         Guid vendorId, IBusRepository busRepo, CancellationToken ct)
     {
         var handler = new GetVendorBusesHandler(busRepo);
@@ -96,7 +96,7 @@ public static class BusEndpoints
         return Results.Ok(buses);
     }
 
-    private static async Task<IResult> GetMyBuses(
+    private static async Task<IResult> GetMyBuses(     // Vendor manage buses: Returns all buses belonging to the authenticated vendor.
         HttpContext httpContext, IVendorRepository vendorRepo, IBusRepository busRepo, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);

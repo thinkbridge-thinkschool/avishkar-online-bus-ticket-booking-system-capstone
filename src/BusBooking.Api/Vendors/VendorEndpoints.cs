@@ -45,7 +45,7 @@ public static class VendorEndpoints
         group.MapPost("/{vendorId:guid}/reject", RejectVendor).RequireAuthorization("AdminOnly");
     }
 
-    private static async Task<IResult> RegisterVendor(
+    private static async Task<IResult> RegisterVendor(     // Attaches a vendor profile to the authenticated, already signed-in user.
         HttpContext httpContext, RegisterVendorBody body, IVendorRepository vendorRepo, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
@@ -67,7 +67,7 @@ public static class VendorEndpoints
     // step, for people who don't already have a BusBooking account. Contrast with
     // RegisterVendor above, which attaches a vendor profile to an *existing*, already
     // signed-in user — this is the only vendor entry point that also creates the login.
-    private static async Task<IResult> RegisterNewVendorAccount(
+    private static async Task<IResult> RegisterNewVendorAccount(     // Self-service signup that creates a new local account and a pending vendor profile in one step.
         RegisterNewVendorBody body,
         IAppUserRepository userRepo,
         ILocalCredentialRepository credRepo,
@@ -125,7 +125,7 @@ public static class VendorEndpoints
         });
     }
 
-    private static async Task<IResult> AdminCreateVendor(
+    private static async Task<IResult> AdminCreateVendor(     // Creates a vendor profile and account on behalf of a user (admin only).
         AdminCreateVendorBody body, IVendorRepository vendorRepo, IAppUserRepository userRepo,
         ITenantRepository tenantRepo, CancellationToken ct)
     {
@@ -141,7 +141,7 @@ public static class VendorEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> GetMyVendorProfile(
+    private static async Task<IResult> GetMyVendorProfile(     // Vendor Portal: Returns the vendor profile of the authenticated user.
         HttpContext httpContext, IVendorRepository vendorRepo, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
@@ -163,7 +163,7 @@ public static class VendorEndpoints
         });
     }
 
-    private static async Task<IResult> GetVendorProfile(
+    private static async Task<IResult> GetVendorProfile(     // Admin Portal: Returns the vendor profile for the specified vendor.
         Guid vendorId, IVendorRepository vendorRepo, CancellationToken ct)
     {
         var handler = new GetVendorProfileHandler(vendorRepo);
@@ -175,21 +175,21 @@ public static class VendorEndpoints
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
     }
 
-    private static async Task<IResult> GetAllVendors(IVendorRepository vendorRepo, CancellationToken ct)
+    private static async Task<IResult> GetAllVendors(IVendorRepository vendorRepo, CancellationToken ct)     // Admin Portal: Returns all vendors in the system (admin only).
     {
         var handler = new GetAllVendorsHandler(vendorRepo);
         var vendors = await handler.HandleAsync(new GetAllVendorsQuery(), ct);
         return Results.Ok(vendors);
     }
 
-    private static async Task<IResult> GetPendingVendors(IVendorRepository vendorRepo, CancellationToken ct)
+    private static async Task<IResult> GetPendingVendors(IVendorRepository vendorRepo, CancellationToken ct)     // Admin Portal: Returns vendors awaiting approval (admin only).
     {
         var handler = new GetPendingVendorsHandler(vendorRepo);
         var vendors = await handler.HandleAsync(new GetPendingVendorsQuery(), ct);
         return Results.Ok(vendors);
     }
 
-    private static async Task<IResult> UpdateVendorProfile(
+    private static async Task<IResult> UpdateVendorProfile(     // Vendor Portal: Updates the profile of a vendor owned by the authenticated user.
         Guid vendorId, UpdateVendorProfileRequest body, HttpContext httpContext,
         IVendorRepository vendorRepo, CancellationToken ct)
     {
@@ -207,7 +207,7 @@ public static class VendorEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> DeactivateVendor(
+    private static async Task<IResult> DeactivateVendor(     // Deactivates a vendor profile, restricted to its owner or an admin.
         Guid vendorId, HttpContext httpContext, IVendorRepository vendorRepo, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
@@ -224,7 +224,7 @@ public static class VendorEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> ApproveVendor(
+    private static async Task<IResult> ApproveVendor(     // Approves a pending vendor, activating their account (admin only).
         Guid vendorId, IVendorRepository vendorRepo, IAppUserRepository userRepo,
         IEventPublisher publisher, ITenantRepository tenantRepo, CancellationToken ct)
     {
@@ -238,7 +238,7 @@ public static class VendorEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> RejectVendor(
+    private static async Task<IResult> RejectVendor(     // Rejects a pending vendor registration with a reason (admin only).
         Guid vendorId, RejectVendorRequest body,
         IVendorRepository vendorRepo, IEventPublisher publisher, CancellationToken ct)
     {

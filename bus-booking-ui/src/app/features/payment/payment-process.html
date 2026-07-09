@@ -192,59 +192,73 @@
     <div class="pp-pay-side">
 
       <div class="card pp-pay-card">
-        <h2 class="pp-section-title">
-          <i class="fas fa-shield-alt" aria-hidden="true"></i> Secure Checkout
-        </h2>
+        @if (canPay()) {
+          <h2 class="pp-section-title">
+            <i class="fas fa-shield-alt" aria-hidden="true"></i> Secure Checkout
+          </h2>
 
-        <div class="pp-trust">
-          <div class="pp-trust-item">
-            <i class="fas fa-lock" aria-hidden="true"></i>
-            <span>256-bit SSL Encryption</span>
+          <div class="pp-trust">
+            <div class="pp-trust-item">
+              <i class="fas fa-lock" aria-hidden="true"></i>
+              <span>256-bit SSL Encryption</span>
+            </div>
+            <div class="pp-trust-item">
+              <i class="fas fa-user-shield" aria-hidden="true"></i>
+              <span>PCI DSS Compliant</span>
+            </div>
+            <div class="pp-trust-item">
+              <i class="fas fa-undo-alt" aria-hidden="true"></i>
+              <span>Instant Refunds on Cancellation</span>
+            </div>
           </div>
-          <div class="pp-trust-item">
-            <i class="fas fa-user-shield" aria-hidden="true"></i>
-            <span>PCI DSS Compliant</span>
+
+          <div class="pp-methods">
+            <span class="pp-methods-label">Accepted Payment Methods</span>
+            <div class="pp-method-pills">
+              <span class="pp-method-pill"><i class="fas fa-mobile-alt"></i> UPI</span>
+              <span class="pp-method-pill"><i class="far fa-credit-card"></i> Cards</span>
+              <span class="pp-method-pill"><i class="fas fa-university"></i> Net Banking</span>
+              <span class="pp-method-pill"><i class="fas fa-wallet"></i> Wallets</span>
+            </div>
           </div>
-          <div class="pp-trust-item">
-            <i class="fas fa-undo-alt" aria-hidden="true"></i>
-            <span>Instant Refunds on Cancellation</span>
-          </div>
-        </div>
 
-        <div class="pp-methods">
-          <span class="pp-methods-label">Accepted Payment Methods</span>
-          <div class="pp-method-pills">
-            <span class="pp-method-pill"><i class="fas fa-mobile-alt"></i> UPI</span>
-            <span class="pp-method-pill"><i class="far fa-credit-card"></i> Cards</span>
-            <span class="pp-method-pill"><i class="fas fa-university"></i> Net Banking</span>
-            <span class="pp-method-pill"><i class="fas fa-wallet"></i> Wallets</span>
-          </div>
-        </div>
-
-        @if (error()) {
-          <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
-        }
-
-        <div class="pp-amount-display">
-          <span class="pp-amount-label">Amount Due</span>
-          <span class="pp-amount-value">₹{{ b.totalAmount }}</span>
-        </div>
-
-        <button class="btn btn-primary pp-pay-btn" type="button"
-          (click)="pay()" [disabled]="paying()">
-          @if (paying()) {
-            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Opening Razorpay…
-          } @else {
-            <i class="fas fa-lock" aria-hidden="true"></i>
-            Pay ₹{{ b.totalAmount }} via Razorpay
-            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+          @if (error()) {
+            <div class="error-alert" role="alert" aria-live="polite">{{ error() }}</div>
           }
-        </button>
 
-        <p class="pp-powered">
-          <i class="fas fa-shield-alt" aria-hidden="true"></i>
-          Powered by <strong>Razorpay</strong> — India's most trusted payment gateway
-        </p>
+          <div class="pp-amount-display">
+            <span class="pp-amount-label">Amount Due</span>
+            <span class="pp-amount-value">₹{{ b.totalAmount }}</span>
+          </div>
+
+          <button class="btn btn-primary pp-pay-btn" type="button"
+            (click)="pay()" [disabled]="paying()">
+            @if (paying()) {
+              <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Opening Razorpay…
+            } @else {
+              <i class="fas fa-lock" aria-hidden="true"></i>
+              Pay ₹{{ b.totalAmount }} via Razorpay
+              <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            }
+          </button>
+
+          <p class="pp-powered">
+            <i class="fas fa-shield-alt" aria-hidden="true"></i>
+            Powered by <strong>Razorpay</strong> — India's most trusted payment gateway
+          </p>
+        } @else {
+          <div class="pp-not-payable">
+            <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+            <h2 class="pp-section-title">Payment no longer available</h2>
+            <p>
+              This booking is <strong>{{ b.status }}</strong>@if (b.status === 'Cancelled') { — the seat reservation
+              may have expired before payment was completed }. It can no longer be paid for here.
+            </p>
+            <a [routerLink]="['/bookings', bookingId()]" class="btn btn-primary pp-pay-btn">
+              <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to Booking
+            </a>
+          </div>
+        }
       </div>
 
       <div class="card pp-policy">

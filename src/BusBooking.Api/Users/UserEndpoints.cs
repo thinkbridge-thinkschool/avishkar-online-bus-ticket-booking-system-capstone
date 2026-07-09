@@ -34,8 +34,7 @@ public static class UserEndpoints
         group.MapDelete("/me/linked-accounts/{provider}", UnlinkProvider);
     }
 
-    // ── GET /profile ──────────────────────────────────────────────────────────
-    private static async Task<IResult> GetMyProfile(
+    private static async Task<IResult> GetMyProfile(     // Returns the profile of the currently authenticated user.
         HttpContext httpContext, IUserProfileRepository userRepo, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
@@ -49,8 +48,7 @@ public static class UserEndpoints
             profile.Id.ToString(), profile.Email, fullName, profile.Phone, profile.Address));
     }
 
-    // ── PUT /profile ──────────────────────────────────────────────────────────
-    private static async Task<IResult> UpdateMyProfile(
+    private static async Task<IResult> UpdateMyProfile(     // Updates the authenticated user's profile, creating one if it doesn't exist yet.
         UpdateMyProfileRequest body, HttpContext httpContext,
         IUserProfileRepository userRepo, CancellationToken ct)
     {
@@ -86,8 +84,7 @@ public static class UserEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    // ── POST /profile (admin / programmatic) ─────────────────────────────────
-    private static async Task<IResult> CreateUserProfile(
+    private static async Task<IResult> CreateUserProfile(     // Creates a user profile directly (admin / programmatic use).
         CreateUserProfileCommand command, IUserProfileRepository userRepo, CancellationToken ct)
     {
         var handler = new CreateUserProfileHandler(userRepo);
@@ -99,8 +96,7 @@ public static class UserEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    // ── GET /{userId:guid}/profile ────────────────────────────────────────────
-    private static async Task<IResult> GetUserProfile(
+    private static async Task<IResult> GetUserProfile(     // Returns the profile for the specified user.
         Guid userId, IUserProfileRepository userRepo, CancellationToken ct)
     {
         var handler = new GetUserProfileHandler(userRepo);
@@ -112,8 +108,7 @@ public static class UserEndpoints
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
     }
 
-    // ── PUT /{userId:guid}/profile ────────────────────────────────────────────
-    private static async Task<IResult> UpdateUserProfile(
+    private static async Task<IResult> UpdateUserProfile(     // Updates the profile for the specified user, verifying ownership.
         Guid userId, UpdateUserProfileRequest body, HttpContext httpContext,
         IUserProfileRepository userRepo, CancellationToken ct)
     {
@@ -131,8 +126,7 @@ public static class UserEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    // ── POST /{userId:guid}/deactivate ────────────────────────────────────────
-    private static async Task<IResult> DeactivateUser(
+    private static async Task<IResult> DeactivateUser(     // Deactivates the specified user account.
         Guid userId, HttpContext httpContext, IUserProfileRepository userRepo, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
@@ -148,8 +142,7 @@ public static class UserEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    // ── GET /me/linked-accounts ───────────────────────────────────────────────
-    private static async Task<IResult> GetLinkedAccounts(
+    private static async Task<IResult> GetLinkedAccounts(     // Returns the external login providers linked to the authenticated user's account.
         HttpContext ctx,
         IAppUserRepository userRepo,
         CancellationToken ct)
@@ -168,9 +161,7 @@ public static class UserEndpoints
         }));
     }
 
-    // ── POST /me/link-local ───────────────────────────────────────────────────
-    // Allows an MSAL-only account to add a local email/password credential.
-    private static async Task<IResult> LinkLocal(
+    private static async Task<IResult> LinkLocal(     // Allows an MSAL-only account to add a local email/password credential.
         LinkLocalRequest body,
         HttpContext ctx,
         IAppUserRepository userRepo,
@@ -210,8 +201,7 @@ public static class UserEndpoints
         return Results.NoContent();
     }
 
-    // ── DELETE /me/linked-accounts/{provider} ─────────────────────────────────
-    private static async Task<IResult> UnlinkProvider(
+    private static async Task<IResult> UnlinkProvider(     // Removes the specified login provider from the authenticated user's account.
         string provider,
         HttpContext ctx,
         IAppUserRepository userRepo,

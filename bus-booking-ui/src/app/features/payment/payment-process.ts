@@ -1,4 +1,4 @@
-import { Component, NgZone, OnInit, inject, input, signal } from '@angular/core';
+import { Component, NgZone, OnInit, computed, inject, input, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BookingService } from '../../core/services/booking.service';
 import { PaymentService } from '../../core/services/payment.service';
@@ -37,10 +37,17 @@ export class PaymentProcessComponent implements OnInit {
   readonly displayMinPrice = signal<number | null>(null);
   readonly displaySeatCount = signal(0);
 
+  // True while the booking can still be paid for; false once it's Confirmed/Cancelled/PaymentFailed
+  // (e.g. a stale "Resume Payment" link opened after the reservation already expired).
+  readonly canPay = computed(() => {
+    const status = this.booking()?.status;
+    return status === 'PaymentPending' || status === 'Pending';
+  });
+
   async ngOnInit(): Promise<void> {    // component automatically runs when the page opens. It reads the bookingId from the URL and fetches the booking details from the backend.
     const qp = this.activatedRoute.snapshot.queryParams;
     this.displaySource.set(qp['source'] ?? '');
-    this.displayDestination.set(qp['destination'] ?? ''); // store data 
+    this.displayDestination.set(qp['destination'] ?? ''); // store data
     this.displayBusName.set(qp['busName'] ?? '');
     this.displayBusNumber.set(qp['busNumber'] ?? '');
     this.displayDepartureTime.set(qp['departureTime'] ?? '');
@@ -50,7 +57,20 @@ export class PaymentProcessComponent implements OnInit {
     this.displaySeatCount.set(qp['seatCount'] ? +qp['seatCount'] : 0);
 
     try {
-      this.booking.set(await this.bookingService.getById(this.bookingId()));   // calls service to get booking details from backend and store in booking signal.
+      const booking = await this.bookingService.getById(this.bookingId());   // calls service to get booking details from backend and store in booking signal.
+      this.booking.set(booking);   // Payment page now displays order summary and payment button. If the booking is already paid or cancelled, the page shows a message instead of the payment button.
+
+      // No redirect query params (e.g. resuming a pending payment from My Bookings
+      // instead of arriving fresh from seat selection) — fall back to the booking's
+      // own trip data so the order summary isn't blank.
+      if (!this.displaySource()) this.displaySource.set(booking.fromCityName ?? '');
+      if (!this.displayDestination()) this.displayDestination.set(booking.toCityName ?? '');
+      if (!this.displayBusName()) this.displayBusName.set(booking.busName ?? '');
+      if (!this.displayBusNumber()) this.displayBusNumber.set(booking.busNumber ?? '');
+      if (!this.displayDepartureTime()) this.displayDepartureTime.set(booking.departureTime ?? '');
+      if (!this.displayArrivalTime()) this.displayArrivalTime.set(booking.arrivalTime ?? '');
+      if (!this.displayTravelDate()) this.displayTravelDate.set(booking.travelDate ?? '');
+      if (!this.displaySeatCount()) this.displaySeatCount.set(booking.seats.length);
     } catch (err: unknown) {
       this.error.set((err as Error).message);
     } finally {

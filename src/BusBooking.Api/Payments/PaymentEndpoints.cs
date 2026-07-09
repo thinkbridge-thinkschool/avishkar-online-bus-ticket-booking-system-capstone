@@ -27,7 +27,7 @@ public static class PaymentEndpoints
         group.MapGet("/{paymentId:guid}", GetPayment);
     }
 
-    private static async Task<IResult> CreateOrder(
+    private static async Task<IResult> CreateOrder(     // Creates a Razorpay order for the given booking's total amount.
         CreateOrderBody body,
         HttpContext httpContext,
         IBookingRepository bookingRepo,
@@ -51,7 +51,7 @@ public static class PaymentEndpoints
         }
     }
 
-    private static async Task<IResult> ProcessPayment(
+    private static async Task<IResult> ProcessPayment(     // Verifies the Razorpay signature and confirms the booking after successful payment.
         RazorpayProcessPaymentBody body,
         HttpContext httpContext,
         IPaymentRepository paymentRepo,
@@ -96,7 +96,7 @@ public static class PaymentEndpoints
         catch (InvalidOperationException ex)  { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> GetPayment(
+    private static async Task<IResult> GetPayment(     // Returns payment details for the specified payment, scoped to the authenticated user.
         Guid paymentId, HttpContext httpContext,
         IPaymentRepository paymentRepo, IBookingRepository bookingRepo, CancellationToken ct)
     {
@@ -112,7 +112,7 @@ public static class PaymentEndpoints
         catch (UnauthorizedAccessException) { return Results.Forbid(); }
     }
 
-    private static async Task<IResult> GetUserPayments(
+    private static async Task<IResult> GetUserPayments(     // Returns the payment history for the specified user.
         Guid userId, IPaymentRepository paymentRepo, CancellationToken ct)
     {
         var handler = new GetUserPaymentsHandler(paymentRepo);

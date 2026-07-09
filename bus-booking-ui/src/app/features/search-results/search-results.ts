@@ -13,26 +13,26 @@ import type { Schedule } from '../../shared/models/schedule.model';
   styleUrl: './search-results.css',
 })
 export class SearchResultsComponent implements OnInit {
-  private readonly route = inject(ActivatedRoute);
+  private readonly route = inject(ActivatedRoute); // Reads route/query parameters from the URL.
   private readonly router = inject(Router);
   private readonly scheduleService = inject(ScheduleService);
   private readonly cityService = inject(CityService);
   readonly auth = inject(AuthService);
 
-  readonly schedules = signal<Schedule[]>([]);
+  readonly schedules = signal<Schedule[]>([]); // Stores the list of schedules received from the backend.
   readonly loading = signal(true);
-  readonly error = signal<string | null>(null);
+  readonly error = signal<string | null>(null); // Stores an error message if an API call fails.
   readonly fromCityName = signal('');
   readonly toCityName = signal('');
   readonly travelDate = signal('');
 
-  readonly sortBy = signal<'departure' | 'price'>('departure');
-  readonly typeFilter = signal<string>('');
+  readonly sortBy = signal<'departure' | 'price'>('departure'); // Stores the current sorting option. intially departure time is selected. User can change it to price by clicking the sort button.
+  readonly typeFilter = signal<string>(''); // Stores the selected bus type filter. AC Sleeper, Semi-Sleeper, Seater. Initially no filter is applied. User can select a filter from the dropdown.
 
   readonly filteredSchedules = computed(() => { // whenever Sort changes Angular automatically recalculates the list.
-    let list = this.schedules();
-    const f = this.typeFilter();
-    if (f) list = list.filter(s => s.busType === f);
+    let list = this.schedules(); // Read the current schedule list.
+    const f = this.typeFilter(); // Read filter value like AC Sleeper selected
+    if (f) list = list.filter(s => s.busType === f); // If the user selected a bus type, keep only matching buses. Like only AC buse
     if (this.sortBy() === 'price') {
       return [...list].sort((a, b) => (a.minSeatPrice ?? 9999) - (b.minSeatPrice ?? 9999)); // sort by price, if price is null, treat it as 9999
     }
@@ -40,8 +40,8 @@ export class SearchResultsComponent implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
-    const p = this.route.snapshot.queryParams;    // reads the value from home.ts router.navigate(['/search'],{
-    this.travelDate.set(p['travelDate'] ?? ''); // Angular stores the travel date in a signal.
+    const p = this.route.snapshot.queryParams;    // reads the value from home.ts router.navigate(['/search'],{   // url comes here
+    this.travelDate.set(p['travelDate'] ?? ''); // Angular stores the travel date in a signal. Date could be required later for filtering or displaying in the search-results.html file.
     try {
       const [cities, results] = await Promise.all([
         this.cityService.getCities(),           
@@ -63,7 +63,7 @@ export class SearchResultsComponent implements OnInit {
 
   book(s: Schedule): void {   // Suppose user clicks, Book Now Angular executes to schedule
     if (!this.auth.isAuthenticated()) {
-      this.auth.login();
+      this.auth.login(); // If user is not logged in -> goes to Login Page
       return;
     }
     this.router.navigate(['/book', s.scheduleId], {      // If user is logged in Angular navigates to /book/{scheduleId}.

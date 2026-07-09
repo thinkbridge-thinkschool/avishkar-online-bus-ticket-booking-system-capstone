@@ -29,10 +29,10 @@
         <h2 class="search-title">
           <i class="fas fa-search" aria-hidden="true"></i> Find Your Bus
         </h2>
-        @if (error) {
+        @if (error) {            // Please fill all fields if error = "".
           <div class="error-alert" role="alert" aria-live="polite">{{ error }}</div>
-        }
-        <form (ngSubmit)="search()" #f="ngForm" class="search-form">
+        } 
+        <form (ngSubmit)="search()" #f="ngForm" class="search-form"> // User clicks Search -> Form submits -> search() function in home.ts
           <div class="form-group">
             <label for="from">
               <i class="fas fa-map-marker-alt" aria-hidden="true"></i> From
@@ -52,15 +52,15 @@
           <div class="form-group">
             <label for="to">
               <i class="fas fa-map-marker" aria-hidden="true"></i> To
-            </label>
-            <select id="to" class="form-control"
-              [(ngModel)]="toCityId"
+            </label>                          
+            <select id="to" class="form-control"      
+              [(ngModel)]="toCityId"           
               name="to"
               required
               aria-required="true">
-              <option value="">Select destination city</option>
+              <option value="">Select destination city</option>    // This dropdown is connected to fromCityId using Two-Way Data Binding.
               @for (city of cities(); track city.cityId) {
-                <option [value]="city.cityId">{{ city.cityName }}</option>
+                <option [value]="city.cityId">{{ city.cityName }}</option>   // This loops through the cities Signal.
               }
             </select>
           </div>
@@ -82,7 +82,7 @@
           </button>
         </form>
 
-        @if (auth.isAuthenticated()) {
+        @if (auth.isAuthenticated()) {          // If user is logged in, show the AI assistant button.
           <button class="ask-ai-link" type="button" (click)="askAi()">
             <i class="fas fa-robot" aria-hidden="true"></i> Or ask our AI assistant instead
           </button>

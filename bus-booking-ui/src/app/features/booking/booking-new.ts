@@ -116,7 +116,7 @@ export class BookingNewComponent implements OnInit {
       }
       const values = this.form.getRawValue();
       const passengerValues = values.passengers as PassengerFormValue[];
-      const passengers = passengerValues.map((p, i) => ({        // Create Passenger Object
+      const passengers = passengerValues.map((p, i) => ({        // Create Passenger Object and store passengar details
         seatNumber: this.selectedSeats()[i],
         passengerName: p.passengerName,
         passengerAge: p.passengerAge,

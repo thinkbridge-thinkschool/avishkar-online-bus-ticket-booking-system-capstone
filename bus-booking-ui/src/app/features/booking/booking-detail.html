@@ -60,6 +60,13 @@
           </a>
         }
         @if (b.status === 'Pending' || b.status === 'PaymentPending') {
+          <a [routerLink]="['/payment', b.bookingId]" class="btn btn-primary bd-action-btn">
+            <i class="fas fa-credit-card" aria-hidden="true"></i> Resume Payment
+          </a>
+          <div class="bd-pending-note">
+            <i class="fas fa-info-circle" aria-hidden="true"></i>
+            Your seat is reserved for a limited time. Complete payment before it expires, or cancel to release it.
+          </div>
           <button class="btn btn-danger bd-action-btn" (click)="cancel()"
             [disabled]="cancelling()" type="button">
             @if (cancelling()) {

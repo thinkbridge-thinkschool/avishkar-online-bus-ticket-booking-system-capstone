@@ -5,7 +5,7 @@ namespace BusBooking.Api.OpenApi;
 
 internal sealed class BearerSecuritySchemeTransformer : IOpenApiDocumentTransformer
 {
-    public Task TransformAsync(
+    public Task TransformAsync(      // It is an OpenAPI (Swagger) document transformer that automatically adds JWT Bearer Authentication to your Swagger/OpenAPI documentation.
         OpenApiDocument document,
         OpenApiDocumentTransformerContext context,
         CancellationToken cancellationToken)

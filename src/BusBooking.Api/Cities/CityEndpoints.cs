@@ -20,14 +20,14 @@ public static class CityEndpoints
         group.MapDelete("/{cityId:guid}", DeleteCity).RequireAuthorization("AdminOnly");
     }
 
-    private static async Task<IResult> GetAllCities(ICityRepository cityRepo, CancellationToken ct)
+    private static async Task<IResult> GetAllCities(ICityRepository cityRepo, CancellationToken ct)     // Returns the list of all cities available for search and scheduling.
     {
         var handler = new GetAllCitiesHandler(cityRepo);
         var cities = await handler.HandleAsync(new GetAllCitiesQuery(), ct);
         return Results.Ok(cities);
     }
 
-    private static async Task<IResult> CreateCity(
+    private static async Task<IResult> CreateCity(     // Adds a new city to the system (admin only).
         CreateCityCommand command, ICityRepository cityRepo, CancellationToken ct)
     {
         var handler = new CreateCityHandler(cityRepo);
@@ -39,7 +39,7 @@ public static class CityEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> DeleteCity(
+    private static async Task<IResult> DeleteCity(     // Removes a city from the system (admin only).
         Guid cityId, ICityRepository cityRepo, CancellationToken ct)
     {
         var handler = new DeleteCityHandler(cityRepo);

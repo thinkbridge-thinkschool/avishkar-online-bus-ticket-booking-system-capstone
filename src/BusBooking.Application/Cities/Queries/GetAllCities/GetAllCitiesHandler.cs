@@ -1,6 +1,6 @@
 namespace BusBooking.Application.Cities.Queries.GetAllCities;
 
-public sealed class GetAllCitiesHandler(ICityRepository repo)
+public sealed class GetAllCitiesHandler(ICityRepository repo) // contains the business logic to process that request send by query
 {
     public async Task<IReadOnlyList<CityDto>> HandleAsync(GetAllCitiesQuery query, CancellationToken ct = default)
     {

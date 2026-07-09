@@ -8,7 +8,7 @@ import type { City } from '../../shared/models/city.model';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule],       // Without FormsModule, the ngModel directive will not work and will throw an error.
+  imports: [FormsModule],       // •	Use FormsModule because the page contains a form. Without FormsModule, the ngModel directive will not work and will throw an error.
   templateUrl: './home.html',
   styleUrl: './home.css',
 })
@@ -28,7 +28,7 @@ export class HomeComponent implements OnInit {
     return new Date().toISOString().split('T')[0];
   }
 
-  async ngOnInit(): Promise<void> {
+  async ngOnInit(): Promise<void> {      // ngOnInit() is a lifecycle hook that is called after the component is initialized. It is used to perform any additional initialization tasks, such as fetching data from a backend service. In this case, it fetches the list of cities from the CityService and stores it in the cities signal.
     try {
       this.cities.set(await this.cityService.getCities());        // ngOnInit() runs automatically when the page opens. To get cities from the backend, we call the getCities() method of the CityService. The result is stored in the cities signal.
     } catch { /* cities load is best-effort */ }

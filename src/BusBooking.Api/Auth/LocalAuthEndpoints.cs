@@ -34,8 +34,7 @@ public static class LocalAuthEndpoints
         group.MapPost("/reset-password",  ResetPassword) .RequireRateLimiting("auth-strict");
     }
 
-    // ── POST /api/v1/auth/register ─────────────────────────────────────────
-    private static async Task<IResult> Register(
+    private static async Task<IResult> Register(     // Creates a new local account and sends an email verification link.
         RegisterRequest body,
         IAppUserRepository userRepo,
         ILocalCredentialRepository credRepo,
@@ -87,8 +86,7 @@ public static class LocalAuthEndpoints
         });
     }
 
-    // ── POST /api/v1/auth/login ────────────────────────────────────────────
-    private static async Task<IResult> Login(
+    private static async Task<IResult> Login(     // Authenticates a user with email/password and issues an access token plus refresh cookie.
         LoginRequest body,
         IAppUserRepository userRepo,
         ILocalCredentialRepository credRepo,
@@ -159,8 +157,7 @@ public static class LocalAuthEndpoints
         });
     }
 
-    // ── POST /api/v1/auth/refresh ──────────────────────────────────────────
-    private static async Task<IResult> Refresh(
+    private static async Task<IResult> Refresh(     // Issues a new access token using the refresh token cookie, rotating it and detecting reuse.
         IAppUserRepository userRepo,
         ILocalCredentialRepository credRepo,
         IRefreshTokenRepository refreshRepo,
@@ -218,8 +215,7 @@ public static class LocalAuthEndpoints
         });
     }
 
-    // ── POST /api/v1/auth/logout ───────────────────────────────────────────
-    private static async Task<IResult> Logout(
+    private static async Task<IResult> Logout(     // Revokes the current refresh token and clears the session cookie.
         IRefreshTokenRepository refreshRepo,
         IAuthAuditLogRepository audit,
         HttpContext ctx,
@@ -246,8 +242,7 @@ public static class LocalAuthEndpoints
         return Results.NoContent();
     }
 
-    // ── GET /api/v1/auth/verify-email?token=xxx ────────────────────────────
-    private static async Task<IResult> VerifyEmail(
+    private static async Task<IResult> VerifyEmail(     // Confirms a user's email address using the verification token.
         [FromQuery] string token,
         ILocalCredentialRepository credRepo,
         IAuthAuditLogRepository audit,
@@ -270,8 +265,7 @@ public static class LocalAuthEndpoints
         return Results.Ok(new { message = "Email verified successfully. You can now log in." });
     }
 
-    // ── POST /api/v1/auth/forgot-password ─────────────────────────────────
-    private static async Task<IResult> ForgotPassword(
+    private static async Task<IResult> ForgotPassword(     // Sends a password reset link if the email matches an existing account.
         ForgotPasswordRequest body,
         IAppUserRepository userRepo,
         ILocalCredentialRepository credRepo,
@@ -308,8 +302,7 @@ public static class LocalAuthEndpoints
         });
     }
 
-    // ── POST /api/v1/auth/reset-password ──────────────────────────────────
-    private static async Task<IResult> ResetPassword(
+    private static async Task<IResult> ResetPassword(     // Resets the account password using a valid reset token.
         ResetPasswordRequest body,
         ILocalCredentialRepository credRepo,
         IRefreshTokenRepository refreshRepo,

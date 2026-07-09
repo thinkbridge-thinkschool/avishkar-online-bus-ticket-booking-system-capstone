@@ -46,7 +46,7 @@ public static class TenantEndpoints
         group.MapPut("/{tenantId:guid}/razorpay", SetRazorpayCredentials).RequireAuthorization("SuperAdminOnly");
     }
 
-    private static async Task<IResult> RegisterTenant(
+    private static async Task<IResult> RegisterTenant(     // Registers a new tenant (bus operator organization) for the authenticated vendor admin.
         RegisterTenantRequest body, HttpContext httpContext,
         ITenantRepository tenantRepo, CancellationToken ct)
     {
@@ -68,7 +68,7 @@ public static class TenantEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> GetMyTenant(
+    private static async Task<IResult> GetMyTenant(     // Returns the tenant profile owned by the authenticated vendor admin.
         HttpContext httpContext, ITenantRepository tenantRepo, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
@@ -79,21 +79,21 @@ public static class TenantEndpoints
         return dto is null ? Results.NotFound("No tenant registered for this account.") : Results.Ok(dto);
     }
 
-    private static async Task<IResult> GetAllTenants(ITenantRepository tenantRepo, CancellationToken ct)
+    private static async Task<IResult> GetAllTenants(ITenantRepository tenantRepo, CancellationToken ct)     // Returns all tenants in the system (super admin only).
     {
         var handler = new GetAllTenantsHandler(tenantRepo);
         var tenants = await handler.HandleAsync(new GetAllTenantsQuery(), ct);
         return Results.Ok(tenants);
     }
 
-    private static async Task<IResult> GetPendingTenants(ITenantRepository tenantRepo, CancellationToken ct)
+    private static async Task<IResult> GetPendingTenants(ITenantRepository tenantRepo, CancellationToken ct)     // Returns tenants awaiting approval (super admin only).
     {
         var handler = new GetPendingTenantsHandler(tenantRepo);
         var tenants = await handler.HandleAsync(new GetPendingTenantsQuery(), ct);
         return Results.Ok(tenants);
     }
 
-    private static async Task<IResult> GetTenantById(
+    private static async Task<IResult> GetTenantById(     // Returns details for the specified tenant (super admin only).
         Guid tenantId, ITenantRepository tenantRepo, CancellationToken ct)
     {
         var handler = new GetTenantByIdHandler(tenantRepo);
@@ -105,7 +105,7 @@ public static class TenantEndpoints
         catch (NotFoundException ex) { return Results.NotFound(ex.Message); }
     }
 
-    private static async Task<IResult> ApproveTenant(
+    private static async Task<IResult> ApproveTenant(     // Approves a pending tenant, activating it for use (super admin only).
         Guid tenantId, ITenantRepository tenantRepo, IEventPublisher publisher, CancellationToken ct)
     {
         var handler = new ApproveTenantHandler(tenantRepo, publisher);
@@ -118,7 +118,7 @@ public static class TenantEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> RejectTenant(
+    private static async Task<IResult> RejectTenant(     // Rejects a pending tenant registration (super admin only).
         Guid tenantId, ITenantRepository tenantRepo, CancellationToken ct)
     {
         var handler = new RejectTenantHandler(tenantRepo);
@@ -131,7 +131,7 @@ public static class TenantEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> SuspendTenant(
+    private static async Task<IResult> SuspendTenant(     // Suspends an active tenant, blocking further operations (super admin only).
         Guid tenantId, ITenantRepository tenantRepo, IEventPublisher publisher, CancellationToken ct)
     {
         var handler = new SuspendTenantHandler(tenantRepo, publisher);
@@ -144,7 +144,7 @@ public static class TenantEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> ReactivateTenant(
+    private static async Task<IResult> ReactivateTenant(     // Reactivates a previously suspended tenant (super admin only).
         Guid tenantId, ITenantRepository tenantRepo, CancellationToken ct)
     {
         var handler = new ReactivateTenantHandler(tenantRepo);
@@ -157,7 +157,7 @@ public static class TenantEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> DeactivateTenant(
+    private static async Task<IResult> DeactivateTenant(     // Deactivates a tenant, retiring it from active use (super admin only).
         Guid tenantId, ITenantRepository tenantRepo, CancellationToken ct)
     {
         var handler = new DeactivateTenantHandler(tenantRepo);
@@ -170,7 +170,7 @@ public static class TenantEndpoints
         catch (InvalidOperationException ex) { return Results.Conflict(ex.Message); }
     }
 
-    private static async Task<IResult> SetRazorpayCredentials(
+    private static async Task<IResult> SetRazorpayCredentials(     // Sets or updates the Razorpay API credentials for the specified tenant (super admin only).
         Guid tenantId, SetRazorpayCredentialsRequest body,
         ITenantRepository tenantRepo, CancellationToken ct)
     {

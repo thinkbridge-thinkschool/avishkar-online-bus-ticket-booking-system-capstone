@@ -40,7 +40,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
         services.AddDbContext<BusBookingDbContext>(opts =>
-            opts.UseSqlServer(config.GetConnectionString("DefaultConnection")));
+            opts.UseSqlServer(config.GetConnectionString("DefaultConnection"))); // EF Core translates the LINQ (OrderBy(c => c.CityName)) into SQL via the SQL Server provider, 
 
         var sbNamespace = config["ServiceBus:Namespace"];
         if (!string.IsNullOrEmpty(sbNamespace))
@@ -49,7 +49,7 @@ public static class InfrastructureServiceExtensions
             services.AddScoped<IEventPublisher, ServiceBusEventPublisher>();
         }
 
-        services.AddScoped<ITenantRepository, TenantRepository>();
+        services.AddScoped<ITenantRepository, TenantRepository>(); // DI binds the interface to the concrete implementation at 
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IScheduleRepository, ScheduleRepository>();
         services.AddScoped<ICityRepository, CityRepository>();
