@@ -111,14 +111,6 @@ jobs:
       - name: azd provision + deploy
         run: |
           azd env refresh --no-prompt
-          # AZURE_PRINCIPAL_ID is one of azd's reserved/auto-managed env vars — azd
-          # silently overwrites it with whatever identity is currently authenticated
-          # (the CI service principal from the step above), ignoring any process env
-          # var of the same name. That previously reassigned the live SQL Server's
-          # Entra admin to the CI principal. Setting it via the infra.parameters.*
-          # config key instead is NOT auto-overwritten, so it reliably pins the
-          # sqlAdminPrincipalId bicep param to the intended human admin.
-          azd env set infra.parameters.sqlAdminPrincipalId 1fd0c50c-0880-48bd-bedf-8c334d2037ab
           # --no-state: CI starts from a stateless environment every run (no local .azure/
           # cache), so azd can't unambiguously resume against this stack's deployment
           # history (3 prior successful deployments exist here) without an interactive
@@ -136,8 +128,15 @@ jobs:
           AAD_CLIENT_ID: 4f3daaf0-2022-4bb5-8648-c091dba6f9e1
           # Pinned to the existing SQL AAD admin (you), NOT the CI service principal, so this
           # provision run is a no-op against the live server instead of silently reassigning
-          # SQL admin rights. See sql.bicep's sqlAdminPrincipalId/Name params. (Id is set via
-          # azd env set above, not here — see comment there.)
+          # SQL admin rights. See sql.bicep's sqlAdminPrincipalId/Name params.
+          #
+          # Deliberately NOT named AZURE_PRINCIPAL_ID: azd treats that exact name as one of
+          # its own reserved/auto-managed built-ins (documented as "the object ID of the
+          # current logged-in principal") and silently overwrites it with the CI service
+          # principal's ID regardless of what's set here — this already reassigned the live
+          # SQL admin twice before this rename. main.parameters.json's sqlAdminPrincipalId
+          # now reads from this custom name instead, which azd has no special handling for.
+          SQL_ADMIN_PRINCIPAL_ID: 1fd0c50c-0880-48bd-bedf-8c334d2037ab
           AZURE_PRINCIPAL_NAME: "avishkarpatil071_gmail.com#EXT#@avishkarpatil071gmail.onmicrosoft.com"
           SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
           # Matches the existing live namespace's SKU (Standard) — empty here resolves to
