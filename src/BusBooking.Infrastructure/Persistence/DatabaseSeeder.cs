@@ -217,7 +217,9 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
         // Dev SuperAdmin (local auth) — fixed ID so seed is idempotent
         // Password: Admin@123456  — NEVER use in production
         var superAdminEmail = "admin@busbooking.local";
-        if (!await db.AppUsers.IgnoreQueryFilters().AnyAsync(u => u.Email == superAdminEmail, ct))
+        var existingSuperAdmin = await db.AppUsers.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Email == superAdminEmail, ct);
+        if (existingSuperAdmin is null)
         {
             var superAdminId    = Guid.Parse("00000000-0000-0000-0000-000000000002");
             var superAdmin      = AppUser.Create(superAdminId, superAdminEmail, "Dev SuperAdmin", emailVerified: true);
@@ -234,6 +236,22 @@ public sealed class DatabaseSeeder(BusBookingDbContext db, ILogger<DatabaseSeede
             logger.LogInformation(
                 "Dev SuperAdmin seeded — email: {Email} / password: Admin@123456 (local dev only).",
                 superAdminEmail);
+        }
+        else
+        {
+            // Heals a drifted/rotated password back to the documented demo value —
+            // same "checked and healed independently" pattern as the vendor pieces below.
+            var existingCred = await db.LocalCredentials.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.AppUserId == existingSuperAdmin.Id, ct);
+            if (existingCred is not null && !BCrypt.Net.BCrypt.Verify("Admin@123456", existingCred.PasswordHash))
+            {
+                existingCred.UpdatePasswordHash(BCrypt.Net.BCrypt.HashPassword("Admin@123456", 12));
+                await db.SaveChangesAsync(ct);
+
+                logger.LogInformation(
+                    "Dev SuperAdmin password healed to documented demo value — email: {Email} (local dev only).",
+                    superAdminEmail);
+            }
         }
 
         // Dev Vendor (local auth) — fixed ID so seed is idempotent
