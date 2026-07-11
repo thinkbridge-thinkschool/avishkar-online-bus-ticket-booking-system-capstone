@@ -1,8 +1,10 @@
+using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Routes;
 using BusBooking.Application.Routes.Commands.CreateRoute;
 using BusBooking.Application.Routes.Commands.DeleteRoute;
 using BusBooking.Application.Routes.Queries.GetAllRoutes;
+using Microsoft.Extensions.Logging;
 
 namespace BusBooking.Api.Routes;
 
@@ -21,25 +23,27 @@ public static class RouteEndpoints
         group.MapDelete("/{routeId:guid}", DeleteRoute).RequireAuthorization("AdminOnly");
     }
 
-    private static async Task<IResult> GetAllRoutes(IRouteRepository routeRepo, CancellationToken ct)     // Returns all bus routes configured in the system.
+    private static async Task<IResult> GetAllRoutes(IRouteRepository routeRepo, ICacheService cache, CancellationToken ct)     // Returns all bus routes configured in the system.
     {
-        var handler = new GetAllRoutesHandler(routeRepo);
+        var handler = new GetAllRoutesHandler(routeRepo, cache);
         var routes = await handler.HandleAsync(new GetAllRoutesQuery(), ct);
         return Results.Ok(routes);
     }
 
     private static async Task<IResult> CreateRoute(     // Creates a new route between two cities (admin only).
-        CreateRouteCommand command, IRouteRepository routeRepo, CancellationToken ct)
+        CreateRouteCommand command, IRouteRepository routeRepo, ICacheService cache,
+        ILogger<CreateRouteHandler> logger, CancellationToken ct)
     {
-        var handler = new CreateRouteHandler(routeRepo);
+        var handler = new CreateRouteHandler(routeRepo, cache, logger);
         var id = await handler.HandleAsync(command, ct);
         return Results.Created($"/api/v1/routes/{id}", new { routeId = id });
     }
 
     private static async Task<IResult> DeleteRoute(     // Removes a route from the system (admin only).
-        Guid routeId, IRouteRepository routeRepo, CancellationToken ct)
+        Guid routeId, IRouteRepository routeRepo, ICacheService cache,
+        ILogger<DeleteRouteHandler> logger, CancellationToken ct)
     {
-        var handler = new DeleteRouteHandler(routeRepo);
+        var handler = new DeleteRouteHandler(routeRepo, cache, logger);
         try
         {
             await handler.HandleAsync(new DeleteRouteCommand(routeId), ct);

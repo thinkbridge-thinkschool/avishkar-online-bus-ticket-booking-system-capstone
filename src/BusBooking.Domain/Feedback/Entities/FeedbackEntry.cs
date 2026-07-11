@@ -3,9 +3,10 @@ using BusBooking.Domain.Feedback.Enums;
 
 namespace BusBooking.Domain.Feedback.Entities;
 
-public sealed class FeedbackEntry : BaseEntity, ITenantEntity
+public sealed class FeedbackEntry : BaseEntity, ITenantEntity, IOwnedResource
 {
     public Guid UserId { get; private set; }
+    Guid IOwnedResource.OwnerId => UserId;
     public Guid BookingId { get; private set; }
     public Guid ScheduleId { get; private set; }
     public Guid TenantId { get; private set; }

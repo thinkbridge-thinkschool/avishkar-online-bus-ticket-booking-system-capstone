@@ -1,0 +1,32 @@
+name: k6 Smoke Test
+
+# Manual-trigger only — never runs on push/PR. See k6/README.md for why: a meaningful load
+# test needs a warm, real, running API (not the ephemeral test doubles the CI unit/integration
+# jobs use), and GitHub-hosted runners are too noisy for percentile thresholds to be a reliable
+# automated gate. Run this before a release, or against a deployed dev/staging slot.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL of the API to test (e.g. https://app-busbooking-dev-xxxxx.azurewebsites.net)'
+        required: true
+        type: string
+
+jobs:
+  k6-smoke:
+    name: Run k6 smoke scenarios
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run city-list scenario
+        run: k6 run k6/scenarios/city-list.js -e BASE_URL=${{ inputs.base_url }}

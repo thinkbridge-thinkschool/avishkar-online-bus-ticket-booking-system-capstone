@@ -36,6 +36,9 @@ param sqlDatabaseName string
 @description('Service Bus fully qualified namespace hostname.')
 param serviceBusNamespace string
 
+@description('Redis cache hostname — no port, no key.')
+param redisHostName string
+
 @description('Key Vault name — used to build the KV reference string.')
 param keyVaultName string
 
@@ -150,6 +153,12 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
           // ServiceBusClient(namespace, new DefaultAzureCredential()).
           name: 'ServiceBus__Namespace'
           value: serviceBusNamespace
+        }
+        {
+          // Hostname only — no access key. InfrastructureServiceExtensions.cs reads this
+          // and connects via ConfigureForAzureWithTokenCredentialAsync(DefaultAzureCredential).
+          name: 'Redis__HostName'
+          value: redisHostName
         }
         {
           // Key Vault reference — App Service platform resolves this at runtime.

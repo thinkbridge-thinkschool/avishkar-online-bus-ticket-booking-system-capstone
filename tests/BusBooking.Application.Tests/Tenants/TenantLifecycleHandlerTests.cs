@@ -39,9 +39,9 @@ public sealed class TenantLifecycleHandlerTests
         var repo = new FakeTenantRepository();
         var tenantId = await new RegisterTenantHandler(repo)
             .HandleAsync(new RegisterTenantCommand("Acme", "acme", "admin@acme.com", "oid-001"));
-        await new ApproveTenantHandler(repo, new FakeEventPublisher())
+        await new ApproveTenantHandler(repo)
             .HandleAsync(new ApproveTenantCommand(tenantId));
-        await new SuspendTenantHandler(repo, new FakeEventPublisher())
+        await new SuspendTenantHandler(repo)
             .HandleAsync(new SuspendTenantCommand(tenantId));
 
         var handler = new ReactivateTenantHandler(repo);

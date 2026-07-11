@@ -7,91 +7,18 @@ on:
     branches: [main]
 
 jobs:
-  # ── .NET Build + Test ──────────────────────────────────────────────────────
   dotnet-tests:
-    name: .NET Build & Tests
-    runs-on: ubuntu-latest
+    name: .NET
+    uses: ./.github/workflows/reusable-dotnet-tests.yml
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Restore dependencies
-        run: dotnet restore BusBooking.slnx
-
-      - name: Build solution
-        run: dotnet build BusBooking.slnx --no-restore -c Release
-
-      - name: Run Domain unit tests
-        run: >
-          dotnet test tests/BusBooking.Domain.Tests/BusBooking.Domain.Tests.csproj
-          --no-build -c Release
-          --collect:"XPlat Code Coverage"
-          --results-directory ./coverage
-
-      - name: Run Application unit tests
-        run: >
-          dotnet test tests/BusBooking.Application.Tests/BusBooking.Application.Tests.csproj
-          --no-build -c Release
-          --collect:"XPlat Code Coverage"
-          --results-directory ./coverage
-
-      - name: Run API integration tests
-        run: >
-          dotnet test tests/BusBooking.Api.IntegrationTests/BusBooking.Api.IntegrationTests.csproj
-          --no-build -c Release
-          --collect:"XPlat Code Coverage"
-          --results-directory ./coverage
-
-      - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dotnet-coverage
-          path: coverage/
-
-  # ── Angular Build + Unit Tests ────────────────────────────────────────────
   angular-tests:
-    name: Angular Build & Unit Tests
-    runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: bus-booking-ui
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-          cache: 'npm'
-          cache-dependency-path: bus-booking-ui/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Angular application
-        run: npx ng build --configuration production
-
-      - name: Run Karma unit tests
-        run: npx ng test --watch=false --browsers=ChromeHeadlessCI
-        env:
-          CHROME_BIN: /usr/bin/google-chrome
-
-      - name: Upload Angular coverage
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: angular-coverage
-          path: bus-booking-ui/coverage/
+    name: Angular
+    uses: ./.github/workflows/reusable-angular-tests.yml
 
   # ── Playwright E2E ─────────────────────────────────────────────────────────
+  # continue-on-error here (PR-facing, fast non-blocking feedback) — cd.yml's own copy of
+  # this job does NOT set continue-on-error, since deploying on a known-broken E2E suite
+  # would defeat the point of having it.
   e2e-tests:
     name: Playwright E2E Tests
     runs-on: ubuntu-latest

@@ -1,9 +1,8 @@
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 
 namespace BusBooking.Application.Vendors.Commands.RejectVendor;
 
-public sealed class RejectVendorHandler(IVendorRepository vendorRepo, IEventPublisher publisher)
+public sealed class RejectVendorHandler(IVendorRepository vendorRepo)
 {
     public async Task HandleAsync(RejectVendorCommand command, CancellationToken ct = default)
     {
@@ -12,10 +11,8 @@ public sealed class RejectVendorHandler(IVendorRepository vendorRepo, IEventPubl
 
         vendor.Reject(command.Reason);
 
+        // VendorRejectedEvent is turned into an Outbox row by OutboxSavingChangesInterceptor
+        // as part of this save.
         await vendorRepo.SaveChangesAsync(ct);
-
-        foreach (var evt in vendor.DomainEvents)
-            await publisher.PublishAsync(evt, ct);
-        vendor.ClearDomainEvents();
     }
 }

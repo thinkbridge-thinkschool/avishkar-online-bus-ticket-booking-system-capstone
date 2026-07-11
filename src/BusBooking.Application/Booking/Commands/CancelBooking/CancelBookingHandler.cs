@@ -1,15 +1,12 @@
 using BusBooking.Application.Booking.Repositories;
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Repositories;
-using BusBooking.Domain.Booking.Events;
 
 namespace BusBooking.Application.Booking.Commands.CancelBooking;
 
 public sealed class CancelBookingHandler(
     IBookingRepository bookingRepo,
-    IScheduleRepository scheduleRepo,
-    IEventPublisher publisher)
+    IScheduleRepository scheduleRepo)
 {
     public async Task HandleAsync(CancelBookingCommand command, CancellationToken ct = default)
     {
@@ -30,11 +27,9 @@ public sealed class CancelBookingHandler(
 
         booking.Cancel();
 
+        // BookingCancelledEvent is turned into an Outbox row by OutboxSavingChangesInterceptor
+        // as part of this save — OutboxDispatcherService publishes it afterward, and the
+        // Service Bus consumer sends the cancellation email.
         await bookingRepo.SaveChangesAsync(ct);
-
-        // Publish BookingCancelledEvent → Notifications context sends cancellation email
-        foreach (var evt in booking.DomainEvents)
-            await publisher.PublishAsync(evt, ct);
-        booking.ClearDomainEvents();
     }
 }

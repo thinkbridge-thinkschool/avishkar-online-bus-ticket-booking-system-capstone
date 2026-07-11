@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using BusBooking.Api.Authorization;
 using BusBooking.Application.Booking.Repositories;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Feedback;
@@ -9,6 +10,7 @@ using BusBooking.Application.Feedback.Queries.GetFeedbackBySchedule;
 using BusBooking.Application.Feedback.Queries.GetFeedbackByUser;
 using BusBooking.Application.Feedback.Queries.GetFeedbackStatistics;
 using BusBooking.Domain.Feedback.Enums;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BusBooking.Api.Feedback;
 
@@ -84,8 +86,12 @@ public static class FeedbackEndpoints
     }
 
     private static async Task<IResult> GetFeedbackByUser(     // Returns all feedback submitted by the specified user.
-        Guid userId, IFeedbackRepository feedbackRepo, CancellationToken ct)
+        Guid userId, ClaimsPrincipal principal, IAuthorizationService authorization,
+        IFeedbackRepository feedbackRepo, CancellationToken ct)
     {
+        var authResult = await authorization.AuthorizeAsync(principal, new UserIdResource(userId), "SameOwner");
+        if (!authResult.Succeeded) return Results.Forbid();
+
         var handler = new GetFeedbackByUserHandler(feedbackRepo);
         var entries = await handler.HandleAsync(new GetFeedbackByUserQuery(userId), ct);
         return Results.Ok(entries);

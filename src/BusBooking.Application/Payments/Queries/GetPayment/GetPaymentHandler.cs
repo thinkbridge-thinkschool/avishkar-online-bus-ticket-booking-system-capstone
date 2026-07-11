@@ -10,7 +10,7 @@ public sealed class GetPaymentHandler(IPaymentRepository paymentRepo, IBookingRe
         var payment = await paymentRepo.GetByIdAsync(query.PaymentId, ct)
             ?? throw new NotFoundException("Payment", query.PaymentId);
 
-        var booking = await bookingRepo.GetByIdAsync(payment.BookingId, ct)
+        var booking = await bookingRepo.GetByIdReadOnlyAsync(payment.BookingId, ct)
             ?? throw new NotFoundException("Booking", payment.BookingId);
 
         if (booking.UserId != query.RequestingUserId)

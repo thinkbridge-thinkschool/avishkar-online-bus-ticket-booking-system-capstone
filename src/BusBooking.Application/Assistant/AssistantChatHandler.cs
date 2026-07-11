@@ -2,6 +2,7 @@ using System.Text.Json;
 using BusBooking.Application.Booking.Queries.GetUserBookings;
 using BusBooking.Application.Booking.Repositories;
 using BusBooking.Application.Buses;
+using BusBooking.Application.Common;
 using BusBooking.Application.Routes;
 using BusBooking.Application.Scheduling.Queries.GetVendorSchedules;
 using BusBooking.Application.Scheduling.Queries.SearchSchedules;
@@ -23,7 +24,8 @@ public sealed class AssistantChatHandler(
     IBookingRepository bookingRepo,
     IVendorRepository vendorRepo,
     IBusRepository busRepo,
-    IRouteRepository routeRepo)
+    IRouteRepository routeRepo,
+    ICacheService cache)
 {
     private const int MaxToolRoundTrips = 4;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -87,14 +89,14 @@ public sealed class AssistantChatHandler(
                     return ("error", Serialize(new { error = "fromCity, toCity, and a valid travelDate (YYYY-MM-DD) are required." }));
                 }
 
-                var results = await new SearchSchedulesHandler(scheduleRepo)
+                var results = await new SearchSchedulesHandler(scheduleRepo, cache)
                     .HandleAsync(new SearchSchedulesQuery(fromCity.Trim(), toCity.Trim(), travelDate), ct);
                 return ("schedules", Serialize(results.Take(10)));
             }
 
             case AssistantTools.GetMyBookings:
             {
-                var results = await new GetUserBookingsHandler(bookingRepo, scheduleRepo, busRepo, routeRepo)
+                var results = await new GetUserBookingsHandler(bookingRepo)
                     .HandleAsync(new GetUserBookingsQuery(request.UserId), ct);
                 return ("bookings", Serialize(results));
             }
@@ -104,7 +106,7 @@ public sealed class AssistantChatHandler(
                 if (!TryGetGuid(root, "bookingId", out var bookingId))
                     return ("error", Serialize(new { error = "A valid bookingId is required." }));
 
-                var booking = await bookingRepo.GetByIdAsync(bookingId, ct);
+                var booking = await bookingRepo.GetByIdReadOnlyAsync(bookingId, ct);
                 if (booking is null || booking.UserId != request.UserId)
                     return ("error", Serialize(new { error = "No booking with that ID was found for this user." }));
 
@@ -117,7 +119,7 @@ public sealed class AssistantChatHandler(
                 if (!TryGetGuid(root, "bookingId", out var bookingId))
                     return ("error", Serialize(new { error = "A valid bookingId is required." }));
 
-                var booking = await bookingRepo.GetByIdAsync(bookingId, ct);
+                var booking = await bookingRepo.GetByIdReadOnlyAsync(bookingId, ct);
                 if (booking is null || booking.UserId != request.UserId)
                     return ("error", Serialize(new { error = "No booking with that ID was found for this user." }));
 

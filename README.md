@@ -322,6 +322,15 @@ A new app registration **BusBooking API** was created in Microsoft Entra ID:
 | Directory (tenant) ID | `7e394fc8-4b86-4cfe-810e-43f86f8bec47` |
 | Audience | `api://cc1051c8-d4b5-49c9-a373-8780fb1c2a90` |
 
+> **Superseded:** these values are from the original tenant. After the Day-32-adjacent
+> redeploy to a new Azure subscription/tenant, a new app registration was created —
+> `4f3daaf0-2022-4bb5-8648-c091dba6f9e1` (client), `3e0c4033-baa5-4fea-8b67-f34175711849`
+> (tenant), audience `api://4f3daaf0-2022-4bb5-8648-c091dba6f9e1`. `bus-booking-ui`'s
+> `environment.ts`/`environment.development.ts` were updated to match; the API's
+> `appsettings.Development.json` `AzureAd` section is now kept in sync with the same values
+> (previously it still pointed at the old registration, causing MSAL-authenticated API calls
+> to fail with 401 — the token's audience never matched what the backend validated against).
+
 ---
 
 ### Evidence Screenshots

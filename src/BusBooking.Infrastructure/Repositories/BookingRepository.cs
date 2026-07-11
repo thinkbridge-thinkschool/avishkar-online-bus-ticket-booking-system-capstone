@@ -1,3 +1,4 @@
+using BusBooking.Application.Booking.Queries.GetUserBookings;
 using BusBooking.Application.Booking.Repositories;
 using BusBooking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -10,11 +11,46 @@ internal sealed class BookingRepository(BusBookingDbContext db) : IBookingReposi
     public Task<BookingAggregate?> GetByIdAsync(Guid bookingId, CancellationToken ct = default) =>
         db.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId, ct);
 
-    public async Task<IReadOnlyList<BookingAggregate>> GetByUserIdAsync(Guid userId, CancellationToken ct = default) =>
-        await db.Bookings
-                .Where(b => b.UserId == userId)
-                .OrderByDescending(b => b.BookedAt)
-                .ToListAsync(ct);
+    public Task<BookingAggregate?> GetByIdReadOnlyAsync(Guid bookingId, CancellationToken ct = default) =>
+        db.Bookings.AsNoTracking().FirstOrDefaultAsync(b => b.Id == bookingId, ct);
+
+    // Single query joining Booking→Schedule→Route→Bus (left joins, mirroring BookingDtoFactory's
+    // null-tolerant behavior when a schedule/route/bus no longer exists) instead of the old
+    // load-all-bookings-then-3-queries-per-booking N+1.
+    public async Task<IReadOnlyList<BookingDto>> GetByUserIdWithDetailsAsync(
+        Guid userId, CancellationToken ct = default)
+    {
+        var rows = await (
+            from b in db.Bookings.AsNoTracking()
+            where b.UserId == userId
+            orderby b.BookedAt descending
+            join s in db.Schedules.AsNoTracking() on b.ScheduleId equals s.Id into schedules
+            from schedule in schedules.DefaultIfEmpty()
+            join r in db.Routes.AsNoTracking() on schedule.RouteId equals r.Id into routes
+            from route in routes.DefaultIfEmpty()
+            join bus in db.Buses.AsNoTracking() on schedule.BusId equals bus.Id into buses
+            from busEntity in buses.DefaultIfEmpty()
+            select new { Booking = b, Schedule = schedule, Route = route, Bus = busEntity }
+        ).ToListAsync(ct);
+
+        return rows.Select(x => new BookingDto(
+            x.Booking.Id,
+            x.Booking.ScheduleId,
+            x.Booking.Status,
+            x.Booking.TotalAmount,
+            x.Booking.BookedAt,
+            x.Booking.Seats
+                .Select(s => new BookedSeatDto(s.SeatNumber, s.PassengerName, s.PassengerAge, s.SeatPrice, s.PassengerGender))
+                .ToList(),
+            x.Route?.Source,
+            x.Route?.Destination,
+            x.Schedule?.TravelDate,
+            x.Schedule?.DepartureTime,
+            x.Schedule?.ArrivalTime,
+            x.Bus?.BusName,
+            x.Bus?.BusNumber))
+            .ToList();
+    }
 
     public Task<int> GetTotalCountAsync(CancellationToken ct = default) =>
         db.Bookings.CountAsync(ct);

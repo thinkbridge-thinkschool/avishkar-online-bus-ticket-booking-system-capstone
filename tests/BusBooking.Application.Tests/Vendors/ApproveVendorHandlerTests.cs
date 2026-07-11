@@ -17,23 +17,22 @@ public sealed class ApproveVendorHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_ShouldApproveVendor_AndPublishEvent()
+    public async Task HandleAsync_ShouldApproveVendor_AndRaiseEvent()
     {
         var (repo, vendorId) = await SetupPendingVendorAsync();
-        var publisher = new FakeEventPublisher();
-        var handler = new ApproveVendorHandler(repo, publisher);
+        var handler = new ApproveVendorHandler(repo, new FakeAppUserRepository(), new FakeTenantRepository());
 
         await handler.HandleAsync(new ApproveVendorCommand(vendorId));
 
         Assert.Equal(VendorStatus.Approved, repo.All[0].Status);
-        Assert.Single(publisher.Published);
+        Assert.Single(repo.All[0].DomainEvents);
     }
 
     [Fact]
     public async Task HandleAsync_VendorNotFound_ShouldThrow()
     {
         var repo = new FakeVendorRepository();
-        var handler = new ApproveVendorHandler(repo, new FakeEventPublisher());
+        var handler = new ApproveVendorHandler(repo, new FakeAppUserRepository(), new FakeTenantRepository());
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
             handler.HandleAsync(new ApproveVendorCommand(Guid.NewGuid())));
@@ -43,8 +42,7 @@ public sealed class ApproveVendorHandlerTests
     public async Task HandleAsync_AlreadyApproved_ShouldThrow()
     {
         var (repo, vendorId) = await SetupPendingVendorAsync();
-        var publisher = new FakeEventPublisher();
-        var handler = new ApproveVendorHandler(repo, publisher);
+        var handler = new ApproveVendorHandler(repo, new FakeAppUserRepository(), new FakeTenantRepository());
 
         await handler.HandleAsync(new ApproveVendorCommand(vendorId));
 

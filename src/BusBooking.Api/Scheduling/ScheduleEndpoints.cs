@@ -2,6 +2,7 @@ using BusBooking.Application.Buses;
 using BusBooking.Application.Cities;
 using BusBooking.Application.Routes;
 using BusBooking.Application.Vendors;
+using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Commands.CreateSchedule;
 using BusBooking.Application.Scheduling.Commands.DeleteSchedule;
@@ -10,6 +11,7 @@ using BusBooking.Application.Scheduling.Queries.GetScheduleById;
 using BusBooking.Application.Scheduling.Queries.GetVendorSchedules;
 using BusBooking.Application.Scheduling.Queries.SearchSchedules;
 using BusBooking.Application.Scheduling.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace BusBooking.Api.Scheduling;
 
@@ -39,14 +41,14 @@ public static class ScheduleEndpoints
 
     private static async Task<IResult> SearchSchedules(     // Searches for schedules between two cities on a given travel date.
         Guid fromCityId, Guid toCityId, DateOnly travelDate,
-        IScheduleRepository scheduleRepo, ICityRepository cityRepo, CancellationToken ct)
+        IScheduleRepository scheduleRepo, ICityRepository cityRepo, ICacheService cache, CancellationToken ct)
     {
         var fromCity = await cityRepo.GetByIdAsync(fromCityId, ct);
         var toCity   = await cityRepo.GetByIdAsync(toCityId, ct);
         if (fromCity is null || toCity is null)
             return Results.NotFound("One or more cities not found.");
 
-        var handler = new SearchSchedulesHandler(scheduleRepo);
+        var handler = new SearchSchedulesHandler(scheduleRepo, cache);
         var results = await handler.HandleAsync(
             new SearchSchedulesQuery(fromCity.CityName, toCity.CityName, travelDate), ct); // request query is passed to the handler to get the results from the database.
         return Results.Ok(results);
@@ -91,7 +93,8 @@ public static class ScheduleEndpoints
 
     private static async Task<IResult> CreateSchedule(     // Creates a new schedule for a bus owned by the authenticated vendor.
         CreateScheduleBody body, HttpContext httpContext,
-        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, ICacheService cache,
+        ILogger<CreateScheduleHandler> logger, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
@@ -101,7 +104,7 @@ public static class ScheduleEndpoints
 
         var command = new CreateScheduleCommand(
             body.BusId, body.RouteId, body.TravelDate, body.DepartureTime, body.ArrivalTime, body.BasePrice, vendor.Id);
-        var handler = new CreateScheduleHandler(busRepo, scheduleRepo);
+        var handler = new CreateScheduleHandler(busRepo, scheduleRepo, cache, logger);
         try
         {
             var id = await handler.HandleAsync(command, ct);
@@ -115,7 +118,8 @@ public static class ScheduleEndpoints
 
     private static async Task<IResult> UpdateSchedule(     // Updates the departure and arrival times of a schedule owned by the authenticated vendor.
         Guid scheduleId, UpdateScheduleBody body, HttpContext httpContext,
-        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, ICacheService cache,
+        ILogger<UpdateScheduleHandler> logger, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
@@ -124,7 +128,7 @@ public static class ScheduleEndpoints
         if (vendor is null) return Results.NotFound("Vendor profile not found.");
 
         var command = new UpdateScheduleCommand(scheduleId, vendor.Id, body.DepartureTime, body.ArrivalTime);
-        var handler = new UpdateScheduleHandler(scheduleRepo, busRepo);
+        var handler = new UpdateScheduleHandler(scheduleRepo, busRepo, cache, logger);
         try
         {
             await handler.HandleAsync(command, ct);
@@ -136,7 +140,8 @@ public static class ScheduleEndpoints
 
     private static async Task<IResult> DeleteSchedule(     // Removes a schedule owned by the authenticated vendor.
         Guid scheduleId, HttpContext httpContext,
-        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, CancellationToken ct)
+        IVendorRepository vendorRepo, IScheduleRepository scheduleRepo, IBusRepository busRepo, ICacheService cache,
+        ILogger<DeleteScheduleHandler> logger, CancellationToken ct)
     {
         var oid = GetAppUserId(httpContext);
         if (oid is null) return Results.Unauthorized();
@@ -144,7 +149,7 @@ public static class ScheduleEndpoints
         var vendor = await vendorRepo.GetByEntraObjectIdAsync(oid, ct);
         if (vendor is null) return Results.NotFound("Vendor profile not found.");
 
-        var handler = new DeleteScheduleHandler(scheduleRepo, busRepo);
+        var handler = new DeleteScheduleHandler(scheduleRepo, busRepo, cache, logger);
         try
         {
             await handler.HandleAsync(new DeleteScheduleCommand(scheduleId, vendor.Id), ct);

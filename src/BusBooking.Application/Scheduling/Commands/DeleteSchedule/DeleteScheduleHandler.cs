@@ -1,10 +1,13 @@
 using BusBooking.Application.Buses;
+using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace BusBooking.Application.Scheduling.Commands.DeleteSchedule;
 
-public sealed class DeleteScheduleHandler(IScheduleRepository scheduleRepo, IBusRepository busRepo)
+public sealed class DeleteScheduleHandler(
+    IScheduleRepository scheduleRepo, IBusRepository busRepo, ICacheService cache, ILogger<DeleteScheduleHandler> logger)
 {
     public async Task HandleAsync(DeleteScheduleCommand command, CancellationToken ct = default)
     {
@@ -19,5 +22,7 @@ public sealed class DeleteScheduleHandler(IScheduleRepository scheduleRepo, IBus
 
         schedule.Deactivate();
         await scheduleRepo.SaveChangesAsync(ct);
+        await cache.RemoveByTagAsync("schedules", ct);
+        logger.LogInformation("Schedule {ScheduleId} deleted", schedule.Id);
     }
 }

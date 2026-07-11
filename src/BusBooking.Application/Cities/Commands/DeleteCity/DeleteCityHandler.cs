@@ -1,8 +1,10 @@
+using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace BusBooking.Application.Cities.Commands.DeleteCity;
 
-public sealed class DeleteCityHandler(ICityRepository repo)
+public sealed class DeleteCityHandler(ICityRepository repo, ICacheService cache, ILogger<DeleteCityHandler> logger)
 {
     public async Task HandleAsync(DeleteCityCommand command, CancellationToken ct = default)
     {
@@ -11,5 +13,7 @@ public sealed class DeleteCityHandler(ICityRepository repo)
 
         await repo.DeleteAsync(city, ct);
         await repo.SaveChangesAsync(ct);
+        await cache.RemoveByTagAsync("cities", ct);
+        logger.LogInformation("City {CityId} ({CityName}) deleted", city.Id, city.CityName);
     }
 }

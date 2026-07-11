@@ -37,7 +37,8 @@ internal sealed class BookingCleanupService(
         }
     }
 
-    private async Task CancelExpiredPaymentPendingBookingsAsync(CancellationToken ct)
+    // Internal (not private) so tests can invoke a single cleanup cycle directly.
+    internal async Task CancelExpiredPaymentPendingBookingsAsync(CancellationToken ct)
     {
         using var activity = _source.StartActivity("BookingCleanupService.CancelExpiredBookings");
 
@@ -65,9 +66,11 @@ internal sealed class BookingCleanupService(
             booking.Cancel();
             if (scheduleMap.TryGetValue(booking.ScheduleId, out var schedule))
                 schedule.ReleaseSeats(booking.Seats.Select(s => s.SeatNumber).ToList());
-            booking.ClearDomainEvents();
         }
 
+        // BookingCancelledEvent for each booking is turned into an Outbox row by
+        // OutboxSavingChangesInterceptor as part of this save — previously this loop cleared
+        // domain events itself without ever publishing them, silently dropping the event.
         await db.SaveChangesAsync(ct);
 
         activity?.SetTag("bookings.cancelled", expiredBookings.Count);

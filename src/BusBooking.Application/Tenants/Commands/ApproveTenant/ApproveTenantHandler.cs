@@ -1,9 +1,8 @@
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 
 namespace BusBooking.Application.Tenants.Commands.ApproveTenant;
 
-public sealed class ApproveTenantHandler(ITenantRepository tenantRepo, IEventPublisher publisher)
+public sealed class ApproveTenantHandler(ITenantRepository tenantRepo)
 {
     public async Task HandleAsync(ApproveTenantCommand command, CancellationToken ct = default)
     {
@@ -12,10 +11,8 @@ public sealed class ApproveTenantHandler(ITenantRepository tenantRepo, IEventPub
 
         tenant.Approve();
 
+        // TenantApprovedEvent is turned into an Outbox row by OutboxSavingChangesInterceptor
+        // as part of this save.
         await tenantRepo.SaveChangesAsync(ct);
-
-        foreach (var evt in tenant.DomainEvents)
-            await publisher.PublishAsync(evt, ct);
-        tenant.ClearDomainEvents();
     }
 }

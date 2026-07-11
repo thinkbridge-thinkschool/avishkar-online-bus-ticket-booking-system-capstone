@@ -1,9 +1,8 @@
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 
 namespace BusBooking.Application.Tenants.Commands.SuspendTenant;
 
-public sealed class SuspendTenantHandler(ITenantRepository tenantRepo, IEventPublisher publisher)
+public sealed class SuspendTenantHandler(ITenantRepository tenantRepo)
 {
     public async Task HandleAsync(SuspendTenantCommand command, CancellationToken ct = default)
     {
@@ -12,10 +11,8 @@ public sealed class SuspendTenantHandler(ITenantRepository tenantRepo, IEventPub
 
         tenant.Suspend();
 
+        // TenantSuspendedEvent is turned into an Outbox row by OutboxSavingChangesInterceptor
+        // as part of this save.
         await tenantRepo.SaveChangesAsync(ct);
-
-        foreach (var evt in tenant.DomainEvents)
-            await publisher.PublishAsync(evt, ct);
-        tenant.ClearDomainEvents();
     }
 }

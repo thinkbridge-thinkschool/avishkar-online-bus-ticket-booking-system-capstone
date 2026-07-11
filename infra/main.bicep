@@ -84,6 +84,7 @@ var sbFqdn = 'sb-${appName}-${environment}-${suffix}.servicebus.windows.net'
 // doesn't match the real vault, breaking the Key Vault reference below.
 var kvNameSuffix = take(uniqueString(resourceGroup().id), 5)
 var kvName = 'kv-${appName}-${environment}-${kvNameSuffix}'
+var redisHostName = 'redis-${appName}-${environment}-${suffix}.redis.cache.windows.net'
 
 // ── Modules ───────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,7 @@ module api 'modules/api.bicep' = {
     sqlDatabaseName: sql.outputs.databaseName
     serviceBusNamespace: sbFqdn
     keyVaultName: kvName
+    redisHostName: redisHostName
     tenantId: tenantId
     aadClientId: aadClientId
     appServicePlanSku: appServicePlanSku
@@ -156,6 +158,16 @@ module keyVault 'modules/keyvault.bicep' = {
     webAppPrincipalId: api.outputs.managedIdentityPrincipalId
     epSubnetId: vnet.outputs.epSubnetId
     vnetId: vnet.outputs.vnetId
+  }
+}
+
+module redis 'modules/redis.bicep' = {
+  name: 'deploy-redis-${environment}'
+  params: {
+    appName: appName
+    location: location
+    environment: environment
+    webAppPrincipalId: api.outputs.managedIdentityPrincipalId
   }
 }
 

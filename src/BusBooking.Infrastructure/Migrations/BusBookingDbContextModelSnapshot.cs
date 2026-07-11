@@ -794,6 +794,62 @@ namespace BusBooking.Infrastructure.Migrations
                     b.ToTable("Vendors");
                 });
 
+            modelBuilder.Entity("BusBooking.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("DeadLettered")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedAt", "OccurredAt");
+
+                    b.ToTable("OutboxMessages");
+                });
+
+            modelBuilder.Entity("BusBooking.Infrastructure.Persistence.Outbox.ProcessedMessage", b =>
+                {
+                    b.Property<string>("MessageId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SubscriptionName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("MessageId", "SubscriptionName");
+
+                    b.ToTable("ProcessedMessages");
+                });
+
             modelBuilder.Entity("BusBooking.Domain.Booking.Aggregates.Booking", b =>
                 {
                     b.OwnsMany("BusBooking.Domain.Booking.ValueObjects.BookedSeat", "Seats", b1 =>

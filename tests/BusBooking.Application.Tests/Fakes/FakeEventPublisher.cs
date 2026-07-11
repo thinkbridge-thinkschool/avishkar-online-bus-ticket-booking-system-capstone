@@ -7,7 +7,7 @@ public sealed class FakeEventPublisher : IEventPublisher
 {
     private readonly List<IDomainEvent> _published = [];
 
-    public Task PublishAsync<T>(T domainEvent, CancellationToken ct = default) where T : IDomainEvent
+    public Task PublishAsync<T>(T domainEvent, Guid? messageId = null, CancellationToken ct = default) where T : IDomainEvent
     {
         _published.Add(domainEvent);
         return Task.CompletedTask;

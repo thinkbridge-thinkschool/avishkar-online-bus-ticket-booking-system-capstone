@@ -2,6 +2,7 @@ using System.Security.Claims;
 using BusBooking.Application.Assistant;
 using BusBooking.Application.Booking.Repositories;
 using BusBooking.Application.Buses;
+using BusBooking.Application.Common;
 using BusBooking.Application.Routes;
 using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Application.Vendors;
@@ -31,6 +32,7 @@ public static class AssistantEndpoints
         IVendorRepository vendorRepo,
         IBusRepository busRepo,
         IRouteRepository routeRepo,
+        ICacheService cache,
         CancellationToken ct)
     {
         var oidValue = principal.FindFirst("app:userId")?.Value;
@@ -55,7 +57,7 @@ public static class AssistantEndpoints
             })
             .ToList();
 
-        var handler = new AssistantChatHandler(provider, scheduleRepo, bookingRepo, vendorRepo, busRepo, routeRepo);
+        var handler = new AssistantChatHandler(provider, scheduleRepo, bookingRepo, vendorRepo, busRepo, routeRepo, cache);
         try
         {
             var response = await handler.HandleAsync(

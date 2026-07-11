@@ -1,5 +1,4 @@
 using BusBooking.Application.Booking.Repositories;
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Domain.Booking.Entities;
@@ -10,8 +9,7 @@ namespace BusBooking.Application.Payments.Commands.ProcessPayment;
 public sealed class ProcessPaymentHandler(
     IPaymentRepository paymentRepo,
     IBookingRepository bookingRepo,
-    IScheduleRepository scheduleRepo,
-    IEventPublisher publisher)
+    IScheduleRepository scheduleRepo)
 {
     public async Task<Guid> HandleAsync(ProcessPaymentCommand command, CancellationToken ct = default)
     {
@@ -45,16 +43,14 @@ public sealed class ProcessPaymentHandler(
         var seatNumbers = booking.Seats.Select(s => s.SeatNumber).ToList();
         schedule.BookSeats(seatNumbers);
 
+        // Single save — payment, booking, and schedule/seat changes all ride on the one
+        // shared scoped DbContext, so one SaveChangesAsync() commits all three atomically.
+        // (Two separate calls here previously meant two separate implicit transactions —
+        // a concurrency failure on the second could leave a committed payment with no
+        // matching confirmed booking.) The domain events raised by booking.Confirm() and
+        // payment.Complete() are turned into Outbox rows by OutboxSavingChangesInterceptor
+        // as part of this same save — OutboxDispatcherService publishes them afterward.
         await paymentRepo.SaveChangesAsync(ct);
-        await bookingRepo.SaveChangesAsync(ct);
-
-        foreach (var evt in booking.DomainEvents)
-            await publisher.PublishAsync(evt, ct);
-        booking.ClearDomainEvents();
-
-        foreach (var evt in payment.DomainEvents)
-            await publisher.PublishAsync(evt, ct);
-        payment.ClearDomainEvents();
 
         return payment.Id;
     }

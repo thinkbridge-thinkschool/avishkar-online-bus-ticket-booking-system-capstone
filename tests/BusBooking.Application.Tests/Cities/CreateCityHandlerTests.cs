@@ -1,5 +1,6 @@
 using BusBooking.Application.Cities.Commands.CreateCity;
 using BusBooking.Application.Tests.Fakes;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace BusBooking.Application.Tests.Cities;
 
@@ -9,7 +10,7 @@ public sealed class CreateCityHandlerTests
     public async Task HandleAsync_ShouldCreateCityAndReturnId()
     {
         var repo = new FakeCityRepository();
-        var handler = new CreateCityHandler(repo);
+        var handler = new CreateCityHandler(repo, new FakeCacheService(), NullLogger<CreateCityHandler>.Instance);
 
         var id = await handler.HandleAsync(new CreateCityCommand("Mumbai"));
 
@@ -22,7 +23,7 @@ public sealed class CreateCityHandlerTests
     public async Task HandleAsync_DuplicateName_ShouldThrow()
     {
         var repo = new FakeCityRepository();
-        var handler = new CreateCityHandler(repo);
+        var handler = new CreateCityHandler(repo, new FakeCacheService(), NullLogger<CreateCityHandler>.Instance);
 
         await handler.HandleAsync(new CreateCityCommand("Delhi"));
 

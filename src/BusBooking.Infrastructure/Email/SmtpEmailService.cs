@@ -148,6 +148,108 @@ internal sealed class SmtpEmailService(
         return SendAsync(toEmail, subject, body, ct);
     }
 
+    public Task SendBookingConfirmationAsync(
+        string toEmail, string userName, Guid bookingId, IReadOnlyList<int> seatNumbers, decimal totalAmount, CancellationToken ct = default)
+    {
+        const string subject = "Your BusBooking reservation is confirmed";
+        var seats = string.Join(", ", seatNumbers);
+        var body = $"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,sans-serif;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
+                <tr><td align="center">
+                  <table width="520" cellpadding="0" cellspacing="0"
+                         style="background:#ffffff;border-radius:12px;overflow:hidden;
+                                box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                    <tr>
+                      <td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+                                 padding:28px 32px;text-align:center;">
+                        <p style="margin:0;font-size:2rem;line-height:1;">🚌</p>
+                        <p style="margin:6px 0 0;color:#fff;font-size:1.3rem;font-weight:800;
+                                  letter-spacing:-0.02em;">BusBooking</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:36px 32px;">
+                        <h1 style="margin:0 0 8px;color:#1a1a2e;font-size:1.3rem;font-weight:700;">
+                          Booking confirmed, {userName}!
+                        </h1>
+                        <p style="margin:0 0 24px;color:#555;font-size:0.95rem;line-height:1.6;">
+                          Seat(s) <strong>{seats}</strong> are booked. Total paid: <strong>₹{totalAmount}</strong>.
+                          Booking reference: <strong>{bookingId}</strong>.
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="background:#f8f8fb;padding:16px 32px;text-align:center;
+                                 border-top:1px solid #eee;">
+                        <p style="margin:0;color:#bbb;font-size:0.75rem;">
+                          © 2026 BusBooking · All rights reserved
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
+            """;
+
+        return SendAsync(toEmail, subject, body, ct);
+    }
+
+    public Task SendBookingCancellationAsync(
+        string toEmail, Guid bookingId, IReadOnlyList<int> seatNumbers, CancellationToken ct = default)
+    {
+        const string subject = "Your BusBooking reservation was cancelled";
+        var seats = string.Join(", ", seatNumbers);
+        var body = $"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,sans-serif;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
+                <tr><td align="center">
+                  <table width="520" cellpadding="0" cellspacing="0"
+                         style="background:#ffffff;border-radius:12px;overflow:hidden;
+                                box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                    <tr>
+                      <td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+                                 padding:28px 32px;text-align:center;">
+                        <p style="margin:0;font-size:2rem;line-height:1;">🚌</p>
+                        <p style="margin:6px 0 0;color:#fff;font-size:1.3rem;font-weight:800;
+                                  letter-spacing:-0.02em;">BusBooking</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:36px 32px;">
+                        <h1 style="margin:0 0 8px;color:#1a1a2e;font-size:1.3rem;font-weight:700;">
+                          Booking cancelled
+                        </h1>
+                        <p style="margin:0 0 24px;color:#555;font-size:0.95rem;line-height:1.6;">
+                          Seat(s) <strong>{seats}</strong> for booking <strong>{bookingId}</strong> have been
+                          released. If this wasn't you, contact support right away.
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="background:#f8f8fb;padding:16px 32px;text-align:center;
+                                 border-top:1px solid #eee;">
+                        <p style="margin:0;color:#bbb;font-size:0.75rem;">
+                          © 2026 BusBooking · All rights reserved
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
+            """;
+
+        return SendAsync(toEmail, subject, body, ct);
+    }
+
     private async Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
     {
         try

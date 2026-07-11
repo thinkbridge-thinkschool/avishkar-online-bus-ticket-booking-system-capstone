@@ -4,6 +4,8 @@ using System.Security.Cryptography;
 using System.Text;
 using BusBooking.Application.Common;
 using BusBooking.Application.Tenants;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace BusBooking.Api.Payments;
 
@@ -62,7 +64,17 @@ public sealed class TenantRazorpayService( // TenantRazorpayService is a service
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authHeader);
 
-        var response = await client.SendAsync(request, ct);
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.SendAsync(request, ct);
+        }
+        catch (Exception ex) when (ex is BrokenCircuitException or TimeoutRejectedException)
+        {
+            // Translate Polly's resilience-pipeline exceptions into the same InvalidOperationException
+            // PaymentEndpoints.CreateOrder already catches and maps to a 503.
+            throw new InvalidOperationException("Razorpay is currently unavailable. Please try again shortly.", ex);
+        }
         response.EnsureSuccessStatusCode();
         var data = await response.Content.ReadFromJsonAsync<RazorpayOrderResponse>(cancellationToken: ct);
         return new RazorpayOrderResult(data!.Id, amountPaise, "INR", keyId);

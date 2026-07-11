@@ -1,10 +1,13 @@
 using BusBooking.Application.Buses;
+using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace BusBooking.Application.Scheduling.Commands.UpdateSchedule;
 
-public sealed class UpdateScheduleHandler(IScheduleRepository scheduleRepo, IBusRepository busRepo)
+public sealed class UpdateScheduleHandler(
+    IScheduleRepository scheduleRepo, IBusRepository busRepo, ICacheService cache, ILogger<UpdateScheduleHandler> logger)
 {
     public async Task HandleAsync(UpdateScheduleCommand command, CancellationToken ct = default)
     {
@@ -19,5 +22,7 @@ public sealed class UpdateScheduleHandler(IScheduleRepository scheduleRepo, IBus
 
         schedule.UpdateTimes(command.DepartureTime, command.ArrivalTime);
         await scheduleRepo.SaveChangesAsync(ct);
+        await cache.RemoveByTagAsync("schedules", ct);
+        logger.LogInformation("Schedule {ScheduleId} times updated", schedule.Id);
     }
 }

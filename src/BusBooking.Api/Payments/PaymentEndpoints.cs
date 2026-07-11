@@ -1,6 +1,6 @@
 using System.Security.Claims;
+using BusBooking.Api.Authorization;
 using BusBooking.Application.Booking.Repositories;
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Payments;
 using BusBooking.Application.Payments.Commands.ProcessPayment;
@@ -8,6 +8,7 @@ using BusBooking.Application.Payments.Queries.GetPayment;
 using BusBooking.Application.Payments.Queries.GetUserPayments;
 using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Domain.Booking.Enums;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BusBooking.Api.Payments;
 
@@ -36,7 +37,7 @@ public static class PaymentEndpoints
     {
         if (!GetAppUserId(httpContext, out var userId)) return Results.Unauthorized();
 
-        var booking = await bookingRepo.GetByIdAsync(body.BookingId, ct);
+        var booking = await bookingRepo.GetByIdReadOnlyAsync(body.BookingId, ct);
         if (booking is null) return Results.NotFound("Booking not found.");
         if (booking.UserId != userId) return Results.Forbid();
 
@@ -57,7 +58,6 @@ public static class PaymentEndpoints
         IPaymentRepository paymentRepo,
         IBookingRepository bookingRepo,
         IScheduleRepository scheduleRepo,
-        IEventPublisher publisher,
         TenantRazorpayService razorpay,
         CancellationToken ct)
     {
@@ -85,7 +85,7 @@ public static class PaymentEndpoints
         var command = new ProcessPaymentCommand(
             body.BookingId, userId, userName, PaymentMethod.UPI, body.RazorpayPaymentId);
 
-        var handler = new ProcessPaymentHandler(paymentRepo, bookingRepo, scheduleRepo, publisher);
+        var handler = new ProcessPaymentHandler(paymentRepo, bookingRepo, scheduleRepo);
         try
         {
             var id = await handler.HandleAsync(command, ct);
@@ -113,8 +113,12 @@ public static class PaymentEndpoints
     }
 
     private static async Task<IResult> GetUserPayments(     // Returns the payment history for the specified user.
-        Guid userId, IPaymentRepository paymentRepo, CancellationToken ct)
+        Guid userId, ClaimsPrincipal principal, IAuthorizationService authorization,
+        IPaymentRepository paymentRepo, CancellationToken ct)
     {
+        var authResult = await authorization.AuthorizeAsync(principal, new UserIdResource(userId), "SameOwner");
+        if (!authResult.Succeeded) return Results.Forbid();
+
         var handler = new GetUserPaymentsHandler(paymentRepo);
         var payments = await handler.HandleAsync(new GetUserPaymentsQuery(userId), ct);
         return Results.Ok(payments);

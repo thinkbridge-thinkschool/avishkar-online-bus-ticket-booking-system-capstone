@@ -1,4 +1,3 @@
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Identity;
 using BusBooking.Application.Tenants;
@@ -7,7 +6,7 @@ using BusBooking.Domain.Identity.Entities;
 namespace BusBooking.Application.Vendors.Commands.ApproveVendor;
 
 public sealed class ApproveVendorHandler(
-    IVendorRepository vendorRepo, IAppUserRepository userRepo, IEventPublisher publisher, ITenantRepository tenantRepo)
+    IVendorRepository vendorRepo, IAppUserRepository userRepo, ITenantRepository tenantRepo)
 {
     private const string VendorRole = "BusBooking.Vendor";
 
@@ -39,8 +38,7 @@ public sealed class ApproveVendorHandler(
         await VendorTenantProvisioner.EnsureTenantForVendorAsync(
             vendor.EntraObjectId, vendor.VendorName, vendor.Email, tenantRepo, ct);
 
-        foreach (var evt in vendor.DomainEvents)
-            await publisher.PublishAsync(evt, ct);
-        vendor.ClearDomainEvents();
+        // VendorApprovedEvent is turned into an Outbox row by OutboxSavingChangesInterceptor
+        // as part of vendorRepo.SaveChangesAsync() above.
     }
 }

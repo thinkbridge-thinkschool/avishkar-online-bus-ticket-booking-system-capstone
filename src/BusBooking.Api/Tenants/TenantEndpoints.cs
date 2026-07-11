@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Tenants;
 using BusBooking.Application.Tenants.Commands.ApproveTenant;
@@ -106,9 +105,9 @@ public static class TenantEndpoints
     }
 
     private static async Task<IResult> ApproveTenant(     // Approves a pending tenant, activating it for use (super admin only).
-        Guid tenantId, ITenantRepository tenantRepo, IEventPublisher publisher, CancellationToken ct)
+        Guid tenantId, ITenantRepository tenantRepo, CancellationToken ct)
     {
-        var handler = new ApproveTenantHandler(tenantRepo, publisher);
+        var handler = new ApproveTenantHandler(tenantRepo);
         try
         {
             await handler.HandleAsync(new ApproveTenantCommand(tenantId), ct);
@@ -132,9 +131,9 @@ public static class TenantEndpoints
     }
 
     private static async Task<IResult> SuspendTenant(     // Suspends an active tenant, blocking further operations (super admin only).
-        Guid tenantId, ITenantRepository tenantRepo, IEventPublisher publisher, CancellationToken ct)
+        Guid tenantId, ITenantRepository tenantRepo, CancellationToken ct)
     {
-        var handler = new SuspendTenantHandler(tenantRepo, publisher);
+        var handler = new SuspendTenantHandler(tenantRepo);
         try
         {
             await handler.HandleAsync(new SuspendTenantCommand(tenantId), ct);

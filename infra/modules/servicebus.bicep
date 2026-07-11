@@ -1,7 +1,8 @@
 // ============================================================================
 // Module: servicebus.bicep
 // Provisions: Service Bus Namespace + booking-confirmed + booking-cancelled
-//             topics + Azure Service Bus Data Sender role for the App Service MI
+//             topics + one subscription per topic (for ServiceBusConsumerService)
+//             + Azure Service Bus Data Sender/Receiver roles for the App Service MI
 //             + Private Endpoint + Private DNS Zone (Day 27, Premium SKU only)
 //
 // Day 25 changes:
@@ -17,6 +18,12 @@
 //   Dev uses Standard (no PE). Prod uses Premium (PE enabled).
 //   When sku == 'Premium', all Service Bus traffic is routed through the VNet
 //   via the private endpoint NIC rather than the public internet.
+//
+// Day 28 change: completed the messaging story — added a subscription per topic
+//   (there was previously nowhere for a consumer to attach), enabled duplicate
+//   detection on both topics (send-side dedup, keyed by the Outbox row's MessageId
+//   — see ServiceBusEventPublisher), and added the Data Receiver role so
+//   ServiceBusConsumerService can actually read from these subscriptions.
 // ============================================================================
 
 @description('Short application name used for resource naming.')
@@ -48,8 +55,13 @@ var namespaceName = 'sb-${appName}-${environment}-${suffix}'
 var topicConfirmed = 'booking-confirmed'
 var topicCancelled = 'booking-cancelled'
 
+var subConfirmed = 'sub-booking-confirmed'
+var subCancelled = 'sub-booking-cancelled'
+
 // Azure Service Bus Data Sender — send messages only; no listen or manage.
 var serviceBusDataSenderRoleId = '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39'
+// Azure Service Bus Data Receiver — receive/complete/dead-letter messages; no send or manage.
+var serviceBusDataReceiverRoleId = '4f6d3b64-f25e-4fc1-8fd2-8a9d5a3e2ee6'
 
 var isPremium = sku == 'Premium'
 
@@ -87,7 +99,11 @@ resource topicBookingConfirmed 'Microsoft.ServiceBus/namespaces/topics@2022-10-0
   properties: {
     defaultMessageTimeToLive: 'P14D'
     maxSizeInMegabytes: 1024
-    requiresDuplicateDetection: false
+    // Dedups a retried publish of the same outbox row within this window — the Outbox
+    // dispatcher retries up to 5 times on its 15s poll interval, so 10 minutes covers any
+    // realistic retry window. Requires ServiceBusEventPublisher to set a stable MessageId.
+    requiresDuplicateDetection: true
+    duplicateDetectionHistoryTimeWindow: 'PT10M'
     enableBatchedOperations: true
     supportOrdering: false
   }
@@ -99,13 +115,45 @@ resource topicBookingCancelled 'Microsoft.ServiceBus/namespaces/topics@2022-10-0
   properties: {
     defaultMessageTimeToLive: 'P14D'
     maxSizeInMegabytes: 1024
-    requiresDuplicateDetection: false
+    requiresDuplicateDetection: true
+    duplicateDetectionHistoryTimeWindow: 'PT10M'
     enableBatchedOperations: true
     supportOrdering: false
   }
 }
 
-// ── RBAC: App Service MI → Azure Service Bus Data Sender ──────────────────────
+// ── Subscriptions ─────────────────────────────────────────────────────────────
+// One subscription per topic — a single consumer (ServiceBusConsumerService) reads
+// both. maxDeliveryCount=10 is generous enough to survive transient consumer outages
+// (the Outbox already retries the send side) while still bounding a poison message;
+// deadLetteringOnMessageExpiration means an unconsumed/failing message ends up in
+// $DeadLetterQueue instead of being silently dropped once it exceeds either bound.
+
+resource subBookingConfirmed 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = {
+  parent: topicBookingConfirmed
+  name: subConfirmed
+  properties: {
+    defaultMessageTimeToLive: 'P14D'
+    maxDeliveryCount: 10
+    deadLetteringOnMessageExpiration: true
+    enableBatchedOperations: true
+  }
+}
+
+resource subBookingCancelled 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = {
+  parent: topicBookingCancelled
+  name: subCancelled
+  properties: {
+    defaultMessageTimeToLive: 'P14D'
+    maxDeliveryCount: 10
+    deadLetteringOnMessageExpiration: true
+    enableBatchedOperations: true
+  }
+}
+
+// ── RBAC: App Service MI → Azure Service Bus Data Sender + Receiver ───────────
+// Sender: ServiceBusEventPublisher (outbound). Receiver: ServiceBusConsumerService
+// (inbound, via ServiceBusProcessor against the two subscriptions above).
 
 resource sbDataSenderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(serviceBusNamespace.id, webAppPrincipalId, serviceBusDataSenderRoleId)
@@ -114,6 +162,19 @@ resource sbDataSenderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' =
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
       serviceBusDataSenderRoleId
+    )
+    principalId: webAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource sbDataReceiverRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(serviceBusNamespace.id, webAppPrincipalId, serviceBusDataReceiverRoleId)
+  scope: serviceBusNamespace
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      serviceBusDataReceiverRoleId
     )
     principalId: webAppPrincipalId
     principalType: 'ServicePrincipal'

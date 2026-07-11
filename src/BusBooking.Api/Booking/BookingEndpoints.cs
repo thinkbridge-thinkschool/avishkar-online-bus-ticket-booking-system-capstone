@@ -1,13 +1,14 @@
 using System.Security.Claims;
+using BusBooking.Api.Authorization;
 using BusBooking.Application.Booking.Commands.CancelBooking;
 using BusBooking.Application.Booking.Commands.CreateBooking;
 using BusBooking.Application.Booking.Queries.GetUserBookings;
 using BusBooking.Application.Booking.Repositories;
 using BusBooking.Application.Buses;
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Routes;
 using BusBooking.Application.Scheduling.Repositories;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BusBooking.Api.Booking;
 
@@ -63,16 +64,13 @@ public static class BookingEndpoints
     private static async Task<IResult> GetMyBookings(
         ClaimsPrincipal principal,
         IBookingRepository bookingRepo,
-        IScheduleRepository scheduleRepo,
-        IBusRepository busRepo,
-        IRouteRepository routeRepo,
         CancellationToken ct)
     {
         var oidValue = principal.FindFirst("app:userId")?.Value;
         if (!Guid.TryParse(oidValue, out var userId))
             return Results.Unauthorized();
 
-        var handler = new GetUserBookingsHandler(bookingRepo, scheduleRepo, busRepo, routeRepo);
+        var handler = new GetUserBookingsHandler(bookingRepo);
         var dtos = await handler.HandleAsync(new GetUserBookingsQuery(userId), ct);
         return Results.Ok(dtos);
     }
@@ -80,19 +78,18 @@ public static class BookingEndpoints
     private static async Task<IResult> GetBookingById(
         Guid bookingId,
         ClaimsPrincipal principal,
+        IAuthorizationService authorization,
         IBookingRepository bookingRepo,
         IScheduleRepository scheduleRepo,
         IBusRepository busRepo,
         IRouteRepository routeRepo,
         CancellationToken ct)
     {
-        var oidValue = principal.FindFirst("app:userId")?.Value;
-        if (!Guid.TryParse(oidValue, out var userId))
-            return Results.Unauthorized();
-
-        var booking = await bookingRepo.GetByIdAsync(bookingId, ct);
+        var booking = await bookingRepo.GetByIdReadOnlyAsync(bookingId, ct);
         if (booking is null) return Results.NotFound();
-        if (booking.UserId != userId) return Results.Forbid();
+
+        var authResult = await authorization.AuthorizeAsync(principal, booking, "SameOwner");
+        if (!authResult.Succeeded) return Results.Forbid();
 
         var dto = await BookingDtoFactory.CreateAsync(booking, scheduleRepo, busRepo, routeRepo, ct);
         return Results.Ok(dto);
@@ -100,13 +97,15 @@ public static class BookingEndpoints
 
     private static async Task<IResult> GetUserBookings(
         Guid userId,
+        ClaimsPrincipal principal,
+        IAuthorizationService authorization,
         IBookingRepository bookingRepo,
-        IScheduleRepository scheduleRepo,
-        IBusRepository busRepo,
-        IRouteRepository routeRepo,
         CancellationToken ct)
     {
-        var handler = new GetUserBookingsHandler(bookingRepo, scheduleRepo, busRepo, routeRepo);
+        var authResult = await authorization.AuthorizeAsync(principal, new UserIdResource(userId), "SameOwner");
+        if (!authResult.Succeeded) return Results.Forbid();
+
+        var handler = new GetUserBookingsHandler(bookingRepo);
         var dtos = await handler.HandleAsync(new GetUserBookingsQuery(userId), ct);
         return Results.Ok(dtos);
     }
@@ -116,14 +115,13 @@ public static class BookingEndpoints
         HttpContext httpContext,
         IBookingRepository bookingRepo,
         IScheduleRepository scheduleRepo,
-        IEventPublisher publisher,
         CancellationToken ct)
     {
         var userIdClaim = httpContext.User.FindFirst("app:userId")?.Value;
         if (!Guid.TryParse(userIdClaim, out var userId))
             return Results.Unauthorized();
 
-        var handler = new CancelBookingHandler(bookingRepo, scheduleRepo, publisher);
+        var handler = new CancelBookingHandler(bookingRepo, scheduleRepo);
         try
         {
             await handler.HandleAsync(new CancelBookingCommand(bookingId, userId), ct);

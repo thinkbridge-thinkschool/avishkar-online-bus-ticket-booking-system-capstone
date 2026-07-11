@@ -1,0 +1,58 @@
+name: Reusable — .NET Build & Tests
+
+on:
+  workflow_call:
+
+jobs:
+  dotnet-tests:
+    name: .NET Build & Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore BusBooking.slnx
+
+      - name: Build solution
+        run: dotnet build BusBooking.slnx --no-restore -c Release
+
+      - name: Run Domain unit tests
+        run: >
+          dotnet test tests/BusBooking.Domain.Tests/BusBooking.Domain.Tests.csproj
+          --no-build -c Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ./coverage
+
+      - name: Run Application unit tests
+        run: >
+          dotnet test tests/BusBooking.Application.Tests/BusBooking.Application.Tests.csproj
+          --no-build -c Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ./coverage
+
+      - name: Run API integration tests
+        run: >
+          dotnet test tests/BusBooking.Api.IntegrationTests/BusBooking.Api.IntegrationTests.csproj
+          --no-build -c Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ./coverage
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dotnet-coverage
+          path: coverage/
+
+      # Informational only, not a hard gate — the text output doesn't have a stable
+      # machine-readable exit code to fail on cleanly. Dependabot (see .github/dependabot.yml)
+      # is the enforcement path for NuGet; this just surfaces findings in the run log.
+      - name: Check for vulnerable NuGet packages
+        run: dotnet list BusBooking.slnx package --vulnerable --include-transitive
+        continue-on-error: true

@@ -5,9 +5,10 @@ using BusBooking.Domain.Common;
 
 namespace BusBooking.Domain.Booking.Aggregates;
 
-public sealed class Booking : BaseEntity, ITenantEntity
+public sealed class Booking : BaseEntity, ITenantEntity, IOwnedResource
 {
     public Guid UserId { get; private set; }
+    Guid IOwnedResource.OwnerId => UserId;
     public string UserEmail { get; private set; } = default!;
     public Guid ScheduleId { get; private set; }
     public Guid TenantId { get; private set; }
@@ -82,7 +83,7 @@ public sealed class Booking : BaseEntity, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
 
         RaiseDomainEvent(new BookingCancelledEvent(
-            Id, ScheduleId, _seats.Select(s => s.SeatNumber).ToList()));
+            Id, UserEmail, ScheduleId, _seats.Select(s => s.SeatNumber).ToList()));
     }
 
     public void Complete()

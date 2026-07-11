@@ -1,12 +1,14 @@
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BusBooking.Api;
 using BusBooking.Api.Admin;
+using BusBooking.Api.Authorization;
 using BusBooking.Api.Assistant;
 using BusBooking.Api.Auth;
 using BusBooking.Api.Booking;
 using BusBooking.Api.Buses;
 using BusBooking.Api.Cities;
 using BusBooking.Api.Feedback;
+using BusBooking.Api.Logging;
 using BusBooking.Api.OpenApi;
 using BusBooking.Api.Payments;
 using BusBooking.Api.Routes;
@@ -23,13 +25,29 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
+using Polly;
+using Serilog;
+using Serilog.Formatting.Compact;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Serilog ────────────────────────────────────────────────────────────────────
+// Console-only, structured JSON (App Service Log Stream / local `dotnet run` both benefit
+// from this). Azure Monitor export stays owned entirely by the OpenTelemetry pipeline below
+// (WithLogging()) — a second Serilog→Azure Monitor sink would double-ingest and desync the
+// correlation ID between the two pipelines.
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.With<TraceIdEnricher>()
+    .WriteTo.Console(new CompactJsonFormatter()));
 
 // ── Request size limit ────────────────────────────────────────────────────────
 // Reject bodies over 64 KB at the Kestrel layer before they reach the app,
@@ -45,7 +63,10 @@ builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 65_536);
 var otelBuilder = builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddSource("BusBooking.Worker")      // SeatExpiryService custom spans
-        .AddSource("BusBooking.Messaging")); // ServiceBusEventPublisher custom spans
+        .AddSource("BusBooking.Messaging"))  // ServiceBusEventPublisher custom spans
+    .WithLogging(); // picks up ILogger-based logs (including Serilog, which sits in front of
+                     // the same provider chain) for Azure Monitor export — Serilog itself stays
+                     // console-only, see UseSerilog() above.
 var aiConnStr = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
 if (!string.IsNullOrEmpty(aiConnStr) && aiConnStr.StartsWith("InstrumentationKey="))
     otelBuilder.UseAzureMonitor();
@@ -90,8 +111,24 @@ builder.Services.AddOutputCache(options =>
 
 // RazorpayBase: base address only — TenantRazorpayService injects per-tenant or platform credentials
 // at request time, so credentials are never baked into the HTTP client at startup.
+// Timeout + circuit breaker only, deliberately NO retry — an order-create POST isn't sent with
+// an idempotency key, so blindly retrying it risks creating a duplicate order if the first
+// attempt actually succeeded but the response was lost.
 builder.Services.AddHttpClient("RazorpayBase",
-    client => client.BaseAddress = new Uri("https://api.razorpay.com/v1/"));
+        client => client.BaseAddress = new Uri("https://api.razorpay.com/v1/"))
+    .AddResilienceHandler("razorpay", (pipeline, _) =>
+    {
+        var cfg = builder.Configuration.GetSection("Resilience:Razorpay");
+        pipeline
+            .AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+            {
+                FailureRatio = cfg.GetValue("BreakerFailureRatio", 0.5),
+                MinimumThroughput = cfg.GetValue("BreakerMinThroughput", 6),
+                SamplingDuration = TimeSpan.FromSeconds(30),
+                BreakDuration = TimeSpan.FromSeconds(cfg.GetValue("BreakerDurationSeconds", 20)),
+            })
+            .AddTimeout(TimeSpan.FromSeconds(cfg.GetValue("TimeoutSeconds", 10)));
+    });
 builder.Services.AddScoped<BusBooking.Api.Payments.TenantRazorpayService>();
 
 // ── Authentication + Authorization ───────────────────────────────────────────
@@ -205,7 +242,12 @@ builder.Services.AddAuthorization(o =>
     o.AddPolicy("AdminOnly", p => p.RequireRole("BusBooking.SuperAdmin"));
     // SuperAdminOnly — platform-level tenant management (approve/reject/suspend tenants).
     o.AddPolicy("SuperAdminOnly", p => p.RequireRole("BusBooking.SuperAdmin"));
+    // SameOwner — resource-based check for "get my X" endpoints that take a userId/entity;
+    // succeeds for the resource's own owner or a SuperAdmin. See SameOwnerAuthorizationHandler.
+    o.AddPolicy("SameOwner", p => p.Requirements.Add(new SameOwnerRequirement()));
 });
+
+builder.Services.AddSingleton<IAuthorizationHandler, SameOwnerAuthorizationHandler>();
 
 // ── Rate limiting ──────────────────────────────────────────────────────────────
 // "api"         — 60 req/min, shared across all API endpoints (no per-IP partition)
@@ -312,6 +354,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// One structured log line per request, covering the full pipeline (auth, rate-limit
+// rejections included) since it sits before CORS/rate-limiter/auth — but after the exception
+// handler above, so a request that throws is still logged with its final (500) status code.
+app.UseSerilogRequestLogging();
 
 // Static files must come BEFORE auth middleware — FallbackPolicy (RequireAuthenticatedUser)
 // would otherwise 401 every .js/.css request that has no matched API endpoint.

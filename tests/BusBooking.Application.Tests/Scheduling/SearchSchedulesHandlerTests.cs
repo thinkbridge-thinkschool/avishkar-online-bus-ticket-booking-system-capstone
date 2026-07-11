@@ -26,7 +26,7 @@ public sealed class SearchSchedulesHandlerTests
         };
 
         var repo = new FakeScheduleRepository { SearchResults = expected };
-        var handler = new SearchSchedulesHandler(repo);
+        var handler = new SearchSchedulesHandler(repo, new FakeCacheService());
 
         var result = await handler.HandleAsync(new SearchSchedulesQuery("Mumbai", "Pune", new DateOnly(2026, 6, 24)));
 

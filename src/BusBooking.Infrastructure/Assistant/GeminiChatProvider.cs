@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 using BusBooking.Application.Assistant;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace BusBooking.Infrastructure.Assistant;
 
@@ -37,9 +39,10 @@ internal sealed class GeminiChatProvider(HttpClient http, IConfiguration config,
             response = await http.PostAsJsonAsync(
                 $"{baseUrl}/models/{model}:generateContent?key={apiKey}", body, ct);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException
+                                       or BrokenCircuitException or TimeoutRejectedException)
         {
-            logger.LogWarning(ex, "Gemini request failed (network/timeout).");
+            logger.LogWarning(ex, "Gemini request failed (network/timeout/resilience).");
             throw new AiProviderException("Could not reach the AI provider.", ex);
         }
 

@@ -5,6 +5,8 @@ using System.Text.Json.Nodes;
 using BusBooking.Application.Assistant;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace BusBooking.Infrastructure.Assistant;
 
@@ -53,9 +55,10 @@ internal sealed class GroqChatProvider(HttpClient http, IConfiguration config, I
         {
             response = await http.SendAsync(httpRequest, ct);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException
+                                       or BrokenCircuitException or TimeoutRejectedException)
         {
-            logger.LogWarning(ex, "Groq request failed (network/timeout).");
+            logger.LogWarning(ex, "Groq request failed (network/timeout/resilience).");
             throw new AiProviderException("Could not reach the AI provider.", ex);
         }
 

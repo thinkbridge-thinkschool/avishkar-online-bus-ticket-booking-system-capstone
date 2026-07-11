@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Common.Interfaces;
 using BusBooking.Application.Identity;
@@ -226,9 +225,9 @@ public static class VendorEndpoints
 
     private static async Task<IResult> ApproveVendor(     // Approves a pending vendor, activating their account (admin only).
         Guid vendorId, IVendorRepository vendorRepo, IAppUserRepository userRepo,
-        IEventPublisher publisher, ITenantRepository tenantRepo, CancellationToken ct)
+        ITenantRepository tenantRepo, CancellationToken ct)
     {
-        var handler = new ApproveVendorHandler(vendorRepo, userRepo, publisher, tenantRepo);
+        var handler = new ApproveVendorHandler(vendorRepo, userRepo, tenantRepo);
         try
         {
             await handler.HandleAsync(new ApproveVendorCommand(vendorId), ct);
@@ -240,9 +239,9 @@ public static class VendorEndpoints
 
     private static async Task<IResult> RejectVendor(     // Rejects a pending vendor registration with a reason (admin only).
         Guid vendorId, RejectVendorRequest body,
-        IVendorRepository vendorRepo, IEventPublisher publisher, CancellationToken ct)
+        IVendorRepository vendorRepo, CancellationToken ct)
     {
-        var handler = new RejectVendorHandler(vendorRepo, publisher);
+        var handler = new RejectVendorHandler(vendorRepo);
         try
         {
             await handler.HandleAsync(new RejectVendorCommand(vendorId, body.Reason), ct);

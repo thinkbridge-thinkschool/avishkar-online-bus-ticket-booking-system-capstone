@@ -1,12 +1,15 @@
 using BusBooking.Application.Buses;
+using BusBooking.Application.Common;
 using BusBooking.Application.Common.Exceptions;
 using BusBooking.Application.Scheduling.Repositories;
 using BusBooking.Domain.Scheduling.Entities;
 using BusBooking.Domain.Scheduling.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace BusBooking.Application.Scheduling.Commands.CreateSchedule;
 
-public sealed class CreateScheduleHandler(IBusRepository busRepo, IScheduleRepository scheduleRepo)
+public sealed class CreateScheduleHandler(
+    IBusRepository busRepo, IScheduleRepository scheduleRepo, ICacheService cache, ILogger<CreateScheduleHandler> logger)
 {
     public async Task<Guid> HandleAsync(CreateScheduleCommand command, CancellationToken ct = default)
     {
@@ -49,6 +52,9 @@ public sealed class CreateScheduleHandler(IBusRepository busRepo, IScheduleRepos
 
         await scheduleRepo.AddAsync(schedule, ct);
         await scheduleRepo.SaveChangesAsync(ct);
+        await cache.RemoveByTagAsync("schedules", ct);
+        logger.LogInformation(
+            "Schedule {ScheduleId} created for bus {BusId} on {TravelDate}", schedule.Id, bus.Id, command.TravelDate);
 
         return schedule.Id;
     }

@@ -7,6 +7,7 @@ using BusBooking.Domain.Scheduling.Entities;
 using BusBooking.Domain.Tenants.Aggregates;
 using BusBooking.Domain.Users.Entities;
 using BusBooking.Domain.Vendor.Aggregates;
+using BusBooking.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusBooking.Infrastructure.Persistence;
@@ -34,6 +35,9 @@ public sealed class BusBookingDbContext(
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AppUserRole> AppUserRoles => Set<AppUserRole>();
     public DbSet<AuthAuditLog> AuthAuditLogs => Set<AuthAuditLog>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<ProcessedMessage> ProcessedMessages => Set<ProcessedMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) // Its job is to configure how your C# classes map to database tables.
     {
