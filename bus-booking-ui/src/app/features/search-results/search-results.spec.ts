@@ -49,6 +49,7 @@ describe('SearchResultsComponent – filteredSchedules', () => {
           useValue: {
             isAuthenticated: signal(false),
             login: jasmine.createSpy('login'),
+            loginLocal: jasmine.createSpy('loginLocal'),
           },
         },
       ],
@@ -56,6 +57,14 @@ describe('SearchResultsComponent – filteredSchedules', () => {
 
     const fixture = TestBed.createComponent(SearchResultsComponent);
     component = fixture.componentInstance;
+  });
+
+  it('book() sends an unauthenticated user to the local login chooser, not straight to MSAL', () => {
+    const auth = TestBed.inject(AuthService);
+    component.book(makeSchedule());
+
+    expect(auth.loginLocal).toHaveBeenCalled();
+    expect(auth.login).not.toHaveBeenCalled();
   });
 
   it('filteredSchedules returns all schedules when typeFilter is empty', () => {

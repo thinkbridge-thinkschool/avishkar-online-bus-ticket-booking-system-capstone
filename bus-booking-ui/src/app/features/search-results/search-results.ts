@@ -61,9 +61,9 @@ export class SearchResultsComponent implements OnInit {
     }
   }
 
-  book(s: Schedule): void {   // Suppose user clicks, Book Now Angular executes to schedule
+  book(s: Schedule): void {
     if (!this.auth.isAuthenticated()) {
-      this.auth.login(); // If user is not logged in -> goes to Login Page
+      this.auth.loginLocal();
       return;
     }
     this.router.navigate(['/book', s.scheduleId], {      // If user is logged in Angular navigates to /book/{scheduleId}.
