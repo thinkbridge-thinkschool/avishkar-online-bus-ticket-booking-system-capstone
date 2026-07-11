@@ -28,7 +28,7 @@ jobs:
         working-directory: bus-booking-ui
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -69,7 +69,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # This job runs in its own fresh checkout, separate from the angular-tests job's
       # runner — its ng build output never reaches here. Without this, azd deploy's
