@@ -93,7 +93,12 @@ jobs:
       - name: azd provision + deploy
         run: |
           azd env refresh --no-prompt
-          azd provision --no-prompt
+          # --no-state: CI starts from a stateless environment every run (no local .azure/
+          # cache), so azd can't unambiguously resume against this stack's deployment
+          # history (3 prior successful deployments exist here) without an interactive
+          # prompt. This forces a fresh declarative deployment from the current Bicep
+          # files instead — idempotent against the existing resources, not a recreate.
+          azd provision --no-prompt --no-state
           azd deploy --no-prompt
         env:
           AZURE_ENV_NAME: prod
