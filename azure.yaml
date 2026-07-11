@@ -46,3 +46,4 @@ infra:
       applyToChildScopes: true       # deny assignments cascade to child resources
       excludedPrincipals:
         - 1fd0c50c-0880-48bd-bedf-8c334d2037ab  # deploying user — exempted so azd can publish
+        - 5124345c-4b1f-492f-8fe0-da8c0cd941c2  # GitHub Actions CI/CD service principal — exempted so cd.yml can publish
