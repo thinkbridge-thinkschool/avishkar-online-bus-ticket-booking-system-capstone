@@ -50,10 +50,15 @@ ELSE
 BEGIN
   PRINT 'Contained user already exists: $appServiceName';
 END
--- Roles are idempotent: ADD MEMBER is a no-op if already a member
+-- Roles are idempotent: ADD MEMBER is a no-op if already a member.
+-- db_ddladmin is required for EF Core's MigrateAsync() (Program.cs) to create/alter
+-- tables at startup — db_datareader/db_datawriter alone only cover data access, not
+-- schema changes, which silently crash-loops the app the first time a new migration
+-- ships without this.
 ALTER ROLE db_datareader ADD MEMBER [$appServiceName];
 ALTER ROLE db_datawriter ADD MEMBER [$appServiceName];
-PRINT 'Roles confirmed: db_datareader + db_datawriter';
+ALTER ROLE db_ddladmin ADD MEMBER [$appServiceName];
+PRINT 'Roles confirmed: db_datareader + db_datawriter + db_ddladmin';
 "@
 
 sqlcmd -S $sqlServerFqdn -d $sqlDatabase --authentication-method ActiveDirectoryDefault -Q $sql
