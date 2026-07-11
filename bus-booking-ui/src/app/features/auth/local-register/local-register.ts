@@ -33,29 +33,29 @@ export class LocalRegisterComponent {
 
   async submit(): Promise<void> {
     if (!this.email || !this.password || !this.displayName) {
-      this.error.set('All fields are required.');
+      this.error.set('All fields are required.');          // It is an Angular Signal.
       return;
     }
     if (this.password.length < 8) {
       this.error.set('Password must be at least 8 characters.');
       return;
     }
-    this.loading.set(true);
-    this.error.set(null);
-    try {
-      await this.api.register(this.email.trim().toLowerCase(), this.password, this.displayName.trim());
-      this.success.set(true);
-    } catch (err: unknown) {
+    this.loading.set(true);      // prevents multiple submissions and shows a loading indicator
+    this.error.set(null);        // Angular clears the previous error.
+    try {                        // why try Because HTTP requests can fail.
+      await this.api.register(this.email.trim().toLowerCase(), this.password, this.displayName.trim()); // The component does not directly make the HTTP request. It delegates that responsibility to the service.
+      this.success.set(true);     // angular displays a success message and prompts the user to check their email for verification instructions.
+    } catch (err: unknown) {        
       const status = (err as { status?: number }).status;
       if (status === 409) {
         this.error.set('An account with this email already exists.');
-      } else if (status === 400) {
+      } else if (status === 400) {    // Bad Request invalid email format or password too weak.
         this.error.set('Please check your details and try again.');
-      } else {
+      } else {           // 500 Internal Server Error
         this.error.set('Registration failed. Please try again.');
       }
     } finally {
-      this.loading.set(false);
+      this.loading.set(false);   // The button becomes enabled again.
     }
   }
 }
