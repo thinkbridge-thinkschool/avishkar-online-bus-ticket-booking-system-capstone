@@ -100,3 +100,12 @@ jobs:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_RESOURCE_GROUP: rg-busbooking-prod
           AZURE_LOCATION: southeastasia
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          # Public SPA client ID (already shipped in the committed Angular bundle) — not a secret.
+          AAD_CLIENT_ID: 4f3daaf0-2022-4bb5-8648-c091dba6f9e1
+          # Pinned to the existing SQL AAD admin (you), NOT the CI service principal, so this
+          # provision run is a no-op against the live server instead of silently reassigning
+          # SQL admin rights. See sql.bicep's sqlAdminPrincipalId/Name params.
+          AZURE_PRINCIPAL_ID: 1fd0c50c-0880-48bd-bedf-8c334d2037ab
+          AZURE_PRINCIPAL_NAME: "avishkarpatil071_gmail.com#EXT#@avishkarpatil071gmail.onmicrosoft.com"
+          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
