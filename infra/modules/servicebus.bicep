@@ -61,7 +61,7 @@ var subCancelled = 'sub-booking-cancelled'
 // Azure Service Bus Data Sender — send messages only; no listen or manage.
 var serviceBusDataSenderRoleId = '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39'
 // Azure Service Bus Data Receiver — receive/complete/dead-letter messages; no send or manage.
-var serviceBusDataReceiverRoleId = '4f6d3b64-f25e-4fc1-8fd2-8a9d5a3e2ee6'
+var serviceBusDataReceiverRoleId = '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0'
 
 var isPremium = sku == 'Premium'
 
@@ -99,10 +99,11 @@ resource topicBookingConfirmed 'Microsoft.ServiceBus/namespaces/topics@2022-10-0
   properties: {
     defaultMessageTimeToLive: 'P14D'
     maxSizeInMegabytes: 1024
-    // Dedups a retried publish of the same outbox row within this window — the Outbox
-    // dispatcher retries up to 5 times on its 15s poll interval, so 10 minutes covers any
-    // realistic retry window. Requires ServiceBusEventPublisher to set a stable MessageId.
-    requiresDuplicateDetection: true
+    // requiresDuplicateDetection is immutable on an existing topic, so this must match what's
+    // already live. Dedup for retried outbox publishes is handled at the consumer instead, via
+    // the ProcessedMessage inbox table keyed on (MessageId, SubscriptionName) — see
+    // ServiceBusConsumerService — so this isn't the app's actual correctness mechanism.
+    requiresDuplicateDetection: false
     duplicateDetectionHistoryTimeWindow: 'PT10M'
     enableBatchedOperations: true
     supportOrdering: false
@@ -115,7 +116,7 @@ resource topicBookingCancelled 'Microsoft.ServiceBus/namespaces/topics@2022-10-0
   properties: {
     defaultMessageTimeToLive: 'P14D'
     maxSizeInMegabytes: 1024
-    requiresDuplicateDetection: true
+    requiresDuplicateDetection: false
     duplicateDetectionHistoryTimeWindow: 'PT10M'
     enableBatchedOperations: true
     supportOrdering: false

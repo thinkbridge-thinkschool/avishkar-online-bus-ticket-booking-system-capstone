@@ -84,7 +84,6 @@ var sbFqdn = 'sb-${appName}-${environment}-${suffix}.servicebus.windows.net'
 // doesn't match the real vault, breaking the Key Vault reference below.
 var kvNameSuffix = take(uniqueString(resourceGroup().id), 5)
 var kvName = 'kv-${appName}-${environment}-${kvNameSuffix}'
-var redisHostName = 'redis-${appName}-${environment}-${suffix}.redis.cache.windows.net'
 
 // ── Modules ───────────────────────────────────────────────────────────────────
 
@@ -115,6 +114,20 @@ module sql 'modules/sql.bicep' = {
   }
 }
 
+// redis runs before api — api needs its real hostName output (Azure-assigned,
+// not guessable like classic cache's DNS name, since redisEnterprise's hostname
+// isn't a pure function of the resource name). No dependency back on api, so
+// no cycle: the Entra access grant that DOES need api's identity is a
+// separate module (redisAccess, below) that runs after both.
+module redis 'modules/redis.bicep' = {
+  name: 'deploy-redis-${environment}'
+  params: {
+    appName: appName
+    location: location
+    environment: environment
+  }
+}
+
 // api runs before serviceBus and keyVault because it produces
 // managedIdentityPrincipalId which both downstream modules need for RBAC.
 module api 'modules/api.bicep' = {
@@ -127,7 +140,7 @@ module api 'modules/api.bicep' = {
     sqlDatabaseName: sql.outputs.databaseName
     serviceBusNamespace: sbFqdn
     keyVaultName: kvName
-    redisHostName: redisHostName
+    redisHostName: redis.outputs.hostName
     tenantId: tenantId
     aadClientId: aadClientId
     appServicePlanSku: appServicePlanSku
@@ -161,12 +174,11 @@ module keyVault 'modules/keyvault.bicep' = {
   }
 }
 
-module redis 'modules/redis.bicep' = {
-  name: 'deploy-redis-${environment}'
+module redisAccess 'modules/redis-access.bicep' = {
+  name: 'deploy-redis-access-${environment}'
   params: {
-    appName: appName
-    location: location
-    environment: environment
+    clusterName: redis.outputs.clusterName
+    databaseName: redis.outputs.databaseName
     webAppPrincipalId: api.outputs.managedIdentityPrincipalId
   }
 }

@@ -1,16 +1,19 @@
 // ============================================================================
 // Module: redis.bicep
-// Provisions: Azure Cache for Redis (L2 store for HybridCache) + an Entra ID
-//             access policy assignment for the App Service MI — no access key
-//             ever leaves this module, matching the passwordless pattern
-//             already used for SQL (Authentication=Active Directory Default)
-//             and Service Bus (disableLocalAuth + RBAC).
+// Provisions: Azure Managed Redis (Microsoft.Cache/redisEnterprise) — L2 store
+//             for HybridCache. Classic Azure Cache for Redis is retiring and
+//             no longer accepts new deployments, hence redisEnterprise instead
+//             of Microsoft.Cache/redis.
 //
-// SKU: Basic (dev) / Standard (prod). Unlike Service Bus, nothing here states a
-// private-networking requirement, so Premium (the SKU needed for Private
-// Endpoints) isn't justified yet — Standard's single extra replica + SLA is
-// the meaningful step up from Basic for prod caching. Revisit if/when Redis
-// needs the same private-endpoint treatment as Service Bus/Key Vault.
+// Entra ID access (accessPolicyAssignment) is deliberately NOT created here —
+// it needs the App Service's managed identity principal ID, which would
+// create a circular module dependency (api needs this module's hostName,
+// this module would need api's principal ID). See redis-access.bicep, which
+// runs after both this module and api.bicep.
+//
+// SKU: Balanced_B0 is the smallest/cheapest tier — a single extra replica
+// beyond that isn't justified yet for an HybridCache L2 store. Revisit if
+// cache load grows.
 // ============================================================================
 
 @description('Short application name used for resource naming.')
@@ -23,29 +26,20 @@ param location string
 @allowed(['dev', 'prod'])
 param environment string
 
-@description('Principal ID of the App Service system-assigned managed identity.')
-param webAppPrincipalId string
-
 var suffix = take(uniqueString(resourceGroup().id), 6)
-var cacheName = 'redis-${appName}-${environment}-${suffix}'
-var skuName = environment == 'prod' ? 'Standard' : 'Basic'
+var clusterName = 'redis-${appName}-${environment}-${suffix}'
+var databaseName = 'default'
 
-resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
-  name: cacheName
+resource redisCluster 'Microsoft.Cache/redisEnterprise@2025-04-01' = {
+  name: clusterName
   location: location
+  sku: {
+    name: 'Balanced_B0'
+  }
   properties: {
-    sku: {
-      name: skuName
-      family: 'C'
-      capacity: 0
-    }
+    encryption: {}
+    highAvailability: environment == 'prod' ? 'Enabled' : 'Disabled'
     minimumTlsVersion: '1.2'
-    // Entra ID auth — HybridCacheService connects via
-    // ConfigureForAzureWithTokenCredentialAsync(DefaultAzureCredential), no access key
-    // is ever generated, stored, or read by application code.
-    redisConfiguration: {
-      'aad-enabled': 'true'
-    }
   }
   tags: {
     environment: environment
@@ -53,16 +47,26 @@ resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
   }
 }
 
-// Data Contributor — read/write cache data; no access-key management rights.
-resource redisAccessPolicy 'Microsoft.Cache/redis/accessPolicyAssignments@2023-08-01' = {
-  parent: redisCache
-  name: 'webapp-data-contributor'
+resource redisDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-04-01' = {
+  parent: redisCluster
+  name: databaseName
   properties: {
-    accessPolicyName: 'Data Contributor'
-    objectId: webAppPrincipalId
-    objectIdAlias: 'webapp'
+    clientProtocol: 'Encrypted'
+    port: 10000
+    clusteringPolicy: 'OSSCluster'
+    evictionPolicy: 'VolatileLRU'
+    // Entra ID auth only — HybridCacheService connects via
+    // ConfigureForAzureWithTokenCredentialAsync(DefaultAzureCredential), no access key
+    // is ever generated, stored, or read by application code.
+    accessKeysAuthentication: 'Disabled'
   }
 }
 
 @description('Redis cache hostname — no secret, safe as an app setting.')
-output hostName string = redisCache.properties.hostName
+output hostName string = redisCluster.properties.hostName
+
+@description('Cluster resource name — needed by redis-access.bicep to attach the access policy.')
+output clusterName string = redisCluster.name
+
+@description('Database name — needed by redis-access.bicep to attach the access policy.')
+output databaseName string = redisDatabase.name
