@@ -114,3 +114,7 @@ jobs:
           AZURE_PRINCIPAL_ID: 1fd0c50c-0880-48bd-bedf-8c334d2037ab
           AZURE_PRINCIPAL_NAME: "avishkarpatil071_gmail.com#EXT#@avishkarpatil071gmail.onmicrosoft.com"
           SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
+          # Matches the existing live namespace's SKU (Standard) — empty here resolves to
+          # Premium for prod (main.bicep's default), which Azure rejects as an in-place
+          # upgrade attempt on the existing Standard namespace. Not a secret, just a SKU name.
+          SERVICE_BUS_SKU_OVERRIDE: Standard
