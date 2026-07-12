@@ -1,6 +1,6 @@
 # Online Bus Ticket Booking System
 
-**Live app:** [https://app-busbooking-prod-wa7imf.azurewebsites.net/](https://app-busbooking-prod-wa7imf.azurewebsites.net/)  
+**Live app:** [https://app-busbooking-prod-lbutwu.azurewebsites.net/](https://app-busbooking-prod-lbutwu.azurewebsites.net/)  
 **Demo video:** [Watch on Loom](https://www.loom.com/share/66fc48d0514f4eae8e50b8480e09e738)
 
 ---
@@ -240,7 +240,7 @@ OpenAPI spec: `/openapi/v1.json`
 | Environment | URL |
 |-------------|-----|
 | dev | `https://app-busbooking-dev-paqrwn.azurewebsites.net` |
-| prod | `https://app-busbooking-prod-wa7imf.azurewebsites.net` |
+| prod | `https://app-busbooking-prod-lbutwu.azurewebsites.net` |
 
 ---
 
@@ -1153,7 +1153,7 @@ The Application layer reports 28.7% because the cobertura file covers the full A
 
 ## Day 32 — Ship + demo + postmortem
 
-**Deployed:** [https://app-busbooking-prod-wa7imf.azurewebsites.net/](https://app-busbooking-prod-wa7imf.azurewebsites.net/)  
+**Deployed:** [https://app-busbooking-prod-lbutwu.azurewebsites.net/](https://app-busbooking-prod-lbutwu.azurewebsites.net/)  
 **Demo video:** [Watch on Loom](https://www.loom.com/share/66fc48d0514f4eae8e50b8480e09e738)
 
 ---
