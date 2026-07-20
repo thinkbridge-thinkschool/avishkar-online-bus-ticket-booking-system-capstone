@@ -52,8 +52,11 @@ param aadClientId string
 @allowed(['B1', 'B2', 'P1v3', 'P2v3'])
 param appServicePlanSku string = 'B1'
 
-@description('Resource ID of the App Service delegation subnet — used for VNet integration (Day 27).')
-param apiSubnetId string
+@description('Enable regional VNet integration, routing outbound traffic to the VNet. Off by default — only needed when enablePrivateNetworking is true elsewhere, so App Service can reach private-endpoint-only resources.')
+param enablePrivateNetworking bool = false
+
+@description('Resource ID of the App Service delegation subnet — required only when enablePrivateNetworking is true.')
+param apiSubnetId string = ''
 
 // ── Derived names ─────────────────────────────────────────────────────────────
 var suffix   = take(uniqueString(resourceGroup().id), 6)
@@ -72,7 +75,9 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   location: location
   properties: {
     sku: { name: 'PerGB2018' }
-    retentionInDays: environment == 'prod' ? 90 : 30
+    // 30 days (the minimum billable retention) in every environment — a longer
+    // window was costing prod extra retention-overage charges with no demo benefit.
+    retentionInDays: 30
     features: {
       enableLogAccessUsingOnlyResourcePermissions: true
     }
@@ -89,7 +94,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   properties: {
     Application_Type: 'web'
     WorkspaceResourceId: logAnalytics.id
-    RetentionInDays: environment == 'prod' ? 90 : 30
+    RetentionInDays: 30
     IngestionMode: 'LogAnalytics'
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
@@ -112,6 +117,13 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
 }
 
 // ── Web App ───────────────────────────────────────────────────────────────────
+// virtualNetworkSubnetId is only added to the properties object when private
+// networking is on — assigning it an empty string when off is invalid (Azure
+// tries to resolve '' as a subnet resource ID and fails), so it must be omitted
+// entirely rather than passed as a falsy value.
+var vnetIntegrationProperties = enablePrivateNetworking ? {
+  virtualNetworkSubnetId: apiSubnetId
+} : {}
 
 resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   name: siteName
@@ -122,19 +134,18 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   identity: {
     type: 'SystemAssigned'
   }
-  properties: {
+  properties: union({
     serverFarmId: appServicePlan.id
     httpsOnly: true
-    // Route all outbound traffic through the VNet so SQL traffic reaches the
-    // private endpoint NIC instead of traversing the public internet (Day 27).
-    virtualNetworkSubnetId: apiSubnetId
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|10.0'
       alwaysOn: true
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
-      vnetRouteAllEnabled: true
+      // Only meaningful with VNet integration; false is the correct/default
+      // no-op when enablePrivateNetworking is off.
+      vnetRouteAllEnabled: enablePrivateNetworking
       appSettings: [
         {
           name: 'ASPNETCORE_ENVIRONMENT'
@@ -184,7 +195,7 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
         }
       ]
     }
-  }
+  }, vnetIntegrationProperties)
   tags: {
     environment: environment
     app: appName

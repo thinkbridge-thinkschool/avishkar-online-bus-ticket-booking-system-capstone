@@ -46,11 +46,14 @@ param sqlAdminPrincipalId string
 @description('UPN of the Azure AD user to set as SQL Azure AD admin.')
 param sqlAdminPrincipalName string
 
-@description('Resource ID of the private endpoints subnet — used for private endpoint NIC placement.')
-param epSubnetId string
+@description('Enable private endpoint + private DNS zone for SQL. Off by default — public access (already Enabled below) plus Entra-only auth is sufficient for a lean/demo deployment. Turn on for network-isolated production.')
+param enablePrivateNetworking bool = false
 
-@description('VNet resource ID — used to link the private DNS zone.')
-param vnetId string
+@description('Resource ID of the private endpoints subnet — required only when enablePrivateNetworking is true.')
+param epSubnetId string = ''
+
+@description('VNet resource ID — required only when enablePrivateNetworking is true.')
+param vnetId string = ''
 
 // ── Derived names ─────────────────────────────────────────────────────────────
 var suffix     = take(uniqueString(resourceGroup().id), 6)
@@ -135,11 +138,11 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-11-01-preview' = {
   }
 }
 
-// ── Private Endpoint ──────────────────────────────────────────────────────────
+// ── Private Endpoint (opt-in via enablePrivateNetworking) ────────────────────
 // Places a NIC in snet-endpoints. App Service (via VNet integration on snet-api)
 // routes SQL traffic through this endpoint instead of the public internet.
 
-resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = if (enablePrivateNetworking) {
   name: 'pe-${serverName}'
   location: location
   properties: {
@@ -167,7 +170,7 @@ resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
 // Without this, DNS still returns the public IP even when a private endpoint
 // exists, and connections bypass the private endpoint.
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (enablePrivateNetworking) {
   name: 'privatelink${az.environment().suffixes.sqlServerHostname}'
   location: 'global'
   tags: {
@@ -176,7 +179,7 @@ resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   }
 }
 
-resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (enablePrivateNetworking) {
   parent: privateDnsZone
   name: 'link-${appName}-${environment}'
   location: 'global'
@@ -188,7 +191,7 @@ resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
   }
 }
 
-resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
+resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = if (enablePrivateNetworking) {
   parent: sqlPrivateEndpoint
   name: 'dzg-sql'
   properties: {

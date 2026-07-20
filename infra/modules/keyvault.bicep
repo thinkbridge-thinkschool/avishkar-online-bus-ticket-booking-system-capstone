@@ -30,11 +30,14 @@ param appInsightsConnectionString string
 @description('Principal ID of the App Service system-assigned managed identity.')
 param webAppPrincipalId string
 
-@description('Resource ID of the private endpoints subnet — used for private endpoint NIC placement.')
-param epSubnetId string
+@description('Enable private endpoint + private DNS zone for Key Vault. Off by default — public access + Azure RBAC auth is sufficient for a lean/demo deployment. Turn on for network-isolated production.')
+param enablePrivateNetworking bool = false
 
-@description('VNet resource ID — used to link the private DNS zone.')
-param vnetId string
+@description('Resource ID of the private endpoints subnet — required only when enablePrivateNetworking is true.')
+param epSubnetId string = ''
+
+@description('VNet resource ID — required only when enablePrivateNetworking is true.')
+param vnetId string = ''
 
 // ── Derived names ─────────────────────────────────────────────────────────────
 var suffix  = take(uniqueString(resourceGroup().id), 5)
@@ -58,9 +61,10 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
     enabledForTemplateDeployment: false
-    // Disable public internet access in prod — all traffic via private endpoint.
-    // Keep enabled in dev so azd provision (ARM deployment) can write secrets.
-    publicNetworkAccess: environment == 'prod' ? 'Disabled' : 'Enabled'
+    // Disabled only when private networking is on (all traffic then goes via the
+    // private endpoint). Otherwise enabled — Azure RBAC still gates who can read
+    // secrets, and azd provision needs public access to write them either way.
+    publicNetworkAccess: enablePrivateNetworking ? 'Disabled' : 'Enabled'
   }
   tags: {
     environment: environment
@@ -96,11 +100,11 @@ resource kvSecretsUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 }
 
-// ── Private Endpoint ──────────────────────────────────────────────────────────
+// ── Private Endpoint (opt-in via enablePrivateNetworking) ────────────────────
 // App Service (via VNet integration) reaches Key Vault through the private NIC
 // instead of over the public internet. Group ID for Key Vault is 'vault'.
 
-resource kvPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+resource kvPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = if (enablePrivateNetworking) {
   name: 'pe-${kvName}'
   location: location
   properties: {
@@ -128,7 +132,7 @@ resource kvPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
 // different from the public FQDN suffix (.vault.azure.net). Both are required:
 // the public CNAME redirects to the private FQDN at resolution time.
 #disable-next-line no-hardcoded-env-urls
-resource kvPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource kvPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (enablePrivateNetworking) {
   name: 'privatelink.vaultcore.azure.net'
   location: 'global'
   tags: {
@@ -137,7 +141,7 @@ resource kvPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   }
 }
 
-resource kvDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource kvDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (enablePrivateNetworking) {
   parent: kvPrivateDnsZone
   name: 'link-kv-${appName}-${environment}'
   location: 'global'
@@ -149,7 +153,7 @@ resource kvDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@20
   }
 }
 
-resource kvDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
+resource kvDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = if (enablePrivateNetworking) {
   parent: kvPrivateEndpoint
   name: 'dzg-kv'
   properties: {
